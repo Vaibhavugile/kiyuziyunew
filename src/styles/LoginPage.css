@@ -1,0 +1,268 @@
+/* Overall Page Layout - New Container */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.login-page-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    background-color: #f0f2f5;
+}
+
+/* Image/Info Section - The left side */
+.login-image-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(to bottom, #4a69bd, #5499c7);
+    color: #fff;
+    text-align: center;
+    padding: 2rem;
+}
+
+.login-image-section .logo {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.login-image-section .welcome-text {
+    font-size: 1.2rem;
+    max-width: 400px;
+    line-height: 1.6;
+}
+
+/* Form Section - The right side */
+.login-form-section {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    background-color: #fff;
+}
+
+/* Login/Signup Box */
+.login-container {
+    background-color: #fff;
+    padding: 2.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    width: 100%;
+    max-width: 450px;
+}
+
+/* Headings */
+h1 {
+    font-size: 2rem;
+    color: #333;
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+h2 {
+    font-size: 1.5rem;
+    color: #555;
+    text-align: left;
+    margin-bottom: 1.5rem;
+}
+
+/* Form Groups */
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 0.9rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    transition: border-color 0.3s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    border-color: #4a69bd;
+    outline: none;
+}
+
+/* Button */
+.login-button {
+    width: 100%;
+    padding: 1rem;
+    background-color: #4a69bd;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.login-button:hover {
+    background-color: #3b5085;
+}
+
+/* Messages */
+.error-message, .info-message {
+    font-size: 0.9rem;
+    padding: 0.8rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.error-message {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.info-message {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+/* Toggle Text */
+.toggle-text {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.toggle-text span {
+    color: #4a69bd;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .login-page-container {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .login-image-section {
+        padding: 1.5rem;
+        min-height: 200px;
+    }
+
+    .login-image-section .logo {
+        font-size: 2rem;
+    }
+
+    .login-image-section .welcome-text {
+        font-size: 1rem;
+        max-width: none;
+    }
+
+    .login-form-section {
+        padding: 1.5rem;
+    }
+}
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d7d7d7;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.hint {
+  display: block;
+  margin-top: 6px;
+  color: #666;
+  font-size: 12px;
+}
+/* =========================================================
+   Dropbox-like Styles for Form Elements
+   (Applied to your existing class names)
+   ========================================================= */
+
+/* --- Form Group Container --- */
+.form-group {
+    /* Use your existing styles for margin, but ensure a clear block */
+    margin-bottom: 20px; 
+    position: relative; /* Essential for positioning hint/error messages */
+}
+
+/* --- Label Style --- */
+.form-group label {
+    display: block;
+    font-size: 0.9rem;
+    color: #6a6a6a; /* Soft gray for the label */
+    margin-bottom: 8px; /* Space between label and input */
+    font-weight: 500; /* Slightly bold label */
+}
+
+/* --- The Main Input Element (.input) --- */
+.input {
+    /* Box Model & Layout */
+    width: 100%;
+    padding: 12px 14px; /* Generous padding */
+    box-sizing: border-box; /* Include padding/border in the element's total width */
+
+    /* Typography & Color */
+    font-size: 16px; /* Important for mobile readability and avoiding iOS zoom */
+    color: #333333; /* Dark text */
+    
+    /* Border & Aesthetics (The Dropbox Look) */
+    border: 1px solid #dddddd; /* Light, subtle border */
+    border-radius: 8px; /* Gently rounded corners */
+    transition: 
+        border-color 0.2s ease, 
+        box-shadow 0.2s ease, 
+        background-color 0.2s ease;
+}
+
+/* --- Focus State (The subtle blue glow) --- */
+.input:focus {
+    outline: none; /* Remove default browser focus ring */
+    border-color: #0070e0; /* Dropbox-blue border on focus */
+    box-shadow: 0 0 0 3px rgba(0, 112, 224, 0.15); /* Light blue glow/shadow */
+    background-color: #ffffff; /* Ensure white background */
+}
+
+/* --- Placeholder Text Color --- */
+.input::placeholder {
+    color: #aaaaaa;
+    opacity: 1; /* Ensures color applies correctly in Firefox */
+}
+
+/* --- Disabled State --- */
+.input:disabled {
+    background-color: #f7f7f7;
+    cursor: not-allowed;
+    border-color: #eeeeee;
+}
+
+/* --- Hint/Small Text (Selected Code) --- */
+.form-group .hint {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.85rem;
+    color: #999999;
+}
+.form-group .hint strong {
+    color: #333333; /* Make the actual code stand out */
+    font-weight: 600;
+}

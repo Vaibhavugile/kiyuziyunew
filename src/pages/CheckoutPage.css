@@ -1,0 +1,325 @@
+/* src/pages/CheckoutPage.css - MODERN REDESIGN */
+
+/* --- CSS Variables for Modern Design Consistency --- */
+:root {
+  --primary-color: #3498db; /* A vibrant blue for branding */
+  --secondary-color: #2ecc71; /* A friendly green for accents/buttons */
+  --text-dark: #2c3e50;
+  --text-light: #7f8c8d;
+  --bg-page: #f4f7f6; /* Very light, off-white background */
+  --light-gray: #ecf0f1;
+  --border-color: #e0e0e0;
+  --card-bg: #ffffff;
+  --shadow-base: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-hover: 0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
+
+body {
+    background-color: var(--bg-page);
+    font-family: 'Inter', sans-serif; /* Consistent font */
+}
+
+/* --- Main Container & Layout --- */
+.checkout-page-container {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 20px;
+  color: var(--text-dark);
+}
+
+.checkout-page-container h2 {
+  text-align: center;
+  margin-bottom: 30px;
+  color: var(--primary-color);
+  font-size: 2.8em;
+  font-weight: 700;
+}
+
+.checkout-content {
+  display: flex;
+  justify-content: space-between;
+  gap: 30px;
+}
+.auto-fix-cart-btn {
+  margin-top: 12px;
+  padding: 10px 16px;
+  background-color: #000;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.auto-fix-cart-btn:hover {
+  background-color: #222;
+}
+
+/* --- Section Styling (Cards) --- */
+.billing-section,
+.order-details {
+  flex: 1;
+  background-color: var(--card-bg);
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-base);
+  min-width: 300px; /* Ensures they don't get too small */
+}
+
+.billing-section h3,
+.order-details h3 {
+  color: var(--text-dark);
+  font-size: 1.8em;
+  font-weight: 600;
+  margin-bottom: 25px;
+  border-bottom: 2px solid var(--light-gray);
+  padding-bottom: 15px;
+}
+
+
+/* --- Billing & Shipping Form Styling --- */
+.billing-section form {
+  display: flex;
+  flex-direction: column;
+  /* Reduced gap slightly, or rely on .form-field-group for spacing */
+  gap: 15px; 
+}
+
+/* New: Individual form field group for better structure */
+.form-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px; /* Gap between label (if present) and input */
+}
+
+/* New: Style for labels (if used) */
+.form-field-group label {
+    font-size: 0.9em;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 3px;
+}
+
+.billing-section input,
+.billing-section textarea {
+  width: 100%;
+  padding: 15px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 1em;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  /* New: Improved input text color consistency */
+  color: var(--text-dark);
+}
+
+.billing-section input::placeholder,
+.billing-section textarea::placeholder {
+    color: var(--text-light);
+    opacity: 0.8;
+}
+
+.billing-section input:focus,
+.billing-section textarea:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+  outline: none;
+}
+
+.address-fields {
+  /* This is the grid container for address line, city, state, etc. */
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+/* Make address fields single column on smaller screens */
+@media (max-width: 600px) {
+    .address-fields {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* --- Place Order Button --- */
+.checkout-btn {
+  padding: 15px 20px;
+  background-color: var(--primary-color);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.2em;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.2s, transform 0.1s;
+  text-align: center;
+}
+
+.checkout-btn:hover:not(:disabled) {
+  background-color: #2980b9; /* Darker primary color */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.checkout-btn:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}
+
+/* --- Cart/Order Items List --- */
+.cart-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding-right: 15px; /* Spacing before summary */
+  max-height: 400px; /* Fixed height for scrolling */
+  overflow-y: auto;
+}
+
+.cart-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.cart-item:last-child {
+  border-bottom: none;
+}
+
+.cart-item-image-wrapper {
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--light-gray);
+}
+
+.cart-item-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cart-item-details {
+  flex-grow: 1;
+}
+
+.cart-item-name {
+  font-size: 1em; 
+  font-weight: 600;
+  color: var(--text-dark);
+  margin: 0;
+}
+
+.cart-item-code,
+.cart-item-quantity,
+.cart-item-price {
+  margin: 2px 0 0;
+  color: var(--text-light);
+  font-size: 0.9em;
+}
+
+/* --- Cart/Order Total Section --- */
+
+/* Base style for all total rows */
+.cart-total-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.1em; 
+  font-weight: 500;
+  margin-top: 10px;
+  padding-top: 10px;
+  color: var(--text-dark);
+}
+
+/* Separator for the final total */
+.cart-total-section.total-final {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px solid var(--light-gray);
+  font-size: 1.6em; /* Larger size for final total */
+  color: var(--secondary-color); /* Highlight final price */
+  font-weight: 700;
+}
+
+.cart-total-section span {
+    font-weight: 700;
+}
+
+/* --- Error/Empty States --- */
+.error-message {
+  color: #c0392b;
+  background-color: #fcebeb;
+  border: 1px solid #e74c3c;
+  padding: 15px;
+  margin-bottom: 20px;
+  text-align: center;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.empty-cart-message {
+  text-align: center;
+  font-size: 1.4em;
+  color: var(--text-light);
+  margin-top: 50px;
+  padding: 50px;
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: var(--shadow-base);
+}
+
+
+/* --- Mobile Responsiveness (Stack columns) --- */
+@media (max-width: 991px) {
+  .checkout-content {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .checkout-page-container {
+      margin: 0;
+      padding: 0;
+  }
+
+  .billing-section,
+  .order-details {
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 20px;
+  }
+}
+
+/* Smaller mobile screens */
+@media (max-width: 480px) {
+    .cart-item {
+        /* Reduce gap to save space */
+        gap: 10px;
+    }
+    .cart-item-image-wrapper {
+        width: 50px;
+        height: 50px;
+    }
+    .cart-item-name {
+        font-size: 0.9em;
+    }
+}
+.checkout-page-container pre.error-message /* NEW: applies to <pre class="error-message"> */
+{
+  color: #c0392b;
+  background-color: #fcebeb;
+  border: 1px solid #e74c3c;
+  padding: 15px;
+  margin-bottom: 20px;
+  text-align: left; /* Change to 'left' for better readability of multi-line stock errors */
+  border-radius: 8px;
+  font-weight: 500;
+  white-space: pre-wrap; /* Optional: ensures long lines wrap correctly */
+  font-family: inherit; /* Ensures it uses the page font, not monospace */
+}

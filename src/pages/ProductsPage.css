@@ -1,0 +1,463 @@
+/* src/pages/ProductsPage.css - FINAL INTEGRATED HEADER WITH ICON NEXT TO TITLE */
+
+/* --- CSS Variables for Modern Design --- */
+:root {
+  --primary-color: #3498db; 
+  --secondary-color: #2ecc71; 
+  --text-dark: #2c3e50;
+  --text-light: #7f8c8d;
+  --bg-page: #f4f7f6; 
+  --light-gray: #ecf0f1;
+  --border-color: #e0e0e0;
+  --card-bg: #ffffff;
+  --shadow-base: 0 6px 20px rgba(0, 0, 0, 0.08);
+  --shadow-hover: 0 12px 25px rgba(0, 0, 0, 0.15);
+  --transition-fast: all 0.2s ease-out; 
+  --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+body {
+  background-color: var(--bg-page);
+  font-family: 'Inter', sans-serif; 
+}
+
+/* --- Main Container (Desktop) --- */
+.products-page-container {
+  max-width: 1500px;
+  margin: 40px auto;
+  padding: 30px;
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: var(--shadow-base);
+}
+
+/* --- HEADER & BACK ICON (DESKTOP) --- */
+.page-header-container {
+    margin-bottom: 50px; 
+    padding-bottom: 10px;
+}
+
+/* Wrapper is invisible on desktop */
+.title-and-toggle-wrapper {
+    display: block; 
+}
+
+/* New Icon-Only Back Button Styles */
+.back-to-collections-icon {
+    /* Base style: Small, circular, unobtrusive */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    color: var(--text-light); /* Subtle icon color */
+    font-size: 1.2em;
+    background-color: var(--light-gray);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    text-decoration: none;
+    cursor: pointer;
+    margin-bottom: 15px;
+    transition: var(--transition-smooth);
+}
+
+/* Animated Hover Effect */
+.back-to-collections-icon:hover {
+    color: var(--card-bg); /* Icon turns white */
+    background-color: var(--primary-color); /* Background changes to primary color */
+    transform: scale(1.1); /* Animated growth (the "ping") */
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.5); /* Stronger shadow with blue glow */
+}
+
+.back-to-collections-icon:active {
+    transform: scale(0.95); /* Little squash effect on click */
+}
+
+.back-to-collections {
+  display: none !important;
+}
+
+
+/* --- HERO TITLE STYLE (DESKTOP) --- */
+.page-title-modern {
+    text-align: left;
+    font-size: 4em; 
+    font-weight: 900; 
+    color: var(--text-dark);
+    margin: 0;
+    padding: 0;
+    display: inline-block;
+    transition: var(--transition-smooth);
+    letter-spacing: -1px; 
+}
+
+.page-title-modern:hover {
+    color: var(--primary-color); 
+}
+
+/* Hide mobile toggle on desktop */
+.mobile-controls-toggle {
+    display: none; 
+}
+
+/* The redundant header from previous steps is now gone */
+.product-controls-header {
+    display: none;
+}
+
+
+/* --- Controls and Filter Area --- */
+.product-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 20px;
+  padding: 20px;
+  margin-bottom: 40px;
+  background-color: var(--light-gray);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: max-height 0.4s ease-in-out, opacity 0.3s ease-out, padding 0.3s ease-out;
+}
+
+.filter-group, .search-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-dark);
+  font-weight: 600;
+  font-size: 1.05em;
+  flex-shrink: 0;
+}
+
+select, input[type="text"] {
+  padding: 12px 18px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  font-size: 1em;
+  min-width: 200px; 
+  background-color: var(--card-bg);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+
+/* --- PRODUCTS GRID --- */
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* Default to 4 columns on desktop */
+  gap: 20px; 
+  padding-top: 5px; 
+}
+
+/* --- NEW LOADING & PAGINATION STYLES --- */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    text-align: center;
+}
+
+.loading-spinner {
+    font-size: 3em;
+    color: var(--primary-color);
+    animation: spin 1.5s linear infinite;
+    margin-bottom: 20px;
+}
+
+.load-more-container {
+    text-align: center;
+    padding: 30px 0 50px 0;
+}
+
+.load-more-btn {
+    background-color: var(--primary-color);
+    color: var(--card-bg);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 30px;
+    font-size: 1.1em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.load-more-btn:hover:not(:disabled) {
+    background-color: #2980b9; /* Darker blue */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.load-more-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.loading-spinner-small {
+    animation: spin 1s linear infinite;
+}
+
+.end-of-list-message {
+    text-align: center;
+    color: var(--text-light);
+    margin: 40px 0;
+    font-style: italic;
+}
+
+.no-products-message {
+    text-align: center;
+    padding: 50px 0;
+    color: var(--text-dark);
+    font-size: 1.2em;
+}
+
+/* --- Responsive Design (Mobile) --- */
+
+@media (max-width: 991px) {
+  .products-page-container {
+    margin: 0;
+    padding: 0;
+    box-shadow: none; 
+    border-radius: 0;
+  }
+  
+  /* --- STICKY PAGE HEADER (Back Icon and Title) --- */
+  .page-header-container {
+      position: sticky;
+      top: 0; 
+      z-index: 60; 
+      background-color: var(--card-bg);
+      padding: 15px 15px 10px 15px; 
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      margin-bottom: 0;
+      display: flex; /* Make container flex for layout */
+      flex-direction: column;
+  }
+  
+  /* Resetting desktop animations for mobile efficiency and consistency */
+  .back-to-collections-icon, .page-title-modern {
+      transform: none !important;
+  }
+
+  /* Back Icon on Mobile: It takes its place at the top */
+  .back-to-collections-icon {
+      margin-bottom: 5px; 
+      align-self: flex-start; /* Keeps it on the left */
+      width: 32px; /* Smaller icon on mobile */
+      height: 32px;
+      font-size: 1em;
+      background-color: transparent;
+      box-shadow: none;
+  }
+  
+  /* 1. WRAPPER FOR TITLE AND FILTER ICON */
+  .title-and-toggle-wrapper {
+    display: flex;
+    justify-content: space-between; 
+    align-items: center;
+    width: 100%;
+  }
+
+  /* 2. TITLE */
+  .page-title-modern {
+      font-size: 2em; 
+      font-weight: 700;
+      text-align: left;
+      letter-spacing: 0;
+      color: var(--text-dark);
+      margin: 0; 
+  }
+
+  /* 3. MOBILE FILTER ICON TOGGLE */
+  .mobile-controls-toggle {
+      display: flex; 
+      align-items: center;
+      justify-content: center;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 1.2em;
+      width: 40px; 
+      height: 40px;
+      cursor: pointer;
+      transition: var(--transition-fast);
+      flex-shrink: 0; 
+  }
+  
+  /* --- COLLAPSIBLE CONTROLS BLOCK (Animation) --- */
+  .product-controls {
+    flex-direction: column;
+    align-items: stretch; 
+    gap: 15px; 
+    
+    /* Animation initial state: HIDDEN */
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    padding: 0 15px; 
+    margin-bottom: 0; 
+    background-color: var(--light-gray);
+    border-radius: 0;
+    box-shadow: none;
+    transition: max-height 0.4s ease-in-out, opacity 0.3s ease-out, padding 0.3s ease-out;
+  }
+  
+  .product-controls.open {
+    /* Animation open state: SLIDE DOWN */
+    max-height: 500px; 
+    opacity: 1;
+    padding: 15px 15px; 
+    margin-bottom: 10px; 
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .filter-group, .search-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    width: 100%; 
+  }
+  
+  select, input[type="text"] {
+    width: 100%;
+    min-width: unset;
+    box-sizing: border-box;
+  }
+  
+  /* Product Grid */
+  .products-grid {
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 8px; 
+    padding: 5px;
+  }
+}
+
+/* In ProductsPage.css */
+
+.download-btn {
+    background-color: #007bff; /* Use your brand color */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.download-btn:hover:not(:disabled) {
+    background-color: #0056b3;
+}
+
+.download-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+/* Infinite scroll loader */
+.infinite-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 0 40px;
+  color: #666;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* Spinner animation */
+.infinite-loader .spin {
+  animation: spin 0.9s linear infinite;
+  font-size: 18px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Progressive image wrapper */
+.progressive-img {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #f2f2f2;
+  overflow: hidden;
+}
+
+/* Low quality blurred image */
+.progressive-img .img-placeholder {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(14px);
+  transform: scale(1.1);
+}
+
+/* Full HD image */
+.progressive-img .img-full {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.progressive-img .img-full.visible {
+  opacity: 1;
+}
+.download-progress-card {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  max-width: 420px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background: #eef1f5;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4f46e5, #22c55e);
+  transition: width 0.25s ease;
+}
+
+.progress-meta {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #555;
+}
