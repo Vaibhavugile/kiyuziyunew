@@ -16,6 +16,8 @@ import OrderSuccessPage from './pages/OrderSuccessPage';
 import OrderHistoryPage from './pages/OrderHistoryPage'; // Import the new page
 import ReportPage from './pages/ReportPage';
 import TermsAndPolicies from './pages/TermsAndPolicies';
+import UserOrdersPage from './pages/UserOrdersPage';
+
 function App() {
   return (
     <AuthProvider>
@@ -33,6 +35,8 @@ function App() {
             <Route path="/order-history" element={<OrderHistoryPage />} /> {/* Add the new route here */}
             <Route path="/report" element={<ReportPage />} />
             <Route path="/terms" element={<TermsAndPolicies />} />
+            <Route path="/admin/users/:userId/orders" element={<UserOrdersPage />} />
+
           </Routes> 
           <Footer />
         </Router>

@@ -1,0 +1,321 @@
+/* =========================================================
+   SAAS USERS — PREMIUM ADMIN TABLE (ISOLATED)
+   ========================================================= */
+
+:root {
+  --su-bg: #ffffff;
+  --su-soft: #f9fafb;
+  --su-border: #e5e7eb;
+  --su-text: #111827;
+  --su-muted: #6b7280;
+
+  --su-primary: #2563eb;
+  --su-success: #16a34a;
+  --su-danger: #dc2626;
+
+  --su-radius: 14px;
+  --su-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+}
+
+/* =========================================================
+   SECTION
+   ========================================================= */
+
+.saas-users-section {
+  background: var(--su-bg);
+  padding: 28px;
+  border-radius: var(--su-radius);
+  box-shadow: var(--su-shadow);
+}
+
+.saas-users-title {
+  font-size: 1.9rem;
+  font-weight: 800;
+  margin-bottom: 18px;
+  color: var(--su-text);
+}
+
+/* =========================================================
+   ROLE METRICS
+   ========================================================= */
+
+.saas-users-role-metrics {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.saas-users-metric {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  background: var(--su-soft);
+  border: 1px solid var(--su-border);
+}
+
+.saas-users-metric--wholesaler {
+  color: #0f766e;
+}
+
+.saas-users-metric--retailer {
+  color: #be185d;
+}
+
+/* =========================================================
+   SEARCH & SORT
+   ========================================================= */
+
+.saas-users-search-bar,
+.saas-users-sort-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.saas-users-search-select,
+.saas-users-sort-select,
+.saas-users-search-input {
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--su-border);
+  background: #fff;
+  font-size: 0.95rem;
+}
+
+.saas-users-search-input {
+  flex: 1;
+  min-width: 260px;
+}
+
+.saas-users-sort-toggle {
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--su-border);
+  background: var(--su-soft);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.saas-users-sort-toggle:hover {
+  background: #eef2ff;
+}
+
+/* =========================================================
+   STATES
+   ========================================================= */
+
+.saas-users-loading,
+.saas-users-empty {
+  text-align: center;
+  padding: 40px;
+  color: var(--su-muted);
+  font-weight: 600;
+}
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+
+.saas-users-table-wrapper {
+  border: 1px solid var(--su-border);
+  border-radius: var(--su-radius);
+  overflow: hidden;
+}
+
+/* HEADER */
+.saas-users-table-header {
+  display: grid;
+  grid-template-columns:
+    1.4fr
+    1fr
+    1.2fr
+    2fr
+    1fr
+    0.8fr
+    1.3fr
+    1.2fr
+    1fr
+    1fr
+    1.8fr;
+  padding: 14px 18px;
+  background: var(--su-soft);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--su-border);
+  color: #374151;
+}
+
+/* BODY */
+.saas-users-table-body {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ROW */
+.saas-users-row {
+  display: grid;
+  grid-template-columns:
+    1.4fr
+    1fr
+    1.2fr
+    2fr
+    1fr
+    0.8fr
+    1.3fr
+    1.2fr
+    1fr
+    1fr
+    1.8fr;
+  padding: 16px 18px;
+  align-items: center;
+  border-bottom: 1px solid var(--su-border);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.saas-users-row:hover {
+  background: #f8fafc;
+}
+
+.saas-users-row:last-child {
+  border-bottom: none;
+}
+
+/* =========================================================
+   CELLS
+   ========================================================= */
+
+.saas-users-cell {
+  font-size: 0.95rem;
+  color: var(--su-text);
+  min-width: 0;
+}
+
+.saas-users-name {
+  font-weight: 700;
+}
+
+.saas-users-muted {
+  color: var(--su-muted);
+}
+
+.saas-users-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.saas-users-center {
+  text-align: center;
+}
+
+.saas-users-amount {
+  font-weight: 800;
+  color: #14532d;
+}
+
+.saas-users-profit {
+  font-weight: 800;
+}
+
+.saas-profit {
+  color: var(--su-success);
+}
+
+.saas-loss {
+  color: var(--su-danger);
+}
+
+/* =========================================================
+   ROLE BADGE
+   ========================================================= */
+
+.saas-role {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.saas-role--retailer {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.saas-role--wholesaler {
+  background: #ecfeff;
+  color: #0f766e;
+}
+
+/* =========================================================
+   ACTION BUTTONS
+   ========================================================= */
+
+.saas-users-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.saas-btn {
+  padding: 7px 12px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.saas-btn--primary {
+  background: var(--su-success);
+  color: #fff;
+}
+
+.saas-btn--info {
+  background: var(--su-primary);
+  color: #fff;
+}
+
+.saas-btn--danger {
+  background: var(--su-danger);
+  color: #fff;
+}
+
+.saas-btn:hover {
+  opacity: 0.9;
+}
+
+/* =========================================================
+   MOBILE — CARD LAYOUT
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .saas-users-table-header {
+    display: none;
+  }
+
+  .saas-users-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin: 14px;
+    border-radius: 16px;
+    box-shadow: var(--su-shadow);
+  }
+
+  .saas-users-cell {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .saas-users-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}

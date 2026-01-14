@@ -13,6 +13,7 @@
   --transition-speed: 0.3s;
 }
 
+
 body {
   font-family: 'Inter', sans-serif;
   line-height: 1.6;
@@ -145,6 +146,7 @@ body {
   color: var(--light-text-color);
   margin-top: 5px;
 }
+
 
 /* Buttons */
 button[type="submit"],
@@ -411,6 +413,17 @@ input[type=number] {
   background-color: var(--primary-color);
   color: white;
   transition: background-color 0.3s ease;
+}
+.user-action-buttons {
+  gap: 4px;
+}
+.user-table-header {
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+}
+
+.user-table-header .table-column {
+  color: #555;
 }
 
 .user-actions button:hover {
@@ -936,6 +949,13 @@ input[type=number] {
     background-color: var(--color-neutral-50); /* Light background for contrast */
     border-radius: 8px;
     border: 1px solid var(--color-gray-300);
+}
+.user-email,
+.user-mobile,
+.user-address,
+.user-last-order {
+  color: #6b7280;
+  font-size: 0.85rem;
 }
 
 .search-input {
@@ -1495,10 +1515,22 @@ input[type=number] {
 .user-table-header,
 .user-table-row {
     display: grid;
-    /* Adjust these fractions as needed to balance the space */
-    grid-template-columns: 1fr 1.5fr 1fr 1fr 1fr 100px 220px; 
+    grid-template-columns:
+        1.4fr   /* Name */
+        1fr     /* Last Login */
+        1.2fr   /* Mobile */
+        2fr     /* Address */
+        1fr     /* Last Order */
+        0.8fr   /* Orders */
+        1.2fr   /* Total Amount */
+        1fr     /* Net Profit 🔥 */
+        1fr     /* Created At */
+        0.9fr   /* Role */
+        1.6fr;  /* Actions */
+
     padding: 12px 15px;
     align-items: center;
+    column-gap: 12px;
 }
 
 /* ======================================================= */
@@ -1530,15 +1562,74 @@ input[type=number] {
 .user-table-row:hover {
     background-color: #f9f9f9;
 }
+.user-total-amount {
+  font-weight: 700;
+  color: #166534;
+  font-size: 0.95rem;
+}
+
+.user-net-profit {
+  font-weight: 800;
+  font-size: 1rem;
+  text-align: right;
+}
+
+.user-net-profit .profit {
+  color: #15803d;
+}
+
+.user-net-profit .loss {
+  color: #b91c1c;
+}
+
 
 .user-table-row:last-child {
     border-bottom: none;
 }
+.user-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.user-filters input,
+.user-filters select {
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9em;
+}
+.user-sort-bar {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0 20px;
+  align-items: center;
+}
+
+.sort-order-btn {
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  background: #f5f5f5;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.sort-order-btn:hover {
+  background: #eaeaea;
+}
+.user-table-row.clickable {
+  cursor: pointer;
+}
+
+.user-table-row.clickable:hover {
+  background-color: #eef6f6;
+}
 
 /* Styles for all data cells to handle overflow */
 .table-column {
-    display: flex;
-    align-items: center;
+    
     min-width: 0; 
 }
 
@@ -1550,6 +1641,30 @@ input[type=number] {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+.user-table-header .table-column {
+    white-space: nowrap;
+}
+.user-address {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-action-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+}
+.user-total-orders {
+    text-align: center;
+    font-weight: 600;
+}
+
+.user-total-amount {
+    font-weight: 700;
+    color: #1a7f37;
 }
 
 /* ======================================================= */
@@ -1640,6 +1755,10 @@ input[type=number] {
         display: block;
         padding: 5px 0;
     }
+    .user-table-header .table-column {
+    white-space: nowrap;
+}
+
     
     .user-table-row .table-column::before {
         font-weight: bold;
@@ -1651,12 +1770,20 @@ input[type=number] {
     
     /* Specific label overrides for better display */
     .user-name::before { content: "Name:"; }
-    .user-email::before { content: "Email:"; }
-    .user-mobile::before { content: "Mobile:"; } /* NEW */
-    .user-address::before { content: "Address:"; } /* NEW */
-    .user-created-at::before { content: "Created At:"; } /* NEW */
-    .user-role::before { content: "Role:"; }
-    .user-actions-cell::before { content: "Actions:"; margin-top: 10px;}
+.user-email::before { content: "Last Login:"; }
+.user-mobile::before { content: "Mobile:"; }
+.user-address::before { content: "Address:"; }
+.user-last-order::before { content: "Last Order:"; }
+.user-total-orders::before { content: "Orders:"; }
+.user-total-amount::before { content: "Total Amount:"; }
+.user-created-at::before { content: "Created At:"; }
+.user-role::before { content: "Role:"; }
+.user-actions-cell::before { content: "Actions:"; margin-top: 10px; }
+.user-net-profit::before { content: "Net Profit:"; }
+.user-total-amount::before { content: "Total Amount:"; }
+.user-net-profit::before { content: "Net Profit:"; }
+.user-created-at::before { content: "Created At:"; }
+
 
     .user-action-buttons {
         justify-content: flex-start;

@@ -1,0 +1,304 @@
+/* ---------------- ROOT ---------------- */
+.user-orders-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f6f8fb;
+  color: #1f2937;
+}
+
+/* ---------------- BACK BUTTON ---------------- */
+.back-btn {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.back-btn:hover {
+  text-decoration: underline;
+}
+
+/* ---------------- USER SUMMARY ---------------- */
+.user-summary-card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 28px;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+}
+
+.user-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.user-summary-header h2 {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.user-id {
+  font-size: 12px;
+  color: #6b7280;
+  background: #f1f5f9;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+/* INFO GRID */
+.user-summary-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.user-summary-info label {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.user-summary-info p {
+  font-weight: 600;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* STATS */
+.user-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 18px;
+}
+
+.user-stats div {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.user-stats span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.user-stats strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 18px;
+}
+
+/* ---------------- ORDERS LIST ---------------- */
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ---------------- ORDER CARD ---------------- */
+.order-card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 16px 20px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.order-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+}
+
+.order-card.expanded {
+  background: #fcfcfd;
+}
+
+/* ---------------- ORDER SUMMARY ---------------- */
+.order-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.order-summary-row h4 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+/* STATUS */
+.status {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.status.delivered {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status.cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* SUMMARY META */
+.order-summary-meta {
+  text-align: right;
+}
+
+.order-summary-meta span {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.order-summary-meta strong {
+  font-size: 16px;
+  display: block;
+  margin-top: 4px;
+}
+
+.order-amounts {
+  margin-top: 6px;
+}
+
+.order-profit {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---------------- ORDER DETAILS ---------------- */
+.order-details {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* ITEMS */
+.order-items {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.order-item {
+  display: flex;
+  gap: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.order-item img {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+/* ITEM INFO */
+.item-info {
+  flex: 1;
+}
+
+.item-info strong {
+  font-size: 14px;
+  display: block;
+}
+
+.item-info span {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* ITEM META */
+.item-meta {
+  text-align: right;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ---------------- FOOTER TOTALS ---------------- */
+.order-footer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.order-footer div {
+  background: #f1f5f9;
+  border-radius: 12px;
+  padding: 14px;
+  text-align: center;
+}
+
+.order-footer span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.order-footer strong {
+  display: block;
+  font-size: 16px;
+  margin-top: 6px;
+}
+
+/* ---------------- PROFIT / LOSS ---------------- */
+.profit {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.loss {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+/* ---------------- LOADING ---------------- */
+.loading {
+  text-align: center;
+  padding: 40px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* ---------------- MOBILE ---------------- */
+@media (max-width: 768px) {
+  .order-summary-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .order-summary-meta {
+    text-align: left;
+  }
+
+  .order-item {
+    flex-direction: column;
+  }
+
+  .item-meta {
+    text-align: left;
+  }
+}

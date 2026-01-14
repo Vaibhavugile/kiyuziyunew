@@ -23,10 +23,12 @@ import {
 import CollectionCard from '../components/CollectionCard';
 import ProductCard from '../components/ProductCard';
 import OrderDetailsModal from '../components/OrderDetailsModal';
-import { getPriceForQuantity, getCartItemId,useCart,createStablePricingId } from '../components/CartContext';
+import { getPriceForQuantity, getCartItemId, useCart, createStablePricingId } from '../components/CartContext';
 import './AdminPage.css';
+import './SaasUsers.css';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import { useNavigate } from 'react-router-dom';
 
 // Low stock threshold constant
 const LOW_STOCK_THRESHOLD = 10;
@@ -58,6 +60,7 @@ const AdminPage = () => {
     retail: [],
     wholesale: [],
   });
+  const navigate = useNavigate();
 
   // State for Products
   const [selectedSubcollectionId, setSelectedSubcollectionId] = useState('');
@@ -71,6 +74,7 @@ const AdminPage = () => {
   const [showProductForm, setShowProductForm] = useState(false);
   const [selectedSubcollectionData, setSelectedSubcollectionData] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [userOrderStats, setUserOrderStats] = useState({});
 
   // New state for multi-photo product upload
   const [newProducts, setNewProducts] = useState([]);
@@ -87,8 +91,8 @@ const AdminPage = () => {
   const [isOrderLoading, setIsOrderLoading] = useState(false);
   const [lowStockProducts, setLowStockProducts] = useState([]);
   const [isLowStockLoading, setIsLowStockLoading] = useState(false);
-const [trashProgress, setTrashProgress] = useState(0);
-const [trashRunning, setTrashRunning] = useState(false);
+  const [trashProgress, setTrashProgress] = useState(0);
+  const [trashRunning, setTrashRunning] = useState(false);
 
   // States for modal display
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -103,7 +107,7 @@ const [trashRunning, setTrashRunning] = useState(false);
   // New states for User Management
   const [users, setUsers] = useState([]);
   const [isUserLoading, setIsUserLoading] = useState(false);
-const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // NEW: State for search and filter
   const [productSearchTerm, setProductSearchTerm] = useState('');
@@ -115,6 +119,27 @@ const [searchTerm, setSearchTerm] = useState('');
   const [isReportsLoading, setIsReportsLoading] = useState(false);
   const [productReports, setProductReports] = useState([]);
 
+
+  const [userFilters, setUserFilters] = useState({
+    name: '',
+    mobile: '',
+    address: '',
+    role: '',
+    minOrders: '',
+    maxOrders: '',
+    minAmount: '',
+    maxAmount: '',
+    lastOrderFrom: '',
+    lastOrderTo: '',
+    createdFrom: '',
+    createdTo: '',
+  });
+  const handleUserFilterChange = (key, value) => {
+    setUserFilters(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
 
   // State for Offline Billing
   const [offlineCollections, setOfflineCollections] = useState([]);
@@ -128,8 +153,13 @@ const [searchTerm, setSearchTerm] = useState('');
   const [isOfflineProductsLoading, setIsOfflineProductsLoading] = useState(false);
   const [offlineSubtotal, setOfflineSubtotal] = useState(0);
   const [pricedOfflineCart, setPricedOfflineCart] = useState({});
+  const [userSearchColumn, setUserSearchColumn] = useState('name');
+  const [userSearchValue, setUserSearchValue] = useState('');
+  const [userSortField, setUserSortField] = useState('createdAt');
+  const [userSortOrder, setUserSortOrder] = useState('desc'); // asc | desc
+
   // Add this line with your other useState calls at the top of the component:
-const [offlineSelections, setOfflineSelections] = useState({});
+  const [offlineSelections, setOfflineSelections] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   // Add this line to your other useState declarations
   const [editedTotal, setEditedTotal] = useState('');
@@ -138,8 +168,8 @@ const [offlineSelections, setOfflineSelections] = useState({});
   const [completedCrop, setCompletedCrop] = useState(null);
   const imgRef = useRef(null);
   const [sortedDateKeys, setSortedDateKeys] = useState([]);
-   const [modalImage, setModalImage] = useState(null);
- const openImageModal = (imageUrl) => {
+  const [modalImage, setModalImage] = useState(null);
+  const openImageModal = (imageUrl) => {
     if (imageUrl) {
       setModalImage(imageUrl);
     }
@@ -151,29 +181,74 @@ const [offlineSelections, setOfflineSelections] = useState({});
   };
 
   const formatOrderDate = (timestamp) => {
+    if (!timestamp) return 'N/A';
+
+    let orderDate;
+
+    // 🔥 SAFE conversion
+    if (typeof timestamp.toDate === 'function') {
+      orderDate = timestamp.toDate(); // Firestore Timestamp
+    } else if (timestamp instanceof Date) {
+      orderDate = timestamp; // JS Date
+    } else {
+      orderDate = new Date(timestamp); // string / number fallback
+    }
+
+    if (isNaN(orderDate.getTime())) return 'N/A';
+
     const today = new Date();
-    const yesterday = new Date(today);
+    const yesterday = new Date();
     yesterday.setDate(today.getDate() - 1);
 
-    const orderDate = timestamp.toDate();
-
-    // Normalize dates to remove time part for comparison
-    const orderDay = new Date(orderDate.getFullYear(), orderDate.getMonth(), orderDate.getDate());
-    const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const yesterdayDay = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+    // Normalize dates (strip time)
+    const orderDay = new Date(
+      orderDate.getFullYear(),
+      orderDate.getMonth(),
+      orderDate.getDate()
+    );
+    const todayDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    const yesterdayDay = new Date(
+      yesterday.getFullYear(),
+      yesterday.getMonth(),
+      yesterday.getDate()
+    );
 
     if (orderDay.getTime() === todayDay.getTime()) {
-      return "Today";
+      return 'Today';
     }
+
     if (orderDay.getTime() === yesterdayDay.getTime()) {
-      return "Yesterday";
+      return 'Yesterday';
     }
+
     return orderDate.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
     });
   };
+  const getSafeDate = (timestamp) => {
+    if (!timestamp) return null;
+
+    // Firestore Timestamp
+    if (typeof timestamp.toDate === 'function') {
+      return timestamp.toDate();
+    }
+
+    // JS Date
+    if (timestamp instanceof Date) {
+      return timestamp;
+    }
+
+    // String / number fallback
+    const d = new Date(timestamp);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
 
   // Handlers for Tiered Pricing (now for Subcollections)
   const handleAddTier = (type) => {
@@ -185,96 +260,96 @@ const [offlineSelections, setOfflineSelections] = useState({});
   const onCropComplete = (crop) => {
     setCompletedCrop(crop);
   };
-const handleOfflineSelectionChange = (productId, variationObject) => {
+  const handleOfflineSelectionChange = (productId, variationObject) => {
     // This updates the selected variation for a specific product
     setOfflineSelections(prev => ({
-        ...prev,
-        [productId]: variationObject
+      ...prev,
+      [productId]: variationObject
     }));
-};
-// NOTE: You must have getCartItemId and getPriceForOfflineBilling (or similar) available in this file's scope.
+  };
+  // NOTE: You must have getCartItemId and getPriceForOfflineBilling (or similar) available in this file's scope.
 
-const handleOfflineAddToCart = (product, variation = null, incrementBy = 1) => {
-    
+  const handleOfflineAddToCart = (product, variation = null, incrementBy = 1) => {
+
     // 1. Determine the item's unique ID based on product and variation
     const itemToAdd = { ...product, variation: variation || product.variation };
     const cartItemId = getCartItemId(itemToAdd);
 
     // 2. Determine available stock for the selected variant
     // Use the stock from the passed variation object, or fallback to the product's base quantity
-    const availableStock = variation 
-        ? Number(variation.quantity) 
-        : (itemToAdd.variation ? Number(itemToAdd.variation.quantity) : Number(product.quantity || 0));
+    const availableStock = variation
+      ? Number(variation.quantity)
+      : (itemToAdd.variation ? Number(itemToAdd.variation.quantity) : Number(product.quantity || 0));
 
     const currentQuantityInCart = offlineCart[cartItemId]?.quantity || 0;
-    
+
     // 3. Stock Check: Prevent adding if the limit is reached
     if (currentQuantityInCart >= availableStock) {
-        console.warn(`Cannot add item: Max stock reached for ${product.productName} (${availableStock}).`);
-        // Optional: You could show a UI alert here
-        return; 
+      console.warn(`Cannot add item: Max stock reached for ${product.productName} (${availableStock}).`);
+      // Optional: You could show a UI alert here
+      return;
     }
 
     // 4. Update the cart state
     setOfflineCart(prevCart => {
-        const existingItem = prevCart[cartItemId];
+      const existingItem = prevCart[cartItemId];
 
-        // Item enrichment: Save the availableStock and the variation
-        const itemToSave = {
-            ...itemToAdd,
-            id: cartItemId, // Use the unique ID as the cart key
-            // You need a helper function to determine the price based on type/tiers
-            price: getPriceForOfflineBilling(itemToAdd, offlinePricingType), 
-            availableStock: availableStock, // Save the stock for cart controls
+      // Item enrichment: Save the availableStock and the variation
+      const itemToSave = {
+        ...itemToAdd,
+        id: cartItemId, // Use the unique ID as the cart key
+        // You need a helper function to determine the price based on type/tiers
+        price: getPriceForOfflineBilling(itemToAdd, offlinePricingType),
+        availableStock: availableStock, // Save the stock for cart controls
+      };
+
+      if (existingItem) {
+        // Increment logic
+        return {
+          ...prevCart,
+          [cartItemId]: {
+            ...existingItem,
+            quantity: existingItem.quantity + incrementBy,
+          }
         };
-
-        if (existingItem) {
-            // Increment logic
-            return {
-                ...prevCart,
-                [cartItemId]: {
-                    ...existingItem,
-                    quantity: existingItem.quantity + incrementBy,
-                }
-            };
-        } else {
-            // New item logic
-            return {
-                ...prevCart,
-                [cartItemId]: {
-                    ...itemToSave,
-                    quantity: 1, // Add one item
-                }
-            };
-        }
+      } else {
+        // New item logic
+        return {
+          ...prevCart,
+          [cartItemId]: {
+            ...itemToSave,
+            quantity: 1, // Add one item
+          }
+        };
+      }
     });
-};
-// --- NEW UTILITY FUNCTION for Offline Billing ---
-const getPriceForOfflineBilling = (item, offlinePricingType) => {
+  };
+  // --- NEW UTILITY FUNCTION for Offline Billing ---
+  const getPriceForOfflineBilling = (item, offlinePricingType) => {
     // 1. Determine the pricing tiers to use based on the selected type (retail/wholesale)
     // NOTE: This assumes the product object already has a structure like:
     // item.tieredPricing.wholesale and item.tieredPricing.retail, or that 
     // you are passing a pre-calculated tieredPricing prop/object if needed.
-    
+
     const productTiers = item.tieredPricing; // Assuming item has this structure
 
     if (!productTiers) {
-        // Fallback: Use base price from the product/variation if no tiers are available
-        return item.variation?.price || item.price || 0; 
+      // Fallback: Use base price from the product/variation if no tiers are available
+      return item.variation?.price || item.price || 0;
     }
 
     const tiers = offlinePricingType === 'wholesale'
-        ? productTiers.wholesale
-        : productTiers.retail;
+      ? productTiers.wholesale
+      : productTiers.retail;
 
     if (!tiers || tiers.length === 0) {
-        return item.variation?.price || item.price || 0;
+      return item.variation?.price || item.price || 0;
     }
 
     // 2. Use the smallest quantity tier price (since we are adding 1 at a time, we use the base price)
     // NOTE: In the offline selection panel, we only care about the base price for display.
     // The getPriceForQuantity function (imported from CartContext) should find the correct price.
-    
+
     // For simplicity in the selection panel, we usually display the base price (tier 1).
     // The lowest quantity tier is the one with the smallest min_quantity.
     const baseTier = [...tiers].sort((a, b) => a.min_quantity - b.min_quantity)[0];
@@ -282,10 +357,10 @@ const getPriceForOfflineBilling = (item, offlinePricingType) => {
     // For the cart, the price should be calculated for the *current* quantity (item.quantity).
     // Since this function is used when adding the item *to* the cart, and also when refreshing the price, 
     // we should usually just return the base price for the selection panel, or the price for quantity 1.
-    
+
     // Using quantity 1 to get the base price
     return getPriceForQuantity(tiers, 1) || baseTier.price || item.price || 0;
-};
+  };
   const handleRemoveTier = (type, index) => {
     setSubcollectionTieredPricing((prevPricing) => ({
       ...prevPricing,
@@ -343,6 +418,45 @@ const getPriceForOfflineBilling = (item, offlinePricingType) => {
     setShowOrderModal(false);
     setSelectedOrder(null);
   };
+  useEffect(() => {
+    const stats = {};
+
+    orders.forEach(order => {
+      const userId = order.userId;
+      if (!userId || !order.createdAt) return;
+
+      // 🚫 Ignore cancelled orders
+      if (order.status === 'Cancelled') return;
+
+      const orderDate = getSafeDate(order.createdAt);
+
+      const amount = Number(order.totalAmount) || 0;
+      const profit = Number(order.orderProfit) || 0; // 🔥 PRECOMPUTED
+
+      if (!stats[userId]) {
+        stats[userId] = {
+          lastOrderDate: orderDate,
+          totalOrders: 0,
+          lifetimeValue: 0,
+          lifetimeProfit: 0, // 🔥 ADD THIS
+        };
+      }
+
+      stats[userId].totalOrders += 1;
+      stats[userId].lifetimeValue += amount;
+      stats[userId].lifetimeProfit += profit;
+
+      if (orderDate > stats[userId].lastOrderDate) {
+        stats[userId].lastOrderDate = orderDate;
+      }
+    });
+
+    setUserOrderStats(stats);
+  }, [orders]);
+
+  useEffect(() => {
+    console.log('User Order Stats:', userOrderStats);
+  }, [userOrderStats]);
 
   const handleTierChange = (type, index, field, value) => {
     setSubcollectionTieredPricing((prevPricing) => {
@@ -494,7 +608,8 @@ const getPriceForOfflineBilling = (item, offlinePricingType) => {
       (order.billingInfo?.phoneNumber || '').toLowerCase().includes(searchTerm);
 
     // Date filter logic
-    const orderDate = order.createdAt?.toDate();
+    const orderDate = getSafeDate(order.createdAt);
+
     const isAfterStartDate = startDate ? orderDate >= new Date(startDate) : true;
     const isBeforeEndDate = endDate ? orderDate <= new Date(endDate) : true;
 
@@ -1091,73 +1206,73 @@ const getPriceForOfflineBilling = (item, offlinePricingType) => {
   };
 
   const startEditProduct = (product) => {
-  console.log("Starting edit for product:", product);
-  setEditingProduct(product);
-  setProductName(product.productName);
-  setProductCode(product.productCode);
+    console.log("Starting edit for product:", product);
+    setEditingProduct(product);
+    setProductName(product.productName);
+    setProductCode(product.productCode);
 
-  // CRITICAL FIX: Load variations or single quantity
-  if (product.variations && product.variations.length > 0) {
-    setProductVariations(product.variations); // Load existing variations
-    setProductQuantity(''); // Clear single quantity input
-  } else {
-    setProductVariations([]); // Clear variations state
-    setProductQuantity(product.quantity || ''); // Load single quantity (or empty if none)
-  }
-
-  setNewVariation({ color: '', size: '', quantity: '' }); // Clear the "Add Variation" inputs
-  // Note: Your original code uses product.images for setAdditionalImages, but product.image for the main image src. I'll maintain the existing logic for additional images below.
-  setAdditionalImages((product.images || []).map(url => ({ previewUrl: url }))); 
-  setShowProductForm(true);
-};
-  const handleUpdateProduct = async (e) => {
-  e.preventDefault();
-  setIsProductUploading(true);
-
-  try {
-    const productDocRef = doc(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products", editingProduct.id);
-
-    // Filter out existing images from new uploads to avoid re-uploading
-    const newImagesToUpload = additionalImages.filter(img => img.file);
-    const uploadedUrls = await Promise.all(
-      newImagesToUpload.map(img => uploadImageAndGetURL(img.file))
-    );
-
-    // Combine existing image URLs with the new ones
-    const existingUrls = additionalImages.filter(img => !img.file).map(img => img.previewUrl);
-    const allImageUrls = [...existingUrls, ...uploadedUrls];
-
-    // --- VARIATION LOGIC FIX: Determine final quantity and variations ---
-    let finalQuantity = 0;
-    let finalVariations = [];
-
-    if (productVariations.length > 0) {
-      finalVariations = productVariations.map(v => ({ color: v.color, size: v.size, quantity: Number(v.quantity) }));
-      finalQuantity = finalVariations.reduce((sum, v) => sum + v.quantity, 0);
+    // CRITICAL FIX: Load variations or single quantity
+    if (product.variations && product.variations.length > 0) {
+      setProductVariations(product.variations); // Load existing variations
+      setProductQuantity(''); // Clear single quantity input
     } else {
-      // If no variations are set, use the single quantity value
-      finalQuantity = Number(productQuantity);
+      setProductVariations([]); // Clear variations state
+      setProductQuantity(product.quantity || ''); // Load single quantity (or empty if none)
     }
-    // --- END VARIATION LOGIC FIX ---
 
-    const productData = {
-      productName: productName,
-      productCode: productCode,
-      quantity: finalQuantity, // Save the calculated total quantity
-      variations: finalVariations, // Save the variations array (will be empty if a single-quantity product)
-      images: allImageUrls,
-    };
+    setNewVariation({ color: '', size: '', quantity: '' }); // Clear the "Add Variation" inputs
+    // Note: Your original code uses product.images for setAdditionalImages, but product.image for the main image src. I'll maintain the existing logic for additional images below.
+    setAdditionalImages((product.images || []).map(url => ({ previewUrl: url })));
+    setShowProductForm(true);
+  };
+  const handleUpdateProduct = async (e) => {
+    e.preventDefault();
+    setIsProductUploading(true);
 
-    await updateDoc(productDocRef, productData);
-    fetchProducts();
-    resetProductForm();
-  } catch (err) {
-    console.error("Error updating product:", err);
-    alert("Failed to update product data.");
-  } finally {
-    setIsProductUploading(false);
-  }
-};
+    try {
+      const productDocRef = doc(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products", editingProduct.id);
+
+      // Filter out existing images from new uploads to avoid re-uploading
+      const newImagesToUpload = additionalImages.filter(img => img.file);
+      const uploadedUrls = await Promise.all(
+        newImagesToUpload.map(img => uploadImageAndGetURL(img.file))
+      );
+
+      // Combine existing image URLs with the new ones
+      const existingUrls = additionalImages.filter(img => !img.file).map(img => img.previewUrl);
+      const allImageUrls = [...existingUrls, ...uploadedUrls];
+
+      // --- VARIATION LOGIC FIX: Determine final quantity and variations ---
+      let finalQuantity = 0;
+      let finalVariations = [];
+
+      if (productVariations.length > 0) {
+        finalVariations = productVariations.map(v => ({ color: v.color, size: v.size, quantity: Number(v.quantity) }));
+        finalQuantity = finalVariations.reduce((sum, v) => sum + v.quantity, 0);
+      } else {
+        // If no variations are set, use the single quantity value
+        finalQuantity = Number(productQuantity);
+      }
+      // --- END VARIATION LOGIC FIX ---
+
+      const productData = {
+        productName: productName,
+        productCode: productCode,
+        quantity: finalQuantity, // Save the calculated total quantity
+        variations: finalVariations, // Save the variations array (will be empty if a single-quantity product)
+        images: allImageUrls,
+      };
+
+      await updateDoc(productDocRef, productData);
+      fetchProducts();
+      resetProductForm();
+    } catch (err) {
+      console.error("Error updating product:", err);
+      alert("Failed to update product data.");
+    } finally {
+      setIsProductUploading(false);
+    }
+  };
 
   const handleDeleteProduct = async (productId, imageUrl) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
@@ -1175,27 +1290,127 @@ const getPriceForOfflineBilling = (item, offlinePricingType) => {
       }
     }
   };
+  const filteredAndSortedUsers = [...users]
 
-   const filteredUsers = users.filter(user => {
-        const term = searchTerm.toLowerCase();
-        // Check name, mobile, email, and role for the search term
-        return (
-            user.name?.toLowerCase().includes(term) ||
-            user.mobile?.includes(term) ||
-            user.email?.toLowerCase().includes(term) ||
-            user.role?.toLowerCase().includes(term)
-        );
-    });
+  /* =========================
+     🔍 FILTER
+     ========================= */
+  .filter((user) => {
+    const value = userSearchValue.toLowerCase().trim();
+    if (!value) return true;
+
+    const stats = userOrderStats[user.id] || {};
+
+    switch (userSearchColumn) {
+      case 'name':
+        return user.name?.toLowerCase().includes(value);
+
+      case 'mobile':
+        return user.mobile?.toLowerCase().includes(value);
+
+      case 'address':
+        return user.address?.toLowerCase().includes(value);
+
+      case 'role':
+        return user.role?.toLowerCase().includes(value);
+
+      case 'lastLogin':
+        return formatDate(user.lastLogin)
+          ?.toLowerCase()
+          .includes(value);
+
+      case 'lastOrder':
+        return formatDate(stats.lastOrderDate)
+          ?.toLowerCase()
+          .includes(value);
+
+      case 'orders':
+        return String(stats.totalOrders || 0).includes(value);
+
+      case 'amount':
+        return String(stats.lifetimeValue || 0).includes(value);
+
+      /* 🔥 ADD PROFIT FILTER */
+      case 'profit':
+        return String(stats.lifetimeProfit || 0).includes(value);
+
+      case 'createdAt':
+        return formatDate(user.createdAt)
+          ?.toLowerCase()
+          .includes(value);
+
+      default:
+        return true;
+    }
+  })
+
+  /* =========================
+     🔃 SORT
+     ========================= */
+  .sort((a, b) => {
+    const statsA = userOrderStats[a.id] || {};
+    const statsB = userOrderStats[b.id] || {};
+
+    let valA;
+    let valB;
+
+    switch (userSortField) {
+      case 'name':
+        valA = a.name || '';
+        valB = b.name || '';
+        break;
+
+      case 'orders':
+        valA = statsA.totalOrders || 0;
+        valB = statsB.totalOrders || 0;
+        break;
+
+      case 'amount':
+        valA = statsA.lifetimeValue || 0;
+        valB = statsB.lifetimeValue || 0;
+        break;
+
+      /* 🔥 ADD PROFIT SORT */
+      case 'profit':
+        valA = statsA.lifetimeProfit || 0;
+        valB = statsB.lifetimeProfit || 0;
+        break;
+
+      case 'lastLogin':
+        valA = a.lastLogin?.toDate?.() || new Date(0);
+        valB = b.lastLogin?.toDate?.() || new Date(0);
+        break;
+
+      case 'lastOrder':
+        valA = statsA.lastOrderDate?.toDate?.() || new Date(0);
+        valB = statsB.lastOrderDate?.toDate?.() || new Date(0);
+        break;
+
+      case 'createdAt':
+        valA = a.createdAt?.toDate?.() || new Date(0);
+        valB = b.createdAt?.toDate?.() || new Date(0);
+        break;
+
+      default:
+        return 0;
+    }
+
+    if (valA < valB) return userSortOrder === 'asc' ? -1 : 1;
+    if (valA > valB) return userSortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+
 
 
   // Corrected handleToggleHighlight function (located in AdminPage.jsx)
-// Assuming selectedMainCollectionId and selectedSubcollectionId are managed with useState
+  // Assuming selectedMainCollectionId and selectedSubcollectionId are managed with useState
 
-const handleToggleHighlight = async (productId, tagToToggle) => {
+  const handleToggleHighlight = async (productId, tagToToggle) => {
     // 🛑 CRITICAL FIX: Use the correct variable name: selectedMainCollectionId 🛑
     if (!productId || !selectedMainCollectionId || !selectedSubcollectionId) {
-        console.error("Cannot update highlight: Missing Collection or Product IDs.");
-        return;
+      console.error("Cannot update highlight: Missing Collection or Product IDs.");
+      return;
     }
 
     // 1. Find the product and determine the new tags array
@@ -1206,41 +1421,41 @@ const handleToggleHighlight = async (productId, tagToToggle) => {
     let newTags;
 
     if (currentTags.includes(tagToToggle)) {
-        // Tag exists: Remove it (Toggle OFF)
-        newTags = currentTags.filter(tag => tag !== tagToToggle);
+      // Tag exists: Remove it (Toggle OFF)
+      newTags = currentTags.filter(tag => tag !== tagToToggle);
     } else {
-        // Tag doesn't exist: Add it (Toggle ON)
-        newTags = [...currentTags, tagToToggle];
+      // Tag doesn't exist: Add it (Toggle ON)
+      newTags = [...currentTags, tagToToggle];
     }
 
     try {
-        // 2. Update Firestore using the corrected variable names
-        const productRef = doc(
-            db, 
-            'collections', 
-            selectedMainCollectionId, // ⬅️ CORRECTED NAME
-            'subcollections', 
-            selectedSubcollectionId, 
-            'products', 
-            productId
-        );
-        
-        await updateDoc(productRef, {
-            tags: newTags
-        });
+      // 2. Update Firestore using the corrected variable names
+      const productRef = doc(
+        db,
+        'collections',
+        selectedMainCollectionId, // ⬅️ CORRECTED NAME
+        'subcollections',
+        selectedSubcollectionId,
+        'products',
+        productId
+      );
 
-        // 3. Update local state to immediately refresh the UI
-        setProducts(prevProducts => prevProducts.map(p => 
-            p.id === productId ? { ...p, tags: newTags } : p
-        ));
+      await updateDoc(productRef, {
+        tags: newTags
+      });
 
-        console.log(`Product ${productId} toggled highlight: ${tagToToggle}. New tags: ${newTags.join(', ')}`);
+      // 3. Update local state to immediately refresh the UI
+      setProducts(prevProducts => prevProducts.map(p =>
+        p.id === productId ? { ...p, tags: newTags } : p
+      ));
+
+      console.log(`Product ${productId} toggled highlight: ${tagToToggle}. New tags: ${newTags.join(', ')}`);
 
     } catch (error) {
-        console.error("Error updating product highlight:", error);
-        alert("Failed to update product highlight status.");
+      console.error("Error updating product highlight:", error);
+      alert("Failed to update product highlight status.");
     }
-};
+  };
 
 
 
@@ -1467,7 +1682,7 @@ const handleToggleHighlight = async (productId, tagToToggle) => {
     }
   };
 
-  
+
 
   const handleOfflineRemoveFromCart = (cartItemId) => {
     setOfflineCart(prevCart => {
@@ -1482,11 +1697,11 @@ const handleToggleHighlight = async (productId, tagToToggle) => {
     });
   };
 
- // NOTE: Assuming you have access to db, doc, getDoc, and getPriceForQuantity helper
-// If this function is in a component, you may need to import those Firestore functions.
-// --- Function to calculate the final price per item and the total ---
-// NOTE: This logic replaces or is integrated into your existing getOfflineCartTotal logic
-const calculatePricedCart = async () => {
+  // NOTE: Assuming you have access to db, doc, getDoc, and getPriceForQuantity helper
+  // If this function is in a component, you may need to import those Firestore functions.
+  // --- Function to calculate the final price per item and the total ---
+  // NOTE: This logic replaces or is integrated into your existing getOfflineCartTotal logic
+  const calculatePricedCart = async () => {
     const cartItems = Object.values(offlineCart);
     if (cartItems.length === 0) return { updatedCartMap: {}, total: 0 };
 
@@ -1496,314 +1711,314 @@ const calculatePricedCart = async () => {
 
     // Phase 1: Aggregate Quantities and Fetch Pricing
     for (const item of cartItems) {
-        const subcollectionId = item.subcollectionId;
-        const collectionId = item.collectionId;
-        const quantitySold = item.quantity;
+      const subcollectionId = item.subcollectionId;
+      const collectionId = item.collectionId;
+      const quantitySold = item.quantity;
 
-        if (!subcollectionPricingMap[subcollectionId]) {
-            // Assumes pricing is on the subcollection document as written
-            const subcollectionRef = doc(db, 'collections', collectionId, 'subcollections', subcollectionId);
-            const subcollectionDoc = await getDoc(subcollectionRef);
+      if (!subcollectionPricingMap[subcollectionId]) {
+        // Assumes pricing is on the subcollection document as written
+        const subcollectionRef = doc(db, 'collections', collectionId, 'subcollections', subcollectionId);
+        const subcollectionDoc = await getDoc(subcollectionRef);
 
-            if (!subcollectionDoc.exists()) {
-                console.error(`Subcollection pricing not found: ${subcollectionId}`);
-                continue;
-            }
-
-            subcollectionPricingMap[subcollectionId] = {
-                pricingData: subcollectionDoc.data().tieredPricing,
-                totalQuantity: 0,
-                items: [],
-            };
+        if (!subcollectionDoc.exists()) {
+          console.error(`Subcollection pricing not found: ${subcollectionId}`);
+          continue;
         }
-        subcollectionPricingMap[subcollectionId].totalQuantity += quantitySold;
-        subcollectionPricingMap[subcollectionId].items.push(item);
+
+        subcollectionPricingMap[subcollectionId] = {
+          pricingData: subcollectionDoc.data().tieredPricing,
+          totalQuantity: 0,
+          items: [],
+        };
+      }
+      subcollectionPricingMap[subcollectionId].totalQuantity += quantitySold;
+      subcollectionPricingMap[subcollectionId].items.push(item);
     }
-    
+
     let runningTotal = 0;
 
     // Phase 2: Apply Tiered Pricing and Update Item Prices
     for (const entry of Object.values(subcollectionPricingMap)) {
-        const tiers = entry.pricingData?.[pricingTypeKey];
-        const totalGroupQuantity = entry.totalQuantity;
+      const tiers = entry.pricingData?.[pricingTypeKey];
+      const totalGroupQuantity = entry.totalQuantity;
 
-        let finalPricePerUnit = null;
-        
-        if (tiers && tiers.length > 0) {
-            // 🛑 CRITICAL FIX: Convert price and quantity strings to numbers
-            const numericTiers = tiers.map(tier => ({
-                min_quantity: Number(tier.min_quantity) || 0,
-                max_quantity: Number(tier.max_quantity) || Infinity, // Use Infinity for open-ended tiers
-                price: Number(tier.price) || 0
-            }));
+      let finalPricePerUnit = null;
 
-            // Assume getPriceForQuantity is available
-            finalPricePerUnit = getPriceForQuantity(numericTiers, totalGroupQuantity);
-        }
+      if (tiers && tiers.length > 0) {
+        // 🛑 CRITICAL FIX: Convert price and quantity strings to numbers
+        const numericTiers = tiers.map(tier => ({
+          min_quantity: Number(tier.min_quantity) || 0,
+          max_quantity: Number(tier.max_quantity) || Infinity, // Use Infinity for open-ended tiers
+          price: Number(tier.price) || 0
+        }));
 
-        // Apply price to each item in the group
-        for (const item of entry.items) {
-            // Use the calculated price, or fall back to the item's original price (which may still be a string)
-            const effectivePrice = finalPricePerUnit !== null 
-                ? finalPricePerUnit 
-                : (Number(item.price) || 0); // Ensure fallback price is also a number
-            
-            // Update the item's price in the cart map for display
-            updatedCartMap[item.id] = {
-                ...updatedCartMap[item.id],
-                // CRITICAL: Use a new key to store the dynamic price
-                calculatedPrice: effectivePrice
-            };
-            
-            runningTotal += effectivePrice * item.quantity;
-        }
+        // Assume getPriceForQuantity is available
+        finalPricePerUnit = getPriceForQuantity(numericTiers, totalGroupQuantity);
+      }
+
+      // Apply price to each item in the group
+      for (const item of entry.items) {
+        // Use the calculated price, or fall back to the item's original price (which may still be a string)
+        const effectivePrice = finalPricePerUnit !== null
+          ? finalPricePerUnit
+          : (Number(item.price) || 0); // Ensure fallback price is also a number
+
+        // Update the item's price in the cart map for display
+        updatedCartMap[item.id] = {
+          ...updatedCartMap[item.id],
+          // CRITICAL: Use a new key to store the dynamic price
+          calculatedPrice: effectivePrice
+        };
+
+        runningTotal += effectivePrice * item.quantity;
+      }
     }
 
     return { updatedCartMap, total: runningTotal };
-};
-useEffect(() => {
+  };
+  useEffect(() => {
     let isMounted = true;
     const updatePricedCart = async () => {
-        if (Object.keys(offlineCart).length === 0) {
-            if (isMounted) {
-                setPricedOfflineCart({});
-                setOfflineSubtotal(0);
-            }
-            return;
+      if (Object.keys(offlineCart).length === 0) {
+        if (isMounted) {
+          setPricedOfflineCart({});
+          setOfflineSubtotal(0);
         }
-        
-        try {
-            const { updatedCartMap, total } = await calculatePricedCart();
-            
-            if (isMounted) {
-                setPricedOfflineCart(updatedCartMap);
-                setOfflineSubtotal(total);
-            }
-        } catch (error) {
-            console.error("Error calculating offline cart prices:", error);
+        return;
+      }
+
+      try {
+        const { updatedCartMap, total } = await calculatePricedCart();
+
+        if (isMounted) {
+          setPricedOfflineCart(updatedCartMap);
+          setOfflineSubtotal(total);
         }
+      } catch (error) {
+        console.error("Error calculating offline cart prices:", error);
+      }
     };
 
     updatePricedCart();
-    
-    return () => { isMounted = false; };
-// Re-run whenever the cart contents or the pricing type changes
-}, [offlineCart, offlinePricingType]);// Depend on the cart content and pricing type
 
-const handleFinalizeSale = async () => {
+    return () => { isMounted = false; };
+    // Re-run whenever the cart contents or the pricing type changes
+  }, [offlineCart, offlinePricingType]);// Depend on the cart content and pricing type
+
+  const handleFinalizeSale = async () => {
     if (Object.keys(offlineCart).length === 0) {
-        alert('The cart is empty. Please add products to finalize the sale.');
-        return;
+      alert('The cart is empty. Please add products to finalize the sale.');
+      return;
     }
 
     if (window.confirm('Are you sure you want to finalize this offline sale?')) {
-        let isStockError = false; 
-        const productUpdatesMap = {}; 
+      let isStockError = false;
+      const productUpdatesMap = {};
 
-        try {
-            // ----------------------------------------------------
-            // 🎯 PHASE 1: Aggregate Cart Items and Fetch Product Data
-            // ----------------------------------------------------
-            console.log(`\n--- STARTING OFFLINE SALE TRANSACTION PREP ---`);
+      try {
+        // ----------------------------------------------------
+        // 🎯 PHASE 1: Aggregate Cart Items and Fetch Product Data
+        // ----------------------------------------------------
+        console.log(`\n--- STARTING OFFLINE SALE TRANSACTION PREP ---`);
 
-            // 1. Group cart items by their base Product ID and fetch the document once
-            for (const item of Object.values(offlineCart)) {
-                const baseProductId = item.id.split('_')[0]; 
-                
-                if (!productUpdatesMap[baseProductId]) {
-                    const productRef = doc(db, 
-                        'collections', item.collectionId, 
-                        'subcollections', item.subcollectionId, 
-                        'products', baseProductId
-                    );
-                    const productDoc = await getDoc(productRef);
+        // 1. Group cart items by their base Product ID and fetch the document once
+        for (const item of Object.values(offlineCart)) {
+          const baseProductId = item.id.split('_')[0];
 
-                    if (!productDoc.exists()) {
-                        throw new Error(`Product not found: ${baseProductId}`);
-                    }
-                    
-                    productUpdatesMap[baseProductId] = {
-                        ref: productRef,
-                        data: productDoc.data(),
-                        cartItems: [],
-                        hasError: false,
-                    };
-                }
-                productUpdatesMap[baseProductId].cartItems.push(item);
+          if (!productUpdatesMap[baseProductId]) {
+            const productRef = doc(db,
+              'collections', item.collectionId,
+              'subcollections', item.subcollectionId,
+              'products', baseProductId
+            );
+            const productDoc = await getDoc(productRef);
+
+            if (!productDoc.exists()) {
+              throw new Error(`Product not found: ${baseProductId}`);
             }
-            
-            // 2. Process all cart items for each product to calculate the final stock
-            const batch = writeBatch(db);
 
-            for (const baseProductId in productUpdatesMap) {
-                const { ref: productRef, data: productData, cartItems } = productUpdatesMap[baseProductId];
-                
-                // 🛑 CRITICAL FIX: Only treat as variations if the array exists AND has items.
-                let currentVariations = (productData.variations && productData.variations.length > 0) 
-                    ? [...productData.variations] 
-                    : null; 
-                let currentSimpleQuantity = productData.quantity;
-
-                // Iterate through all cart items that belong to THIS single product
-                for (const item of cartItems) {
-                    const quantitySold = item.quantity;
-                    
-                    console.log(`\nProcessing Item: ${item.productName} (Variation: ${item.variation?.color || 'Simple'}) (Qty: ${quantitySold})`);
-
-                    // --- VARIATION LOGIC ---
-                    if (item.variation && currentVariations) {
-                        currentVariations = currentVariations.map(v => {
-                            const isMatch = (v.color === item.variation.color && v.size === item.variation.size);
-                            
-                            if (isMatch) {
-                                let currentQuantity = Number(v.quantity) || 0;
-                                let newQuantity = currentQuantity - quantitySold;
-                                
-                                console.log(`  -> Stock BEFORE: ${currentQuantity}`);
-
-                                if (newQuantity < 0) {
-                                    isStockError = true;
-                                    productUpdatesMap[baseProductId].hasError = true;
-                                    console.error(`  ❌ STOCK ERROR: Requested ${quantitySold}, but only ${currentQuantity} available.`);
-                                    return v; 
-                                }
-                                
-                                // Update the variation's quantity in our temporary array
-                                return { ...v, quantity: newQuantity };
-                            }
-                            return v;
-                        });
-                        
-                    // --- SIMPLE PRODUCT LOGIC ---
-                    } else if (!item.variation) {
-                        currentSimpleQuantity = Number(currentSimpleQuantity) || 0;
-                        let newQuantity = currentSimpleQuantity - quantitySold;
-                        
-                        console.log(`  -> Type: Simple Product`);
-                        console.log(`  -> Stock BEFORE: ${currentSimpleQuantity}`);
-
-                        if (newQuantity < 0) {
-                            isStockError = true;
-                            productUpdatesMap[baseProductId].hasError = true;
-                            // ✅ FIX (from previous error): Log the correct variable
-                            console.error(`  ❌ STOCK ERROR: Requested ${quantitySold}, but only ${currentSimpleQuantity} available.`);
-                        } else {
-                            currentSimpleQuantity = newQuantity; // Update the temporary quantity
-                        }
-                    }
-                }
-
-                // 3. Add ONE FINAL UPDATE to the batch for this base product ID
-                if (!productUpdatesMap[baseProductId].hasError) {
-                    let finalUpdateData = {};
-                    let finalQtyLog = '';
-                    
-                    // The correct update is determined by the modified variable (currentVariations will be null for simple products now)
-                    if (currentVariations) { 
-                        finalUpdateData = { variations: currentVariations };
-                        finalQtyLog = 'Variations Array Updated';
-                    } else {
-                        finalUpdateData = { quantity: currentSimpleQuantity };
-                        finalQtyLog = currentSimpleQuantity;
-                    }
-
-                    batch.update(productRef, finalUpdateData);
-                    
-                    // 🎯 LOG FINAL STOCK
-                    console.log(`  ✅ FINAL Stock AFTER: ${finalQtyLog}`);
-                    console.log(`  -> Batch updated for ${baseProductId}.`);
-                }
-            } // End of productUpdatesMap loop
-
-
-            // 4. EXECUTE WRITES (Order Save and Stock Update)
-            if (isStockError) {
-                console.log(`\n--- TRANSACTION ROLLED BACK (Due to Stock Error) ---`);
-                throw new Error("STOCK_FAILURE_CLIENT"); 
-            }
-            
-            // ... (The rest of the order data construction remains unchanged) ...
-            
-            const totalAmountToUse = editedTotal !== '' ? parseFloat(editedTotal) : offlineSubtotal; 
-
-            // Billing Info (Unchanged)
-            const customerName = 'SSS1'; 
-            const customerEmail = 'vaibhavugile7@gmail.com'; 
-            const customerPhone = '8446442204'; 
-            const customerAddress1 = 'pune'; 
-            const customerAddress2 = 'pune'; 
-            const customerCity = 'pune'; 
-            const customerState = 'Maharashtra'; 
-            const customerPincode = '412101'; 
-
-            const offlineSaleCustomerInfo = {
-                fullName: `${customerName} (Offline)`,
-                email: `${customerEmail} (Offline)`,
-                phoneNumber: `${customerPhone} (Offline)`,
-                addressLine1: `${customerAddress1} (Offline)`,
-                addressLine2: `${customerAddress2} (Offline)`,
-                city: `${customerCity} (Offline)`,
-                state: `${customerState} (Offline)`,
-                pincode: `${customerPincode} (Offline)`,
+            productUpdatesMap[baseProductId] = {
+              ref: productRef,
+              data: productDoc.data(),
+              cartItems: [],
+              hasError: false,
             };
-            
-            // Order Items (Using correctly calculated price)
-            const orderItems = Object.values(pricedOfflineCart).map(item => ({
-                productId: item.id.split('_')[0] || 'N/A',
-                productName: item.productName || 'N/A',
-                productCode: item.productCode || 'N/A',
-                quantity: item.quantity || 0,
-                priceAtTimeOfOrder: typeof item.calculatedPrice === 'number' ? item.calculatedPrice : Number(item.price) || 0, 
-                price: typeof item.calculatedPrice === 'number' ? item.calculatedPrice : Number(item.price) || 0,
-                image: item.image || '',
-                images: item.images || [],
-                variation: item.variation || null, 
-                subcollectionId: item.subcollectionId,
-                collectionId: item.collectionId,
-            }));
-
-
-            const orderData = {
-                userId: 'offline-sale',
-                status: 'Delivered',
-                createdAt: serverTimestamp(),
-                billingInfo: offlineSaleCustomerInfo, 
-                items: orderItems, 
-                totalAmount: totalAmountToUse, 
-                subtotal: totalAmountToUse,
-                shippingFee: 0,
-                pricingType: offlinePricingType,
-            };
-            
-            const orderRef = await addDoc(collection(db, 'orders'), orderData);
-            console.log(`✅ Order added to Firestore successfully with ID: ${orderRef.id}`);
-
-            await batch.commit();
-            console.log('✅ All Stock quantities updated successfully!');
-            console.log('------------------------------------------');
-
-            // 5. Success and Cleanup
-            alert('Offline sale finalized and stock updated successfully!');
-            setOfflineCart({});
-            setEditedTotal('');
-            setSelectedOfflineCollectionId('');
-            setSelectedOfflineSubcollectionId('');
-            setOfflineProducts([]);
-            
-            if (activeTab === 'orders') fetchOrders();
-            if (activeSubTab === 'products') fetchProducts(selectedSubcollectionId);
-            
-        } catch (error) {
-            if (error.message === "STOCK_FAILURE_CLIENT") {
-                alert('Failed to finalize sale: Insufficient stock for one or more items. Please adjust the cart.');
-            } else {
-                console.error('\n--- FINAL ERROR ---');
-                console.error('Error finalizing offline sale:', error);
-                alert('Failed to finalize the sale. Please check console for details.');
-            }
+          }
+          productUpdatesMap[baseProductId].cartItems.push(item);
         }
+
+        // 2. Process all cart items for each product to calculate the final stock
+        const batch = writeBatch(db);
+
+        for (const baseProductId in productUpdatesMap) {
+          const { ref: productRef, data: productData, cartItems } = productUpdatesMap[baseProductId];
+
+          // 🛑 CRITICAL FIX: Only treat as variations if the array exists AND has items.
+          let currentVariations = (productData.variations && productData.variations.length > 0)
+            ? [...productData.variations]
+            : null;
+          let currentSimpleQuantity = productData.quantity;
+
+          // Iterate through all cart items that belong to THIS single product
+          for (const item of cartItems) {
+            const quantitySold = item.quantity;
+
+            console.log(`\nProcessing Item: ${item.productName} (Variation: ${item.variation?.color || 'Simple'}) (Qty: ${quantitySold})`);
+
+            // --- VARIATION LOGIC ---
+            if (item.variation && currentVariations) {
+              currentVariations = currentVariations.map(v => {
+                const isMatch = (v.color === item.variation.color && v.size === item.variation.size);
+
+                if (isMatch) {
+                  let currentQuantity = Number(v.quantity) || 0;
+                  let newQuantity = currentQuantity - quantitySold;
+
+                  console.log(`  -> Stock BEFORE: ${currentQuantity}`);
+
+                  if (newQuantity < 0) {
+                    isStockError = true;
+                    productUpdatesMap[baseProductId].hasError = true;
+                    console.error(`  ❌ STOCK ERROR: Requested ${quantitySold}, but only ${currentQuantity} available.`);
+                    return v;
+                  }
+
+                  // Update the variation's quantity in our temporary array
+                  return { ...v, quantity: newQuantity };
+                }
+                return v;
+              });
+
+              // --- SIMPLE PRODUCT LOGIC ---
+            } else if (!item.variation) {
+              currentSimpleQuantity = Number(currentSimpleQuantity) || 0;
+              let newQuantity = currentSimpleQuantity - quantitySold;
+
+              console.log(`  -> Type: Simple Product`);
+              console.log(`  -> Stock BEFORE: ${currentSimpleQuantity}`);
+
+              if (newQuantity < 0) {
+                isStockError = true;
+                productUpdatesMap[baseProductId].hasError = true;
+                // ✅ FIX (from previous error): Log the correct variable
+                console.error(`  ❌ STOCK ERROR: Requested ${quantitySold}, but only ${currentSimpleQuantity} available.`);
+              } else {
+                currentSimpleQuantity = newQuantity; // Update the temporary quantity
+              }
+            }
+          }
+
+          // 3. Add ONE FINAL UPDATE to the batch for this base product ID
+          if (!productUpdatesMap[baseProductId].hasError) {
+            let finalUpdateData = {};
+            let finalQtyLog = '';
+
+            // The correct update is determined by the modified variable (currentVariations will be null for simple products now)
+            if (currentVariations) {
+              finalUpdateData = { variations: currentVariations };
+              finalQtyLog = 'Variations Array Updated';
+            } else {
+              finalUpdateData = { quantity: currentSimpleQuantity };
+              finalQtyLog = currentSimpleQuantity;
+            }
+
+            batch.update(productRef, finalUpdateData);
+
+            // 🎯 LOG FINAL STOCK
+            console.log(`  ✅ FINAL Stock AFTER: ${finalQtyLog}`);
+            console.log(`  -> Batch updated for ${baseProductId}.`);
+          }
+        } // End of productUpdatesMap loop
+
+
+        // 4. EXECUTE WRITES (Order Save and Stock Update)
+        if (isStockError) {
+          console.log(`\n--- TRANSACTION ROLLED BACK (Due to Stock Error) ---`);
+          throw new Error("STOCK_FAILURE_CLIENT");
+        }
+
+        // ... (The rest of the order data construction remains unchanged) ...
+
+        const totalAmountToUse = editedTotal !== '' ? parseFloat(editedTotal) : offlineSubtotal;
+
+        // Billing Info (Unchanged)
+        const customerName = 'SSS1';
+        const customerEmail = 'vaibhavugile7@gmail.com';
+        const customerPhone = '8446442204';
+        const customerAddress1 = 'pune';
+        const customerAddress2 = 'pune';
+        const customerCity = 'pune';
+        const customerState = 'Maharashtra';
+        const customerPincode = '412101';
+
+        const offlineSaleCustomerInfo = {
+          fullName: `${customerName} (Offline)`,
+          email: `${customerEmail} (Offline)`,
+          phoneNumber: `${customerPhone} (Offline)`,
+          addressLine1: `${customerAddress1} (Offline)`,
+          addressLine2: `${customerAddress2} (Offline)`,
+          city: `${customerCity} (Offline)`,
+          state: `${customerState} (Offline)`,
+          pincode: `${customerPincode} (Offline)`,
+        };
+
+        // Order Items (Using correctly calculated price)
+        const orderItems = Object.values(pricedOfflineCart).map(item => ({
+          productId: item.id.split('_')[0] || 'N/A',
+          productName: item.productName || 'N/A',
+          productCode: item.productCode || 'N/A',
+          quantity: item.quantity || 0,
+          priceAtTimeOfOrder: typeof item.calculatedPrice === 'number' ? item.calculatedPrice : Number(item.price) || 0,
+          price: typeof item.calculatedPrice === 'number' ? item.calculatedPrice : Number(item.price) || 0,
+          image: item.image || '',
+          images: item.images || [],
+          variation: item.variation || null,
+          subcollectionId: item.subcollectionId,
+          collectionId: item.collectionId,
+        }));
+
+
+        const orderData = {
+          userId: 'offline-sale',
+          status: 'Delivered',
+          createdAt: serverTimestamp(),
+          billingInfo: offlineSaleCustomerInfo,
+          items: orderItems,
+          totalAmount: totalAmountToUse,
+          subtotal: totalAmountToUse,
+          shippingFee: 0,
+          pricingType: offlinePricingType,
+        };
+
+        const orderRef = await addDoc(collection(db, 'orders'), orderData);
+        console.log(`✅ Order added to Firestore successfully with ID: ${orderRef.id}`);
+
+        await batch.commit();
+        console.log('✅ All Stock quantities updated successfully!');
+        console.log('------------------------------------------');
+
+        // 5. Success and Cleanup
+        alert('Offline sale finalized and stock updated successfully!');
+        setOfflineCart({});
+        setEditedTotal('');
+        setSelectedOfflineCollectionId('');
+        setSelectedOfflineSubcollectionId('');
+        setOfflineProducts([]);
+
+        if (activeTab === 'orders') fetchOrders();
+        if (activeSubTab === 'products') fetchProducts(selectedSubcollectionId);
+
+      } catch (error) {
+        if (error.message === "STOCK_FAILURE_CLIENT") {
+          alert('Failed to finalize sale: Insufficient stock for one or more items. Please adjust the cart.');
+        } else {
+          console.error('\n--- FINAL ERROR ---');
+          console.error('Error finalizing offline sale:', error);
+          alert('Failed to finalize the sale. Please check console for details.');
+        }
+      }
     }
-};
+  };
   useEffect(() => {
     if (selectedOfflineCollectionId) {
       fetchSubcollectionsForOffline(selectedOfflineCollectionId);
@@ -1828,139 +2043,166 @@ const handleFinalizeSale = async () => {
 
   const formatDate = (timestamp) => {
     if (!timestamp) {
-        return 'N/A';
+      return 'N/A';
     }
 
     let date;
-    
+
     // 1. Handle Firebase Timestamp (preferred method for Firestore data)
     if (typeof timestamp.toDate === 'function') {
-        date = timestamp.toDate();
-    } 
+      date = timestamp.toDate();
+    }
     // 2. Handle standard Date object
     else if (timestamp instanceof Date) {
-        date = timestamp;
-    } 
+      date = timestamp;
+    }
     // 3. Handle string or number representing a date
     else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
-        date = new Date(timestamp);
+      date = new Date(timestamp);
     }
-    
+
     // 4. Final validation: check if the resulting date object is valid
     if (date && !isNaN(date.getTime())) {
-        // Use toLocaleDateString() for a user-friendly, locale-specific format
-        return date.toLocaleDateString();
+      // Use toLocaleDateString() for a user-friendly, locale-specific format
+      return date.toLocaleDateString();
     }
 
     return 'N/A';
-};
+  };
 
-// Count users by role
-const wholesalerCount = filteredUsers.filter(user => user.role === 'wholesaler').length;
-const retailerCount = filteredUsers.filter(user => user.role === 'retailer').length;
-const handleMoveOutOfStockToTrash = async () => {
-  if (trashRunning) return;
+  // Count users by role
+  const wholesalerCount = filteredAndSortedUsers.filter(user => user.role === 'wholesaler').length;
+  const retailerCount = filteredAndSortedUsers.filter(user => user.role === 'retailer').length;
+  const handleMoveOutOfStockToTrash = async () => {
+    if (trashRunning) return;
 
-  const confirm = window.confirm(
-    "Out-of-stock products / variants will be moved to Trash.\n\nContinue?"
-  );
-  if (!confirm) return;
+    const confirm = window.confirm(
+      "Out-of-stock products / variants will be moved to Trash.\n\nContinue?"
+    );
+    if (!confirm) return;
 
-  setTrashRunning(true);
-  setTrashProgress(0);
+    setTrashRunning(true);
+    setTrashProgress(0);
 
-  try {
-    let trashedProducts = 0;
-    let trashedVariants = 0;
+    try {
+      let trashedProducts = 0;
+      let trashedVariants = 0;
 
-    const collectionsSnap = await getDocs(collection(db, "collections"));
+      const collectionsSnap = await getDocs(collection(db, "collections"));
 
-    // 🔢 STEP COUNT (for progress)
-    let totalProducts = 0;
-    for (const col of collectionsSnap.docs) {
-      const subSnap = await getDocs(
-        collection(db, "collections", col.id, "subcollections")
-      );
-      for (const sub of subSnap.docs) {
-        const productsSnap = await getDocs(
-          collection(
+      // 🔢 STEP COUNT (for progress)
+      let totalProducts = 0;
+      for (const col of collectionsSnap.docs) {
+        const subSnap = await getDocs(
+          collection(db, "collections", col.id, "subcollections")
+        );
+        for (const sub of subSnap.docs) {
+          const productsSnap = await getDocs(
+            collection(
+              db,
+              "collections",
+              col.id,
+              "subcollections",
+              sub.id,
+              "products"
+            )
+          );
+          totalProducts += productsSnap.size;
+        }
+      }
+
+      if (totalProducts === 0) {
+        alert("No products found.");
+        setTrashRunning(false);
+        return;
+      }
+
+      let processed = 0;
+
+      for (const col of collectionsSnap.docs) {
+        const subSnap = await getDocs(
+          collection(db, "collections", col.id, "subcollections")
+        );
+
+        for (const sub of subSnap.docs) {
+          const productsRef = collection(
             db,
             "collections",
             col.id,
             "subcollections",
             sub.id,
             "products"
-          )
-        );
-        totalProducts += productsSnap.size;
-      }
-    }
-
-    if (totalProducts === 0) {
-      alert("No products found.");
-      setTrashRunning(false);
-      return;
-    }
-
-    let processed = 0;
-
-    for (const col of collectionsSnap.docs) {
-      const subSnap = await getDocs(
-        collection(db, "collections", col.id, "subcollections")
-      );
-
-      for (const sub of subSnap.docs) {
-        const productsRef = collection(
-          db,
-          "collections",
-          col.id,
-          "subcollections",
-          sub.id,
-          "products"
-        );
-
-        const productsSnap = await getDocs(productsRef);
-
-        for (const prod of productsSnap.docs) {
-          const data = prod.data();
-          const productRef = doc(
-            db,
-            "collections",
-            col.id,
-            "subcollections",
-            sub.id,
-            "products",
-            prod.id
           );
 
-          /* ===== VARIANTS ===== */
-          if (Array.isArray(data.variations) && data.variations.length > 0) {
-            const activeVariants = [];
+          const productsSnap = await getDocs(productsRef);
 
-            for (const variant of data.variations) {
-              if (Number(variant.quantity) <= 0) {
-                await setDoc(
-                  doc(
-                    db,
-                    "trash_variants",
-                    `${prod.id}_${variant.sku || variant.name}`
-                  ),
-                  {
-                    productId: prod.id,
+          for (const prod of productsSnap.docs) {
+            const data = prod.data();
+            const productRef = doc(
+              db,
+              "collections",
+              col.id,
+              "subcollections",
+              sub.id,
+              "products",
+              prod.id
+            );
+
+            /* ===== VARIANTS ===== */
+            if (Array.isArray(data.variations) && data.variations.length > 0) {
+              const activeVariants = [];
+
+              for (const variant of data.variations) {
+                if (Number(variant.quantity) <= 0) {
+                  await setDoc(
+                    doc(
+                      db,
+                      "trash_variants",
+                      `${prod.id}_${variant.sku || variant.name}`
+                    ),
+                    {
+                      productId: prod.id,
+                      collectionId: col.id,
+                      subcollectionId: sub.id,
+                      variant,
+                      deletedAt: serverTimestamp(),
+                      deletedBy: "admin",
+                    }
+                  );
+                  trashedVariants++;
+                } else {
+                  activeVariants.push(variant);
+                }
+              }
+
+              if (activeVariants.length === 0) {
+                await setDoc(doc(db, "trash_products", prod.id), {
+                  ...data,
+                  originalPath: {
                     collectionId: col.id,
                     subcollectionId: sub.id,
-                    variant,
-                    deletedAt: serverTimestamp(),
-                    deletedBy: "admin",
-                  }
-                );
-                trashedVariants++;
+                  },
+                  deletedAt: serverTimestamp(),
+                  deletedBy: "admin",
+                });
+
+                await deleteDoc(productRef);
+                trashedProducts++;
               } else {
-                activeVariants.push(variant);
+                const totalQty = activeVariants.reduce(
+                  (s, v) => s + Number(v.quantity || 0),
+                  0
+                );
+
+                await updateDoc(productRef, {
+                  variations: activeVariants,
+                  quantity: totalQty,
+                });
               }
             }
 
-            if (activeVariants.length === 0) {
+            /* ===== SIMPLE PRODUCT ===== */
+            else if (Number(data.quantity) <= 0) {
               await setDoc(doc(db, "trash_products", prod.id), {
                 ...data,
                 originalPath: {
@@ -1973,55 +2215,28 @@ const handleMoveOutOfStockToTrash = async () => {
 
               await deleteDoc(productRef);
               trashedProducts++;
-            } else {
-              const totalQty = activeVariants.reduce(
-                (s, v) => s + Number(v.quantity || 0),
-                0
-              );
-
-              await updateDoc(productRef, {
-                variations: activeVariants,
-                quantity: totalQty,
-              });
             }
+
+            // 📈 PROGRESS UPDATE
+            processed++;
+            setTrashProgress(
+              Math.round((processed / totalProducts) * 100)
+            );
           }
-
-          /* ===== SIMPLE PRODUCT ===== */
-          else if (Number(data.quantity) <= 0) {
-            await setDoc(doc(db, "trash_products", prod.id), {
-              ...data,
-              originalPath: {
-                collectionId: col.id,
-                subcollectionId: sub.id,
-              },
-              deletedAt: serverTimestamp(),
-              deletedBy: "admin",
-            });
-
-            await deleteDoc(productRef);
-            trashedProducts++;
-          }
-
-          // 📈 PROGRESS UPDATE
-          processed++;
-          setTrashProgress(
-            Math.round((processed / totalProducts) * 100)
-          );
         }
       }
-    }
 
-    alert(
-      `Completed!\n\n🗑 Products: ${trashedProducts}\n🧹 Variants: ${trashedVariants}`
-    );
-  } catch (err) {
-    console.error("Trash cleanup failed:", err);
-    alert("Trash operation failed. Check console.");
-  } finally {
-    setTrashRunning(false);
-    setTrashProgress(0);
-  }
-};
+      alert(
+        `Completed!\n\n🗑 Products: ${trashedProducts}\n🧹 Variants: ${trashedVariants}`
+      );
+    } catch (err) {
+      console.error("Trash cleanup failed:", err);
+      alert("Trash operation failed. Check console.");
+    } finally {
+      setTrashRunning(false);
+      setTrashProgress(0);
+    }
+  };
 
   return (
     <div className="admin-page">
@@ -2092,46 +2307,46 @@ const handleMoveOutOfStockToTrash = async () => {
                 Products
               </button>
               <button
-  onClick={handleMoveOutOfStockToTrash}
-  disabled={trashRunning}
-  style={{
-    background: trashRunning ? "#9ca3af" : "#f97316",
-    color: "#fff",
-    padding: "10px 16px",
-    borderRadius: "8px",
-    border: "none",
-    fontWeight: "700",
-    cursor: trashRunning ? "not-allowed" : "pointer",
-    marginTop: "12px",
-  }}
->
-  {trashRunning ? "Moving to Trash…" : "🗑 Move Out-of-Stock to Trash"}
-</button>
+                onClick={handleMoveOutOfStockToTrash}
+                disabled={trashRunning}
+                style={{
+                  background: trashRunning ? "#9ca3af" : "#f97316",
+                  color: "#fff",
+                  padding: "10px 16px",
+                  borderRadius: "8px",
+                  border: "none",
+                  fontWeight: "700",
+                  cursor: trashRunning ? "not-allowed" : "pointer",
+                  marginTop: "12px",
+                }}
+              >
+                {trashRunning ? "Moving to Trash…" : "🗑 Move Out-of-Stock to Trash"}
+              </button>
 
-{trashRunning && (
-  <div style={{ marginTop: "10px", maxWidth: "420px" }}>
-    <div
-      style={{
-        height: "8px",
-        background: "#e5e7eb",
-        borderRadius: "999px",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          width: `${trashProgress}%`,
-          height: "100%",
-          background: "linear-gradient(90deg, #f97316, #ef4444)",
-          transition: "width 200ms ease",
-        }}
-      />
-    </div>
-    <div style={{ fontSize: "13px", marginTop: "6px", color: "#555" }}>
-      {trashProgress}% completed
-    </div>
-  </div>
-)}
+              {trashRunning && (
+                <div style={{ marginTop: "10px", maxWidth: "420px" }}>
+                  <div
+                    style={{
+                      height: "8px",
+                      background: "#e5e7eb",
+                      borderRadius: "999px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${trashProgress}%`,
+                        height: "100%",
+                        background: "linear-gradient(90deg, #f97316, #ef4444)",
+                        transition: "width 200ms ease",
+                      }}
+                    />
+                  </div>
+                  <div style={{ fontSize: "13px", marginTop: "6px", color: "#555" }}>
+                    {trashProgress}% completed
+                  </div>
+                </div>
+              )}
 
             </div>
 
@@ -2325,7 +2540,7 @@ const handleMoveOutOfStockToTrash = async () => {
                       ))}
                     </select>
                   </div>
-             
+
 
                   {selectedSubcollectionId && (
                     <div className="add-collection-form">
@@ -2551,43 +2766,43 @@ const handleMoveOutOfStockToTrash = async () => {
                   )}
                 </div>
                 <div className="admin-section">
-    <h3>Current Products</h3>
-    {selectedSubcollectionId ? (
-        isProductLoading ? (
-            <p>Loading products...</p>
-        ) : (
-            <>
-                <div className="search-container">
-                    <input
-                        type="text"
-                        placeholder="Search by name or code..."
-                        value={productSearchTerm}
-                        onChange={(e) => setProductSearchTerm(e.target.value)}
-                        className="search-input"
-                    />
-                </div>
-                <div className="collections-grid">
-                    {filteredProducts.length > 0 ? (
-                        filteredProducts.map((product) => (
-                            <ProductCard
+                  <h3>Current Products</h3>
+                  {selectedSubcollectionId ? (
+                    isProductLoading ? (
+                      <p>Loading products...</p>
+                    ) : (
+                      <>
+                        <div className="search-container">
+                          <input
+                            type="text"
+                            placeholder="Search by name or code..."
+                            value={productSearchTerm}
+                            onChange={(e) => setProductSearchTerm(e.target.value)}
+                            className="search-input"
+                          />
+                        </div>
+                        <div className="collections-grid">
+                          {filteredProducts.length > 0 ? (
+                            filteredProducts.map((product) => (
+                              <ProductCard
                                 key={product.id}
                                 product={product} // This passes the entire product object
                                 onEdit={() => startEditProduct(product)}
                                 onDelete={() => handleDeleteProduct(product.id, product.image)}
                                 // 🔥 NEW PROP ADDED 🔥
-                                onToggleHighlight={handleToggleHighlight} 
-                            />
-                        ))
-                    ) : (
-                        <p>No products found matching your search criteria.</p>
-                    )}
+                                onToggleHighlight={handleToggleHighlight}
+                              />
+                            ))
+                          ) : (
+                            <p>No products found matching your search criteria.</p>
+                          )}
+                        </div>
+                      </>
+                    )
+                  ) : (
+                    <p className="select-prompt">Please select a main collection and a subcollection to view its products.</p>
+                  )}
                 </div>
-            </>
-        )
-    ) : (
-        <p className="select-prompt">Please select a main collection and a subcollection to view its products.</p>
-    )}
-</div>
               </div>
             )}
           </div>
@@ -2629,7 +2844,7 @@ const handleMoveOutOfStockToTrash = async () => {
                 <option value="Processing">Processing</option>
                 <option value="Shipped">Shipped</option>
                 <option value="Delivered">Delivered</option>
-                
+
               </select>
 
             </div>
@@ -2644,24 +2859,24 @@ const handleMoveOutOfStockToTrash = async () => {
                 sortedDateKeys.map(dateKey => (
                   <div key={dateKey} className="order-date-group">
                     <h3>{dateKey}</h3>
-                      <ul className="orders-list">
-                      {
+                    <ul className="orders-list">
+                      {
                         // 👇 FIX: Use optional chaining and nullish coalescing
                         groupedOrdersFromFiltered[dateKey]?.map((order) => (
-                        <li 
-                            key={order.id} 
-                            onClick={() => setSelectedOrder(order)} 
+                          <li
+                            key={order.id}
+                            onClick={() => setSelectedOrder(order)}
                             className="order-list-item"
-                        >
-                          <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
-                          <p>Contact: <strong>{order.billingInfo?.phoneNumber || ''}</strong></p>
-                          <p>Name: <strong>{order.billingInfo?.fullName || ''}</strong></p>
+                          >
+                            <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
+                            <p>Contact: <strong>{order.billingInfo?.phoneNumber || ''}</strong></p>
+                            <p>Name: <strong>{order.billingInfo?.fullName || ''}</strong></p>
 
-                          <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
-                          <p>Status: <span className={`order-status status-${order.status ? order.status.toLowerCase() : 'pending'}`}>{order.status}</span></p>
-                        </li>
-                      ))}
-                    </ul>
+                            <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
+                            <p>Status: <span className={`order-status status-${order.status ? order.status.toLowerCase() : 'pending'}`}>{order.status}</span></p>
+                          </li>
+                        ))}
+                    </ul>
                   </div>
                 ))
               ) : (
@@ -2812,344 +3027,441 @@ const handleMoveOutOfStockToTrash = async () => {
           </div>
         )}
         {/* --- User Management Tab --- */}
-        
-      {activeTab === 'users' && (
-    <div className="admin-section">
-        <h2>User Management</h2>
-        <div className="user-role-counts">
-  <span className="count-tag wholesaler-count">
-    🏷️ Wholesalers: {wholesalerCount}
-  </span>
-  <span className="count-tag retailer-count">
-    🛍️ Retailers: {retailerCount}
-  </span>
-</div>
-        {/* --- NEW SEARCH BAR --- */}
-        <div className="user-search-bar">
-            <input
-                type="text"
-                placeholder="Search by Name, Email, Mobile, or Role..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="search-input"
-            />
-        </div>
-        
-        {/* --- DYNAMIC CONTENT BASED ON FILTERED RESULTS --- */}
-        {isUserLoading ? (
-            <p>Loading users...</p>
-        ) : filteredUsers.length === 0 ? ( // Check filteredUsers length
-            <p>No users found matching your search term.</p>
-        ) : (
-            <div className="user-table-container">
-                {/* 1. Table Header - 6 Columns */}
-                <div className="user-table-header">
-                    <div className="table-column header-name">Name</div>
-                    <div className="table-column header-email">Last Login</div>
-                    <div className="table-column header-mobile">Mobile</div>
-                    <div className="table-column header-address">Address</div>
-                    <div className="table-column header-created">Created At</div>
-                    <div className="table-column header-role">Role</div>
-                    <div className="table-column header-actions">Actions</div>
-                </div>
 
-                {/* 2. User Rows (List) */}
-                <ul className="user-table-list">
-                    {filteredUsers.map((user) => ( // Iterate over filteredUsers
-                        <li key={user.id} className="user-table-row">
-                            {/* Column 1: Name (or Email, for better identification) */}
-                            <div className="table-column user-name">
-                                <strong>{user.name || 'N/A'}</strong>
-                                {/* <span className="user-email-secondary">{user.email || 'N/A'}</span> */}
-                            </div>
-                            
-                            {/* Column 2: Last Login */}
-                            <div className="table-column user-email">{ formatDate(user.lastLogin)}</div>
-                            
-                            {/* Column 3: Mobile Number */}
-                            <div className="table-column user-mobile">{user.mobile || 'N/A'}</div>
+        {activeTab === 'users' && (
+          <section className="saas-users-section">
+            <h2 className="saas-users-title">User Management</h2>
 
-                            {/* Column 4: Address (Limited space, relies on CSS ellipsis) */}
-                            <div className="table-column user-address">{user.address || 'N/A'}</div>
-
-                            {/* Column 5: Created At (Assumes user.createdAt is a valid timestamp) */}
-                            <div className="table-column user-created-at">{formatDate(user.createdAt)}</div>
-                            
-                            {/* Column 6: Role */}
-                            <div className="table-column user-role">
-                                <span className={`role-tag role-${user.role}`}>
-                                    {user.role}
-                                </span>
-                            </div>
-
-                            {/* Column 7: Actions */}
-                            <div className="table-column user-actions-cell">
-                                <div className="user-action-buttons">
-                                    {user.role === 'retailer' && (
-                                        <button 
-                                            onClick={() => handleUpdateUserRole(user.id, 'wholesaler')}
-                                            className="btn-change-role btn-wholesaler"
-                                        >
-                                            Wholesaler
-                                        </button>
-                                    )}
-                                    {user.role === 'wholesaler' && (
-                                        <button 
-                                            onClick={() => handleUpdateUserRole(user.id, 'retailer')}
-                                            className="btn-change-role btn-retailer"
-                                        >
-                                            Retailer
-                                        </button>
-                                    )}
-                                    <button 
-                                        onClick={() => handleDeleteUser(user.id)} 
-                                        className="btn-delete-user"
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
+            {/* ROLE COUNTS */}
+            <div className="saas-users-role-metrics">
+              <span className="saas-users-metric saas-users-metric--wholesaler">
+                🏷️ Wholesalers: {wholesalerCount}
+              </span>
+              <span className="saas-users-metric saas-users-metric--retailer">
+                🛍️ Retailers: {retailerCount}
+              </span>
             </div>
-        )}
-    </div>
-)}
-        {activeTab === 'offline-billing' && (
-  <div className="offline-billing-section">
-    <h2>Offline Billing</h2>
-    <div className="billing-container">
-      <div className="product-selection-panel">
-        <h4>Select Products</h4>
-        <div className="dropdown-group">
-          <select
-            className="billing-select"
-            value={offlinePricingType}
-            onChange={(e) => setOfflinePricingType(e.target.value)}
-          >
-            <option value="retail">Retail Pricing</option>
-            <option value="wholesale">Wholesale Pricing</option>
-          </select>
-          <select
-            className="billing-select"
-            value={selectedOfflineCollectionId}
-            onChange={(e) => setSelectedOfflineCollectionId(e.target.value)}
-          >
-            <option value="">Select Collection</option>
-            {mainCollections.map((collection) => (
-              <option key={collection.id} value={collection.id}>
-                {collection.title}
-              </option>
-            ))}
-          </select>
-          <select
-            className="billing-select"
-            value={selectedOfflineSubcollectionId}
-            onChange={(e) => setSelectedOfflineSubcollectionId(e.target.value)}
-            disabled={!selectedOfflineCollectionId}
-          >
-            <option value="">Select Subcollection</option>
-            {offlineSubcollections.map((subcollection) => (
-              <option key={subcollection.id} value={subcollection.id}>
-                {subcollection.name}
-              </option>
-            ))}
-          </select>
-        </div>
 
-        {/* Search Input */}
-        <input
-          type="text"
-          placeholder="Search products by name or code..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="product-search-bar"
-        />
+            {/* SEARCH */}
+            <div className="saas-users-search-bar">
+              <select
+                value={userSearchColumn}
+                onChange={(e) => setUserSearchColumn(e.target.value)}
+                className="saas-users-search-select"
+              >
+                <option value="name">Name</option>
+                <option value="lastLogin">Last Login</option>
+                <option value="mobile">Mobile</option>
+                <option value="address">Address</option>
+                <option value="lastOrder">Last Order</option>
+                <option value="orders">Total Orders</option>
+                <option value="amount">Total Amount</option>
+                <option value="profit">Net Profit</option>
+                <option value="createdAt">Created At</option>
+                <option value="role">Role</option>
+              </select>
 
-        {isOfflineProductsLoading ? (
-          <p className="loading-message">Loading products...</p>
-        ) : filteredOfflineProducts.length > 0 ? (
-          <div className="billing-product-list">
-            {filteredOfflineProducts.map(product => {
-              // --- STOCK/VARIATION LOGIC SETUP (Requires offlineSelections state) ---
-              // 1. Get the current selection (or default to the first variant)
-              const currentSelection = offlineSelections[product.id] || 
-                                       (product.variations && product.variations.length > 0 ? product.variations[0] : null);
-              
-              // 2. Get the stock for the currently selected item/variant
-              const availableStock = currentSelection ? Number(currentSelection.quantity) : Number(product.quantity || 0);
+              <input
+                type="text"
+                value={userSearchValue}
+                placeholder={`Search by ${userSearchColumn}`}
+                onChange={(e) => setUserSearchValue(e.target.value)}
+                className="saas-users-search-input"
+              />
+            </div>
 
-              // 3. Calculate quantity in cart for this specific variant
-              // NOTE: getCartItemId must be available in this component's scope (imported from CartContext)
-              const cartItemId = getCartItemId({ ...product, variation: currentSelection });
-              const currentQuantityInCart = offlineCart[cartItemId]?.quantity || 0;
-              
-              // 4. Check for stock limit
-              const isMaxStockReached = currentQuantityInCart >= availableStock;
-              
-              const imagesToDisplay = product.images && product.images.length > 0 ? product.images : (product.image ? [product.image] : []);
-              const currentImage = imagesToDisplay.length > 0 ? (imagesToDisplay[0].url || imagesToDisplay[0].url || imagesToDisplay[0]) : '';
-              // ----------------------------------------------------------------------
+            {/* SORT */}
+            <div className="saas-users-sort-bar">
+              <select
+                value={userSortField}
+                onChange={(e) => setUserSortField(e.target.value)}
+                className="saas-users-sort-select"
+              >
+                <option value="createdAt">Created At</option>
+                <option value="lastLogin">Last Login</option>
+                <option value="lastOrder">Last Order</option>
+                <option value="orders">Total Orders</option>
+                <option value="amount">Total Amount</option>
+                <option value="profit">Net Profit</option>
+                <option value="name">Name</option>
+              </select>
 
-              return (
-                <div
-                  key={product.id}
-                  className={`billing-product-item ${isMaxStockReached ? 'stock-limit' : ''}`}
-                >
-                  {/* Product Details */}
-                   <img
-      alt={product.productName}
-      src={currentImage}
-      className="product-image"
-      // 🛑 ADDED: onClick handler to open the full image modal 🛑
-      onClick={() => openImageModal(currentImage)}
-      style={{ cursor: 'pointer' }} // Visual hint that it's clickable
-    />
-                  <div className="product-details">
-                    <span className="product-name">{product.productName}</span>
-                    <span className="product-code">{product.productCode}</span>
+              <button
+                className="saas-users-sort-toggle"
+                onClick={() =>
+                  setUserSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+                }
+              >
+                {userSortOrder === 'asc' ? '⬆ Ascending' : '⬇ Descending'}
+              </button>
+            </div>
 
-                    {/* Variation Selector */}
-                    {product.variations && product.variations.length > 1 && (
-                        <select
-                            className="billing-variation-select"
-                            // Value must be stringified JSON object to hold the full variation data
-                            value={JSON.stringify(currentSelection || {})} 
-                            // Handler uses JSON.parse to get the selected object back
-                            onChange={(e) => handleOfflineSelectionChange(product.id, JSON.parse(e.target.value))}
-                        >
-                            {product.variations.map((v, index) => (
-                                <option 
-                                    key={index} 
-                                    value={JSON.stringify(v)} 
-                                    disabled={Number(v.quantity) <= 0}
-                                >
-                                    {v.color} {v.size} (Stock: {v.quantity})
-                                </option>
-                            ))}
-                        </select>
-                    )}
-                    
-                    <span className={`product-quantity ${availableStock === 0 ? 'out-of-stock-text' : ''}`}>
-                        In Stock: {availableStock}
-                    </span>
-                  </div>
+            {/* CONTENT */}
+            {isUserLoading ? (
+              <p className="saas-users-loading">Loading users…</p>
+            ) : filteredAndSortedUsers.length === 0 ? (
+              <p className="saas-users-empty">No users found.</p>
+            ) : (
+              <div className="saas-users-table-wrapper">
 
-                  {/* Add to Cart Control */}
-                  <div className="product-actions-offline">
-                      <span className="cart-item-quantity">In Cart: {currentQuantityInCart}</span>
-                      <button
-                          // Pass the product and the currently selected variation to the handler
-                          onClick={() => handleOfflineAddToCart(product, currentSelection)}
-                          className={`add-to-cart-btn ${isMaxStockReached ? 'disabled' : ''}`}
-                          disabled={isMaxStockReached}
-                      >
-                          {isMaxStockReached ? (availableStock === 0 ? 'Out of Stock' : 'Max Stock Reached') : 'Add 1'}
-                      </button>
-                  </div>
+                {/* HEADER */}
+                <div className="saas-users-table-header">
+                  <div>Name</div>
+                  <div>Last Login</div>
+                  <div>Mobile</div>
+                  <div>Address</div>
+                  <div>Last Order</div>
+                  <div>Orders</div>
+                  <div>Total Amount</div>
+                  <div>Net Profit</div>
+                  <div>Created</div>
+                  <div>Role</div>
+                  <div>Actions</div>
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="no-products-found">
-            {selectedOfflineSubcollectionId
-              ? 'No products found for your search.'
-              : 'Please select a collection and subcollection to view products.'}
-          </p>
-        )}
-      </div>
-      
-      <div className="billing-cart-panel">
-    <h4>Billing Cart</h4>
-    {Object.keys(offlineCart).length > 0 ? (
-        <>
-            <ul className="cart-list">
-                {/* CRITICAL: Iterate over pricedOfflineCart, not offlineCart */}
-                {Object.values(pricedOfflineCart).map((item) => {
-                    // Calculate the final unit price and line total for display
-                    const unitPrice = typeof item.calculatedPrice === 'number'
-                        ? item.calculatedPrice
-                        : (item.price !== undefined && item.price !== null ? parseFloat(item.price) : 0);
-                    const lineTotal = unitPrice * item.quantity;
+
+                {/* ROWS */}
+                <ul className="saas-users-table-body">
+                  {filteredAndSortedUsers.map((user) => {
+                    const stats = userOrderStats[user.id] || {};
 
                     return (
-                        <li key={item.id} className="cart-item">
-                            <div className="cart-item-details">
-                                <span className="cart-item-name">{item.productName}</span>
-                                <span className="cart-item-code">{item.productCode}</span>
-                                {/* Display Variation */}
-                                {item.variation && (item.variation.color || item.variation.size) && (
-                                    <span className="cart-item-info variation-detail">
-                                        {item.variation.color} {item.variation.size}
-                                    </span>
-                                )}
+                      <li
+                        key={user.id}
+                        className="saas-users-row"
+                        onClick={() =>
+                          navigate(`/admin/users/${user.id}/orders`)
+                        }
+                      >
+                        <div className="saas-users-cell saas-users-name">
+                          {user.name || 'N/A'}
+                        </div>
 
-                                {/* UPDATED: Display calculated unit price */}
-                                <span className="cart-item-info unit-price">
-                                    ₹{unitPrice.toFixed(2)} / unit
+                        <div className="saas-users-cell saas-users-muted">
+                          {formatDate(user.lastLogin)}
+                        </div>
+
+                        <div className="saas-users-cell saas-users-muted">
+                          {user.mobile || '—'}
+                        </div>
+
+                        <div className="saas-users-cell saas-users-truncate">
+                          {user.address || '—'}
+                        </div>
+
+                        <div className="saas-users-cell saas-users-muted">
+                          {stats.lastOrderDate
+                            ? formatDate(stats.lastOrderDate)
+                            : '—'}
+                        </div>
+
+                        <div className="saas-users-cell saas-users-center">
+                          {stats.totalOrders || 0}
+                        </div>
+
+                        <div className="saas-users-cell saas-users-amount">
+                          ₹{(stats.lifetimeValue || 0).toLocaleString('en-IN')}
+                        </div>
+
+                        <div className="saas-users-cell saas-users-profit">
+                          <span
+                            className={
+                              (stats.lifetimeProfit || 0) >= 0
+                                ? 'saas-profit'
+                                : 'saas-loss'
+                            }
+                          >
+                            ₹{(stats.lifetimeProfit || 0).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+
+                        <div className="saas-users-cell saas-users-muted">
+                          {formatDate(user.createdAt)}
+                        </div>
+
+                        <div className="saas-users-cell">
+                          <span className={`saas-role saas-role--${user.role}`}>
+                            {user.role}
+                          </span>
+                        </div>
+
+                        <div
+                          className="saas-users-cell saas-users-actions"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {user.role === 'retailer' && (
+                            <button
+                              className="saas-btn saas-btn--primary"
+                              onClick={() =>
+                                handleUpdateUserRole(user.id, 'wholesaler')
+                              }
+                            >
+                              Wholesaler
+                            </button>
+                          )}
+
+                          {user.role === 'wholesaler' && (
+                            <button
+                              className="saas-btn saas-btn--info"
+                              onClick={() =>
+                                handleUpdateUserRole(user.id, 'retailer')
+                              }
+                            >
+                              Retailer
+                            </button>
+                          )}
+
+                          <button
+                            className="saas-btn saas-btn--danger"
+                            onClick={() => handleDeleteUser(user.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </section>
+        )}
+
+
+
+        {activeTab === 'offline-billing' && (
+          <div className="offline-billing-section">
+            <h2>Offline Billing</h2>
+            <div className="billing-container">
+              <div className="product-selection-panel">
+                <h4>Select Products</h4>
+                <div className="dropdown-group">
+                  <select
+                    className="billing-select"
+                    value={offlinePricingType}
+                    onChange={(e) => setOfflinePricingType(e.target.value)}
+                  >
+                    <option value="retail">Retail Pricing</option>
+                    <option value="wholesale">Wholesale Pricing</option>
+                  </select>
+                  <select
+                    className="billing-select"
+                    value={selectedOfflineCollectionId}
+                    onChange={(e) => setSelectedOfflineCollectionId(e.target.value)}
+                  >
+                    <option value="">Select Collection</option>
+                    {mainCollections.map((collection) => (
+                      <option key={collection.id} value={collection.id}>
+                        {collection.title}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="billing-select"
+                    value={selectedOfflineSubcollectionId}
+                    onChange={(e) => setSelectedOfflineSubcollectionId(e.target.value)}
+                    disabled={!selectedOfflineCollectionId}
+                  >
+                    <option value="">Select Subcollection</option>
+                    {offlineSubcollections.map((subcollection) => (
+                      <option key={subcollection.id} value={subcollection.id}>
+                        {subcollection.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Search Input */}
+                <input
+                  type="text"
+                  placeholder="Search products by name or code..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="product-search-bar"
+                />
+
+                {isOfflineProductsLoading ? (
+                  <p className="loading-message">Loading products...</p>
+                ) : filteredOfflineProducts.length > 0 ? (
+                  <div className="billing-product-list">
+                    {filteredOfflineProducts.map(product => {
+                      // --- STOCK/VARIATION LOGIC SETUP (Requires offlineSelections state) ---
+                      // 1. Get the current selection (or default to the first variant)
+                      const currentSelection = offlineSelections[product.id] ||
+                        (product.variations && product.variations.length > 0 ? product.variations[0] : null);
+
+                      // 2. Get the stock for the currently selected item/variant
+                      const availableStock = currentSelection ? Number(currentSelection.quantity) : Number(product.quantity || 0);
+
+                      // 3. Calculate quantity in cart for this specific variant
+                      // NOTE: getCartItemId must be available in this component's scope (imported from CartContext)
+                      const cartItemId = getCartItemId({ ...product, variation: currentSelection });
+                      const currentQuantityInCart = offlineCart[cartItemId]?.quantity || 0;
+
+                      // 4. Check for stock limit
+                      const isMaxStockReached = currentQuantityInCart >= availableStock;
+
+                      const imagesToDisplay = product.images && product.images.length > 0 ? product.images : (product.image ? [product.image] : []);
+                      const currentImage = imagesToDisplay.length > 0 ? (imagesToDisplay[0].url || imagesToDisplay[0].url || imagesToDisplay[0]) : '';
+                      // ----------------------------------------------------------------------
+
+                      return (
+                        <div
+                          key={product.id}
+                          className={`billing-product-item ${isMaxStockReached ? 'stock-limit' : ''}`}
+                        >
+                          {/* Product Details */}
+                          <img
+                            alt={product.productName}
+                            src={currentImage}
+                            className="product-image"
+                            // 🛑 ADDED: onClick handler to open the full image modal 🛑
+                            onClick={() => openImageModal(currentImage)}
+                            style={{ cursor: 'pointer' }} // Visual hint that it's clickable
+                          />
+                          <div className="product-details">
+                            <span className="product-name">{product.productName}</span>
+                            <span className="product-code">{product.productCode}</span>
+
+                            {/* Variation Selector */}
+                            {product.variations && product.variations.length > 1 && (
+                              <select
+                                className="billing-variation-select"
+                                // Value must be stringified JSON object to hold the full variation data
+                                value={JSON.stringify(currentSelection || {})}
+                                // Handler uses JSON.parse to get the selected object back
+                                onChange={(e) => handleOfflineSelectionChange(product.id, JSON.parse(e.target.value))}
+                              >
+                                {product.variations.map((v, index) => (
+                                  <option
+                                    key={index}
+                                    value={JSON.stringify(v)}
+                                    disabled={Number(v.quantity) <= 0}
+                                  >
+                                    {v.color} {v.size} (Stock: {v.quantity})
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+
+                            <span className={`product-quantity ${availableStock === 0 ? 'out-of-stock-text' : ''}`}>
+                              In Stock: {availableStock}
+                            </span>
+                          </div>
+
+                          {/* Add to Cart Control */}
+                          <div className="product-actions-offline">
+                            <span className="cart-item-quantity">In Cart: {currentQuantityInCart}</span>
+                            <button
+                              // Pass the product and the currently selected variation to the handler
+                              onClick={() => handleOfflineAddToCart(product, currentSelection)}
+                              className={`add-to-cart-btn ${isMaxStockReached ? 'disabled' : ''}`}
+                              disabled={isMaxStockReached}
+                            >
+                              {isMaxStockReached ? (availableStock === 0 ? 'Out of Stock' : 'Max Stock Reached') : 'Add 1'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="no-products-found">
+                    {selectedOfflineSubcollectionId
+                      ? 'No products found for your search.'
+                      : 'Please select a collection and subcollection to view products.'}
+                  </p>
+                )}
+              </div>
+
+              <div className="billing-cart-panel">
+                <h4>Billing Cart</h4>
+                {Object.keys(offlineCart).length > 0 ? (
+                  <>
+                    <ul className="cart-list">
+                      {/* CRITICAL: Iterate over pricedOfflineCart, not offlineCart */}
+                      {Object.values(pricedOfflineCart).map((item) => {
+                        // Calculate the final unit price and line total for display
+                        const unitPrice = typeof item.calculatedPrice === 'number'
+                          ? item.calculatedPrice
+                          : (item.price !== undefined && item.price !== null ? parseFloat(item.price) : 0);
+                        const lineTotal = unitPrice * item.quantity;
+
+                        return (
+                          <li key={item.id} className="cart-item">
+                            <div className="cart-item-details">
+                              <span className="cart-item-name">{item.productName}</span>
+                              <span className="cart-item-code">{item.productCode}</span>
+                              {/* Display Variation */}
+                              {item.variation && (item.variation.color || item.variation.size) && (
+                                <span className="cart-item-info variation-detail">
+                                  {item.variation.color} {item.variation.size}
                                 </span>
+                              )}
+
+                              {/* UPDATED: Display calculated unit price */}
+                              <span className="cart-item-info unit-price">
+                                ₹{unitPrice.toFixed(2)} / unit
+                              </span>
                             </div>
                             <div className="cart-item-controls">
-                                {/* NEW: Display line total */}
-                                <span className="cart-item-info line-total">
-                                    <strong className="line-total-amount">₹{lineTotal.toFixed(2)}</strong>
-                                </span>
-                                
-                                <button onClick={() => handleOfflineRemoveFromCart(item.id)} className="quantity-btn">-</button>
-                                <span className="cart-quantity">{item.quantity}</span>
-                                <button 
-                                    onClick={() => handleOfflineAddToCart(item, item.variation)} 
-                                    className="quantity-btn"
-                                    disabled={item.quantity >= (item.availableStock || Infinity)} 
-                                >
-                                    +
-                                </button>
+                              {/* NEW: Display line total */}
+                              <span className="cart-item-info line-total">
+                                <strong className="line-total-amount">₹{lineTotal.toFixed(2)}</strong>
+                              </span>
+
+                              <button onClick={() => handleOfflineRemoveFromCart(item.id)} className="quantity-btn">-</button>
+                              <span className="cart-quantity">{item.quantity}</span>
+                              <button
+                                onClick={() => handleOfflineAddToCart(item, item.variation)}
+                                className="quantity-btn"
+                                disabled={item.quantity >= (item.availableStock || Infinity)}
+                              >
+                                +
+                              </button>
                             </div>
-                        </li>
-                    );
-                })}
-            </ul>
+                          </li>
+                        );
+                      })}
+                    </ul>
 
-            {/* NEW: Editable Total Input */}
-            <div className="cart-total-info">
-                {/* FIX: Removed the extra ₹ symbol (₹₹ -> ₹) */}
-                <p className="calculated-total">Calculated Total: ₹{offlineSubtotal.toFixed(2)}</p>
-                <label htmlFor="edited-total-input">Final Total:</label>
-                <input
-                    id="edited-total-input"
-                    type="number"
-                    value={editedTotal}
-                    onChange={(e) => setEditedTotal(e.target.value)}
-                    placeholder="Enter final total"
-                    className="editable-total-input"
-                />
+                    {/* NEW: Editable Total Input */}
+                    <div className="cart-total-info">
+                      {/* FIX: Removed the extra ₹ symbol (₹₹ -> ₹) */}
+                      <p className="calculated-total">Calculated Total: ₹{offlineSubtotal.toFixed(2)}</p>
+                      <label htmlFor="edited-total-input">Final Total:</label>
+                      <input
+                        id="edited-total-input"
+                        type="number"
+                        value={editedTotal}
+                        onChange={(e) => setEditedTotal(e.target.value)}
+                        placeholder="Enter final total"
+                        className="editable-total-input"
+                      />
+                    </div>
+
+                    <button onClick={handleFinalizeSale} className="finalize-sale-btn">
+                      Finalize Sale
+                    </button>
+                  </>
+                ) : (
+                  <p>Cart is empty. Add products to start billing.</p>
+                )}
+              </div>
             </div>
-
-            <button onClick={handleFinalizeSale} className="finalize-sale-btn">
-                Finalize Sale
-            </button>
-        </>
-    ) : (
-        <p>Cart is empty. Add products to start billing.</p>
-    )}
-</div>
-    </div>
-  </div>
-)}
-{modalImage && (
-    <div className="image-modal-backdrop" onClick={closeImageModal}>
-        <div 
-            className="image-modal-content" 
-            // Stop propagation so clicking the image itself doesn't close the modal
-            onClick={(e) => e.stopPropagation()} 
-        >
-            <button className="close-modal-btn" onClick={closeImageModal}>&times;</button>
-            <img src={modalImage} alt="Full Product View" className="full-image-display" />
-        </div>
-    </div>
-)}
+          </div>
+        )}
+        {modalImage && (
+          <div className="image-modal-backdrop" onClick={closeImageModal}>
+            <div
+              className="image-modal-content"
+              // Stop propagation so clicking the image itself doesn't close the modal
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button className="close-modal-btn" onClick={closeImageModal}>&times;</button>
+              <img src={modalImage} alt="Full Product View" className="full-image-display" />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
