@@ -1658,29 +1658,55 @@ const AdminPage = () => {
   };
 
   const fetchOfflineProducts = async () => {
-    if (selectedOfflineCollectionId && selectedOfflineSubcollectionId && Object.keys(subcollectionsMap).length > 0) {
-      setIsOfflineProductsLoading(true);
-      try {
-        const q = query(
-          collection(db, 'collections', selectedOfflineCollectionId, 'subcollections', selectedOfflineSubcollectionId, 'products')
-        );
-        const querySnapshot = await getDocs(q);
-        const products = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          // IMPORTANT: Attach the subcollection's tiered pricing data to the product object
-          tieredPricing: subcollectionsMap[selectedOfflineSubcollectionId]?.tieredPricing,
-          subcollectionId: selectedOfflineSubcollectionId,
+  // 🚫 Collection must be selected
+  if (!selectedOfflineCollectionId || Object.keys(subcollectionsMap).length === 0) {
+    setOfflineProducts([]);
+    return;
+  }
+
+  setIsOfflineProductsLoading(true);
+
+  try {
+    let allProducts = [];
+
+    // ✅ Decide which subcollections to load
+    const subcollectionIds = selectedOfflineSubcollectionId
+      ? [selectedOfflineSubcollectionId]              // Single subcollection
+      : Object.keys(subcollectionsMap);                // ALL subcollections
+
+    // 🔄 Loop through required subcollections
+    for (const subId of subcollectionIds) {
+      const productsRef = collection(
+        db,
+        'collections',
+        selectedOfflineCollectionId,
+        'subcollections',
+        subId,
+        'products'
+      );
+
+      const productsSnap = await getDocs(productsRef);
+
+      productsSnap.forEach(docSnap => {
+        allProducts.push({
+          id: docSnap.id,
+          ...docSnap.data(),
+
+          // 🔑 Attach pricing & hierarchy info
+          tieredPricing: subcollectionsMap[subId]?.tieredPricing,
+          subcollectionId: subId,
           collectionId: selectedOfflineCollectionId,
-        }));
-        setOfflineProducts(products);
-      } catch (error) {
-        console.error('Error fetching offline products:', error);
-      } finally {
-        setIsOfflineProductsLoading(false);
-      }
+        });
+      });
     }
-  };
+
+    setOfflineProducts(allProducts);
+  } catch (error) {
+    console.error('Error fetching offline products:', error);
+  } finally {
+    setIsOfflineProductsLoading(false);
+  }
+};
 
 
 
@@ -2030,9 +2056,12 @@ const AdminPage = () => {
 
   // This useEffect is critical for updating the products whenever the subcollection changes.
   // It ensures that products are loaded with the correct tiered pricing data.
-  useEffect(() => {
+useEffect(() => {
+  if (selectedOfflineCollectionId) {
     fetchOfflineProducts();
-  }, [selectedOfflineSubcollectionId, subcollectionsMap]);
+  }
+}, [selectedOfflineCollectionId, selectedOfflineSubcollectionId, subcollectionsMap]);
+
 
   const filteredOfflineProducts = offlineProducts.filter(product =>
     product && (
@@ -3261,7 +3290,7 @@ const AdminPage = () => {
                     onChange={(e) => setSelectedOfflineSubcollectionId(e.target.value)}
                     disabled={!selectedOfflineCollectionId}
                   >
-                    <option value="">Select Subcollection</option>
+                    <option value="">All Subcollection</option>
                     {offlineSubcollections.map((subcollection) => (
                       <option key={subcollection.id} value={subcollection.id}>
                         {subcollection.name}
