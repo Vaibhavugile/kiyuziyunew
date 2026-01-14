@@ -158,6 +158,16 @@ const AdminPage = () => {
   const [userSortField, setUserSortField] = useState('createdAt');
   const [userSortOrder, setUserSortOrder] = useState('desc'); // asc | desc
   const GST_RATE = 0.03; // 3% GST (change if needed)
+const [offlineCustomer, setOfflineCustomer] = useState({
+  fullName: '',
+  email: '',
+  phoneNumber: '',
+  addressLine1: '',
+  addressLine2: '',
+  city: '',
+  state: '',
+  pincode: '',
+});
 
   const [isGSTApplied, setIsGSTApplied] = useState(false);
 
@@ -271,6 +281,12 @@ const AdminPage = () => {
     }));
   };
   // NOTE: You must have getCartItemId and getPriceForOfflineBilling (or similar) available in this file's scope.
+const handleOfflineCustomerChange = (field, value) => {
+  setOfflineCustomer(prev => ({
+    ...prev,
+    [field]: value,
+  }));
+};
 
   const handleOfflineAddToCart = (product, variation = null, incrementBy = 1) => {
 
@@ -1851,6 +1867,20 @@ const AdminPage = () => {
       alert('The cart is empty. Please add products to finalize the sale.');
       return;
     }
+    const {
+  fullName,
+  phoneNumber,
+  addressLine1,
+  city,
+  state,
+  pincode,
+} = offlineCustomer;
+
+if (!fullName || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
+  alert('Please fill all required customer details.');
+  return;
+}
+
 
     if (window.confirm('Are you sure you want to finalize this offline sale?')) {
       let isStockError = false;
@@ -1988,25 +2018,19 @@ const AdminPage = () => {
         const totalAmountToUse = baseTotal + gstValue;
 
         // Billing Info (Unchanged)
-        const customerName = 'SSS1';
-        const customerEmail = 'vaibhavugile7@gmail.com';
-        const customerPhone = '8446442204';
-        const customerAddress1 = 'pune';
-        const customerAddress2 = 'pune';
-        const customerCity = 'pune';
-        const customerState = 'Maharashtra';
-        const customerPincode = '412101';
+       
 
         const offlineSaleCustomerInfo = {
-          fullName: `${customerName} (Offline)`,
-          email: `${customerEmail} (Offline)`,
-          phoneNumber: `${customerPhone} (Offline)`,
-          addressLine1: `${customerAddress1} (Offline)`,
-          addressLine2: `${customerAddress2} (Offline)`,
-          city: `${customerCity} (Offline)`,
-          state: `${customerState} (Offline)`,
-          pincode: `${customerPincode} (Offline)`,
-        };
+  fullName: `${offlineCustomer.fullName} (Offline)`,
+  email: offlineCustomer.email || '',
+  phoneNumber: offlineCustomer.phoneNumber,
+  addressLine1: offlineCustomer.addressLine1,
+  addressLine2: offlineCustomer.addressLine2 || '',
+  city: offlineCustomer.city,
+  state: offlineCustomer.state,
+  pincode: offlineCustomer.pincode,
+};
+
 
         // Order Items (Using correctly calculated price)
         const orderItems = Object.values(pricedOfflineCart).map(item => ({
@@ -2053,6 +2077,17 @@ const AdminPage = () => {
         setSelectedOfflineCollectionId('');
         setSelectedOfflineSubcollectionId('');
         setOfflineProducts([]);
+        setOfflineCustomer({
+  fullName: '',
+  email: '',
+  phoneNumber: '',
+  addressLine1: '',
+  addressLine2: '',
+  city: '',
+  state: '',
+  pincode: '',
+});
+
 
         if (activeTab === 'orders') fetchOrders();
         if (activeSubTab === 'products') fetchProducts(selectedSubcollectionId);
@@ -3508,6 +3543,66 @@ const AdminPage = () => {
                         </p>
                       )}
                     </div>
+                    <div className="offline-customer-form">
+  <h4>Customer Details</h4>
+
+  <input
+    type="text"
+    placeholder="Customer Name"
+    value={offlineCustomer.fullName}
+    onChange={(e) => handleOfflineCustomerChange('fullName', e.target.value)}
+  />
+
+  <input
+    type="email"
+    placeholder="Email (optional)"
+    value={offlineCustomer.email}
+    onChange={(e) => handleOfflineCustomerChange('email', e.target.value)}
+  />
+
+  <input
+    type="tel"
+    placeholder="Phone Number"
+    value={offlineCustomer.phoneNumber}
+    onChange={(e) => handleOfflineCustomerChange('phoneNumber', e.target.value)}
+  />
+
+  <input
+    type="text"
+    placeholder="Address Line 1"
+    value={offlineCustomer.addressLine1}
+    onChange={(e) => handleOfflineCustomerChange('addressLine1', e.target.value)}
+  />
+
+  <input
+    type="text"
+    placeholder="Address Line 2 (optional)"
+    value={offlineCustomer.addressLine2}
+    onChange={(e) => handleOfflineCustomerChange('addressLine2', e.target.value)}
+  />
+
+  <input
+    type="text"
+    placeholder="City"
+    value={offlineCustomer.city}
+    onChange={(e) => handleOfflineCustomerChange('city', e.target.value)}
+  />
+
+  <input
+    type="text"
+    placeholder="State"
+    value={offlineCustomer.state}
+    onChange={(e) => handleOfflineCustomerChange('state', e.target.value)}
+  />
+
+  <input
+    type="text"
+    placeholder="Pincode"
+    value={offlineCustomer.pincode}
+    onChange={(e) => handleOfflineCustomerChange('pincode', e.target.value)}
+  />
+</div>
+
 
 
                     <button onClick={handleFinalizeSale} className="finalize-sale-btn">

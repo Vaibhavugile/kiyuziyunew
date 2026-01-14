@@ -319,3 +319,116 @@
     flex-wrap: wrap;
   }
 }
+
+/* ================================
+   🧾 OFFLINE CUSTOMER FORM
+   ================================ */
+
+.offline-customer-form {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #e2e2e2;
+  border-radius: 8px;
+  background-color: #fafafa;
+}
+
+.offline-customer-form h4 {
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Grid layout for inputs */
+.offline-customer-form {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+/* Make full-width fields */
+.offline-customer-form input:nth-child(2),
+.offline-customer-form input:nth-child(3) {
+  grid-column: span 2;
+}
+
+/* Inputs */
+.offline-customer-form input {
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background-color: #fff;
+}
+
+/* Focus state */
+.offline-customer-form input:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+}
+
+/* Placeholder */
+.offline-customer-form input::placeholder {
+  color: #999;
+}
+
+/* ================================
+   📱 RESPONSIVE
+   ================================ */
+@media (max-width: 768px) {
+  .offline-customer-form {
+    grid-template-columns: 1fr;
+  }
+
+  .offline-customer-form input {
+    grid-column: span 1 !important;
+  }
+}
+/* ================================
+   🧮 GST SECTION
+   ================================ */
+
+.gst-section {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed #ddd;
+}
+
+.gst-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.gst-amount {
+  margin-top: 6px;
+  font-size: 14px;
+  color: #444;
+}
+.finalize-sale-btn {
+  margin-top: 16px;
+  width: 100%;
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  background-color: #28a745;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.finalize-sale-btn:hover {
+  background-color: #218838;
+}
+
+.finalize-sale-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
