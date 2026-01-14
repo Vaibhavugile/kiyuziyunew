@@ -157,6 +157,9 @@ const AdminPage = () => {
   const [userSearchValue, setUserSearchValue] = useState('');
   const [userSortField, setUserSortField] = useState('createdAt');
   const [userSortOrder, setUserSortOrder] = useState('desc'); // asc | desc
+  const GST_RATE = 0.03; // 3% GST (change if needed)
+
+  const [isGSTApplied, setIsGSTApplied] = useState(false);
 
   // Add this line with your other useState calls at the top of the component:
   const [offlineSelections, setOfflineSelections] = useState({});
@@ -457,6 +460,18 @@ const AdminPage = () => {
   useEffect(() => {
     console.log('User Order Stats:', userOrderStats);
   }, [userOrderStats]);
+
+  const baseTotal =
+    editedTotal !== ''
+      ? Number(editedTotal)
+      : Number(offlineSubtotal);
+
+  const gstAmount = isGSTApplied
+    ? baseTotal * GST_RATE
+    : 0;
+
+  const finalTotal = baseTotal + gstAmount;
+
 
   const handleTierChange = (type, index, field, value) => {
     setSubcollectionTieredPricing((prevPricing) => {
@@ -1292,113 +1307,113 @@ const AdminPage = () => {
   };
   const filteredAndSortedUsers = [...users]
 
-  /* =========================
-     🔍 FILTER
-     ========================= */
-  .filter((user) => {
-    const value = userSearchValue.toLowerCase().trim();
-    if (!value) return true;
+    /* =========================
+       🔍 FILTER
+       ========================= */
+    .filter((user) => {
+      const value = userSearchValue.toLowerCase().trim();
+      if (!value) return true;
 
-    const stats = userOrderStats[user.id] || {};
+      const stats = userOrderStats[user.id] || {};
 
-    switch (userSearchColumn) {
-      case 'name':
-        return user.name?.toLowerCase().includes(value);
+      switch (userSearchColumn) {
+        case 'name':
+          return user.name?.toLowerCase().includes(value);
 
-      case 'mobile':
-        return user.mobile?.toLowerCase().includes(value);
+        case 'mobile':
+          return user.mobile?.toLowerCase().includes(value);
 
-      case 'address':
-        return user.address?.toLowerCase().includes(value);
+        case 'address':
+          return user.address?.toLowerCase().includes(value);
 
-      case 'role':
-        return user.role?.toLowerCase().includes(value);
+        case 'role':
+          return user.role?.toLowerCase().includes(value);
 
-      case 'lastLogin':
-        return formatDate(user.lastLogin)
-          ?.toLowerCase()
-          .includes(value);
+        case 'lastLogin':
+          return formatDate(user.lastLogin)
+            ?.toLowerCase()
+            .includes(value);
 
-      case 'lastOrder':
-        return formatDate(stats.lastOrderDate)
-          ?.toLowerCase()
-          .includes(value);
+        case 'lastOrder':
+          return formatDate(stats.lastOrderDate)
+            ?.toLowerCase()
+            .includes(value);
 
-      case 'orders':
-        return String(stats.totalOrders || 0).includes(value);
+        case 'orders':
+          return String(stats.totalOrders || 0).includes(value);
 
-      case 'amount':
-        return String(stats.lifetimeValue || 0).includes(value);
+        case 'amount':
+          return String(stats.lifetimeValue || 0).includes(value);
 
-      /* 🔥 ADD PROFIT FILTER */
-      case 'profit':
-        return String(stats.lifetimeProfit || 0).includes(value);
+        /* 🔥 ADD PROFIT FILTER */
+        case 'profit':
+          return String(stats.lifetimeProfit || 0).includes(value);
 
-      case 'createdAt':
-        return formatDate(user.createdAt)
-          ?.toLowerCase()
-          .includes(value);
+        case 'createdAt':
+          return formatDate(user.createdAt)
+            ?.toLowerCase()
+            .includes(value);
 
-      default:
-        return true;
-    }
-  })
+        default:
+          return true;
+      }
+    })
 
-  /* =========================
-     🔃 SORT
-     ========================= */
-  .sort((a, b) => {
-    const statsA = userOrderStats[a.id] || {};
-    const statsB = userOrderStats[b.id] || {};
+    /* =========================
+       🔃 SORT
+       ========================= */
+    .sort((a, b) => {
+      const statsA = userOrderStats[a.id] || {};
+      const statsB = userOrderStats[b.id] || {};
 
-    let valA;
-    let valB;
+      let valA;
+      let valB;
 
-    switch (userSortField) {
-      case 'name':
-        valA = a.name || '';
-        valB = b.name || '';
-        break;
+      switch (userSortField) {
+        case 'name':
+          valA = a.name || '';
+          valB = b.name || '';
+          break;
 
-      case 'orders':
-        valA = statsA.totalOrders || 0;
-        valB = statsB.totalOrders || 0;
-        break;
+        case 'orders':
+          valA = statsA.totalOrders || 0;
+          valB = statsB.totalOrders || 0;
+          break;
 
-      case 'amount':
-        valA = statsA.lifetimeValue || 0;
-        valB = statsB.lifetimeValue || 0;
-        break;
+        case 'amount':
+          valA = statsA.lifetimeValue || 0;
+          valB = statsB.lifetimeValue || 0;
+          break;
 
-      /* 🔥 ADD PROFIT SORT */
-      case 'profit':
-        valA = statsA.lifetimeProfit || 0;
-        valB = statsB.lifetimeProfit || 0;
-        break;
+        /* 🔥 ADD PROFIT SORT */
+        case 'profit':
+          valA = statsA.lifetimeProfit || 0;
+          valB = statsB.lifetimeProfit || 0;
+          break;
 
-      case 'lastLogin':
-        valA = a.lastLogin?.toDate?.() || new Date(0);
-        valB = b.lastLogin?.toDate?.() || new Date(0);
-        break;
+        case 'lastLogin':
+          valA = a.lastLogin?.toDate?.() || new Date(0);
+          valB = b.lastLogin?.toDate?.() || new Date(0);
+          break;
 
-      case 'lastOrder':
-        valA = statsA.lastOrderDate?.toDate?.() || new Date(0);
-        valB = statsB.lastOrderDate?.toDate?.() || new Date(0);
-        break;
+        case 'lastOrder':
+          valA = statsA.lastOrderDate?.toDate?.() || new Date(0);
+          valB = statsB.lastOrderDate?.toDate?.() || new Date(0);
+          break;
 
-      case 'createdAt':
-        valA = a.createdAt?.toDate?.() || new Date(0);
-        valB = b.createdAt?.toDate?.() || new Date(0);
-        break;
+        case 'createdAt':
+          valA = a.createdAt?.toDate?.() || new Date(0);
+          valB = b.createdAt?.toDate?.() || new Date(0);
+          break;
 
-      default:
-        return 0;
-    }
+        default:
+          return 0;
+      }
 
-    if (valA < valB) return userSortOrder === 'asc' ? -1 : 1;
-    if (valA > valB) return userSortOrder === 'asc' ? 1 : -1;
-    return 0;
-  });
+      if (valA < valB) return userSortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return userSortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
 
 
 
@@ -1658,55 +1673,55 @@ const AdminPage = () => {
   };
 
   const fetchOfflineProducts = async () => {
-  // 🚫 Collection must be selected
-  if (!selectedOfflineCollectionId || Object.keys(subcollectionsMap).length === 0) {
-    setOfflineProducts([]);
-    return;
-  }
-
-  setIsOfflineProductsLoading(true);
-
-  try {
-    let allProducts = [];
-
-    // ✅ Decide which subcollections to load
-    const subcollectionIds = selectedOfflineSubcollectionId
-      ? [selectedOfflineSubcollectionId]              // Single subcollection
-      : Object.keys(subcollectionsMap);                // ALL subcollections
-
-    // 🔄 Loop through required subcollections
-    for (const subId of subcollectionIds) {
-      const productsRef = collection(
-        db,
-        'collections',
-        selectedOfflineCollectionId,
-        'subcollections',
-        subId,
-        'products'
-      );
-
-      const productsSnap = await getDocs(productsRef);
-
-      productsSnap.forEach(docSnap => {
-        allProducts.push({
-          id: docSnap.id,
-          ...docSnap.data(),
-
-          // 🔑 Attach pricing & hierarchy info
-          tieredPricing: subcollectionsMap[subId]?.tieredPricing,
-          subcollectionId: subId,
-          collectionId: selectedOfflineCollectionId,
-        });
-      });
+    // 🚫 Collection must be selected
+    if (!selectedOfflineCollectionId || Object.keys(subcollectionsMap).length === 0) {
+      setOfflineProducts([]);
+      return;
     }
 
-    setOfflineProducts(allProducts);
-  } catch (error) {
-    console.error('Error fetching offline products:', error);
-  } finally {
-    setIsOfflineProductsLoading(false);
-  }
-};
+    setIsOfflineProductsLoading(true);
+
+    try {
+      let allProducts = [];
+
+      // ✅ Decide which subcollections to load
+      const subcollectionIds = selectedOfflineSubcollectionId
+        ? [selectedOfflineSubcollectionId]              // Single subcollection
+        : Object.keys(subcollectionsMap);                // ALL subcollections
+
+      // 🔄 Loop through required subcollections
+      for (const subId of subcollectionIds) {
+        const productsRef = collection(
+          db,
+          'collections',
+          selectedOfflineCollectionId,
+          'subcollections',
+          subId,
+          'products'
+        );
+
+        const productsSnap = await getDocs(productsRef);
+
+        productsSnap.forEach(docSnap => {
+          allProducts.push({
+            id: docSnap.id,
+            ...docSnap.data(),
+
+            // 🔑 Attach pricing & hierarchy info
+            tieredPricing: subcollectionsMap[subId]?.tieredPricing,
+            subcollectionId: subId,
+            collectionId: selectedOfflineCollectionId,
+          });
+        });
+      }
+
+      setOfflineProducts(allProducts);
+    } catch (error) {
+      console.error('Error fetching offline products:', error);
+    } finally {
+      setIsOfflineProductsLoading(false);
+    }
+  };
 
 
 
@@ -1965,7 +1980,12 @@ const AdminPage = () => {
 
         // ... (The rest of the order data construction remains unchanged) ...
 
-        const totalAmountToUse = editedTotal !== '' ? parseFloat(editedTotal) : offlineSubtotal;
+        const baseTotal =
+          editedTotal !== '' ? Number(editedTotal) : Number(offlineSubtotal);
+
+        const gstValue = isGSTApplied ? baseTotal * GST_RATE : 0;
+
+        const totalAmountToUse = baseTotal + gstValue;
 
         // Billing Info (Unchanged)
         const customerName = 'SSS1';
@@ -2010,8 +2030,11 @@ const AdminPage = () => {
           createdAt: serverTimestamp(),
           billingInfo: offlineSaleCustomerInfo,
           items: orderItems,
+          subtotal: baseTotal,
+          gstApplied: isGSTApplied,
+          gstRate: GST_RATE,
+          gstAmount: gstValue,
           totalAmount: totalAmountToUse,
-          subtotal: totalAmountToUse,
           shippingFee: 0,
           pricingType: offlinePricingType,
         };
@@ -2056,11 +2079,11 @@ const AdminPage = () => {
 
   // This useEffect is critical for updating the products whenever the subcollection changes.
   // It ensures that products are loaded with the correct tiered pricing data.
-useEffect(() => {
-  if (selectedOfflineCollectionId) {
-    fetchOfflineProducts();
-  }
-}, [selectedOfflineCollectionId, selectedOfflineSubcollectionId, subcollectionsMap]);
+  useEffect(() => {
+    if (selectedOfflineCollectionId) {
+      fetchOfflineProducts();
+    }
+  }, [selectedOfflineCollectionId, selectedOfflineSubcollectionId, subcollectionsMap]);
 
 
   const filteredOfflineProducts = offlineProducts.filter(product =>
@@ -3456,7 +3479,9 @@ useEffect(() => {
                     {/* NEW: Editable Total Input */}
                     <div className="cart-total-info">
                       {/* FIX: Removed the extra ₹ symbol (₹₹ -> ₹) */}
-                      <p className="calculated-total">Calculated Total: ₹{offlineSubtotal.toFixed(2)}</p>
+                      <p className="calculated-total">
+                        Calculated Total: ₹{finalTotal.toFixed(2)}
+                      </p>
                       <label htmlFor="edited-total-input">Final Total:</label>
                       <input
                         id="edited-total-input"
@@ -3467,6 +3492,23 @@ useEffect(() => {
                         className="editable-total-input"
                       />
                     </div>
+                    <div className="gst-section">
+                      <label className="gst-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={isGSTApplied}
+                          onChange={(e) => setIsGSTApplied(e.target.checked)}
+                        />
+                        Apply GST ({GST_RATE * 100}%)
+                      </label>
+
+                      {isGSTApplied && (
+                        <p className="gst-amount">
+                          GST Amount: ₹{gstAmount.toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+
 
                     <button onClick={handleFinalizeSale} className="finalize-sale-btn">
                       Finalize Sale
