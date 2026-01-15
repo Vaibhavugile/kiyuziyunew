@@ -31,6 +31,8 @@ import 'react-image-crop/dist/ReactCrop.css';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { ROLE_CONFIG } from "../config/roles";
+
 
 // Low stock threshold constant
 const LOW_STOCK_THRESHOLD = 10;
@@ -47,6 +49,13 @@ const AdminPage = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isCropping, setIsCropping] = useState(false);
   const [imageToCrop, setImageToCrop] = useState(null);
+  const ROLE_KEYS = Object.keys(ROLE_CONFIG);
+const PRICING_KEYS = ROLE_KEYS.map(
+  role => ROLE_CONFIG[role].pricingKey
+);
+const [subcollectionsMap, setSubcollectionsMap] = useState({});
+
+
   // State for Subcollections
   const [selectedMainCollectionId, setSelectedMainCollectionId] = useState('');
   const [subcollections, setSubcollections] = useState([]);
@@ -58,10 +67,14 @@ const AdminPage = () => {
   const [isSubcollectionLoading, setIsSubcollectionLoading] = useState(false);
   const [isSubcollectionUploading, setIsSubcollectionUploading] = useState(false);
   const [editingSubcollection, setEditingSubcollection] = useState(null);
-  const [subcollectionTieredPricing, setSubcollectionTieredPricing] = useState({
-    retail: [],
-    wholesale: [],
-  });
+const emptyPricing = PRICING_KEYS.reduce((acc, key) => {
+  acc[key] = [];
+  return acc;
+}, {});
+
+const [subcollectionTieredPricing, setSubcollectionTieredPricing] =
+  useState(emptyPricing);
+
   const navigate = useNavigate();
 
   // State for Products
@@ -151,8 +164,8 @@ const AdminPage = () => {
   const [selectedOfflineSubcollectionId, setSelectedOfflineSubcollectionId] = useState('');
   const [offlineProducts, setOfflineProducts] = useState([]);
   const [offlineCart, setOfflineCart] = useState({});
-  const [offlinePricingType, setOfflinePricingType] = useState('retail'); // 'retail' or 'wholesaler'
-  const [subcollectionsMap, setSubcollectionsMap] = useState({});
+const [offlinePricingKey, setOfflinePricingKey] = useState('retail');
+
   const [isOfflineProductsLoading, setIsOfflineProductsLoading] = useState(false);
   const [offlineSubtotal, setOfflineSubtotal] = useState(0);
   const [pricedOfflineCart, setPricedOfflineCart] = useState({});
@@ -323,7 +336,7 @@ const AdminPage = () => {
         ...itemToAdd,
         id: cartItemId, // Use the unique ID as the cart key
         // You need a helper function to determine the price based on type/tiers
-        price: getPriceForOfflineBilling(itemToAdd, offlinePricingType),
+        price: getPriceForOfflineBilling(itemToAdd, offlinePricingKey),
         availableStock: availableStock, // Save the stock for cart controls
       };
 
@@ -354,7 +367,7 @@ const AdminPage = () => {
   };
 
   // --- NEW UTILITY FUNCTION for Offline Billing ---
-  const getPriceForOfflineBilling = (item, offlinePricingType) => {
+  const getPriceForOfflineBilling = (item, offlinePricingKey) => {
     // 1. Determine the pricing tiers to use based on the selected type (retail/wholesale)
     // NOTE: This assumes the product object already has a structure like:
     // item.tieredPricing.wholesale and item.tieredPricing.retail, or that 
@@ -367,7 +380,7 @@ const AdminPage = () => {
       return item.variation?.price || item.price || 0;
     }
 
-    const tiers = offlinePricingType === 'wholesale'
+    const tiers = offlinePricingKey === 'wholesale'
       ? productTiers.wholesale
       : productTiers.retail;
 
@@ -961,92 +974,160 @@ const AdminPage = () => {
   };
 
   // --- Subcollection Handlers ---
-  const handleAddSubcollection = async (e) => {
-    e.preventDefault();
-    if (!selectedMainCollectionId || !subcollectionName || !subcollectionPurchaseRate || !subcollectionImageFile || !subcollectionShowNumber || subcollectionTieredPricing.retail.length === 0 || subcollectionTieredPricing.wholesale.length === 0) {
-      alert('Please fill out all fields and add at least one pricing tier for both retail and wholesale.');
-      return;
-    }
-    setIsSubcollectionUploading(true);
-    try {
-      const imageUrl = await uploadImageAndGetURL(subcollectionImageFile);
-      const subcollectionRef = collection(db, 'collections', selectedMainCollectionId, 'subcollections');
-      const newDoc = await addDoc(subcollectionRef, {
-        name: subcollectionName,
-        description: subcollectionDescription,
-        image: imageUrl,
-        showNumber: parseInt(subcollectionShowNumber),
-        purchaseRate: parseFloat(subcollectionPurchaseRate), // Add this line
-        tieredPricing: subcollectionTieredPricing,
-      });
-      console.log('Subcollection added with ID: ', newDoc.id);
-      fetchSubcollections();
-    } catch (error) {
-      console.error('Error adding subcollection:', error);
-    }
+
+const handleAddSubcollection = async (e) => {
+  e.preventDefault();
+
+  // ✅ BASIC REQUIRED FIELDS CHECK
+  if (
+    !selectedMainCollectionId ||
+    !subcollectionName ||
+    !subcollectionPurchaseRate ||
+    !subcollectionImageFile ||
+    !subcollectionShowNumber
+  ) {
+    alert('Please fill out all required fields.');
+    return;
+  }
+
+  // ✅ ROLE-AGNOSTIC PRICING VALIDATION (IMPORTANT FIX)
+  const hasPricing = Object.values(subcollectionTieredPricing)
+    .some(tiers => Array.isArray(tiers) && tiers.length > 0);
+
+  if (!hasPricing) {
+    alert('Add at least one pricing tier.');
+    return;
+  }
+
+  setIsSubcollectionUploading(true);
+
+  try {
+    const imageUrl = await uploadImageAndGetURL(subcollectionImageFile);
+
+    const subcollectionRef = collection(
+      db,
+      'collections',
+      selectedMainCollectionId,
+      'subcollections'
+    );
+
+    const newDoc = await addDoc(subcollectionRef, {
+      name: subcollectionName,
+      description: subcollectionDescription,
+      image: imageUrl,
+      showNumber: parseInt(subcollectionShowNumber, 10),
+      purchaseRate: parseFloat(subcollectionPurchaseRate),
+      tieredPricing: subcollectionTieredPricing,
+      createdAt: serverTimestamp(),
+    });
+
+    console.log('Subcollection added with ID:', newDoc.id);
+    fetchSubcollections();
+  } catch (error) {
+    console.error('Error adding subcollection:', error);
+    alert('Failed to add subcollection.');
+  } finally {
     setIsSubcollectionUploading(false);
     resetSubcollectionForm();
-  };
+  }
+};
 
-  const startEditSubcollection = (item) => {
-    setEditingSubcollection(item);
-    setSubcollectionName(item.name);
-    setSubcollectionDescription(item.description);
-    setSubcollectionShowNumber(item.showNumber);
-    setSubcollectionPurchaseRate(item.purchaseRate || ''); // Add this line
-    setSubcollectionTieredPricing(item.tieredPricing || { retail: [], wholesale: [] });
-  };
+const startEditSubcollection = (item) => {
+  setEditingSubcollection(item);
+  setSubcollectionName(item.name || '');
+  setSubcollectionDescription(item.description || '');
+  setSubcollectionShowNumber(item.showNumber || '');
+  setSubcollectionPurchaseRate(item.purchaseRate || '');
 
-  const handleUpdateSubcollection = async (e) => {
-    e.preventDefault();
-    if (!editingSubcollection) return;
-    setIsSubcollectionUploading(true);
-    let imageUrl = editingSubcollection.image;
+  // ✅ SAFE DEFAULT FOR MULTI-ROLE PRICING
+  setSubcollectionTieredPricing(item.tieredPricing || {});
+};
+
+const handleUpdateSubcollection = async (e) => {
+  e.preventDefault();
+  if (!editingSubcollection) return;
+
+  // ✅ ROLE-AGNOSTIC PRICING VALIDATION (SAME AS ADD)
+  const hasPricing = Object.values(subcollectionTieredPricing)
+    .some(tiers => Array.isArray(tiers) && tiers.length > 0);
+
+  if (!hasPricing) {
+    alert('Add at least one pricing tier.');
+    return;
+  }
+
+  setIsSubcollectionUploading(true);
+
+  let imageUrl = editingSubcollection.image;
+
+  try {
     if (subcollectionImageFile) {
       await deleteImageFromStorage(editingSubcollection.image);
       imageUrl = await uploadImageAndGetURL(subcollectionImageFile);
     }
-    try {
-      const docRef = doc(db, 'collections', selectedMainCollectionId, 'subcollections', editingSubcollection.id);
-      await updateDoc(docRef, {
-        name: subcollectionName,
-        description: subcollectionDescription,
-        image: imageUrl,
-        showNumber: parseInt(subcollectionShowNumber),
-        purchaseRate: parseFloat(subcollectionPurchaseRate),
-        tieredPricing: subcollectionTieredPricing,
-      });
-      console.log('Subcollection updated successfully');
-      fetchSubcollections();
-    } catch (error) {
-      console.error('Error updating subcollection:', error);
-    }
+
+    const docRef = doc(
+      db,
+      'collections',
+      selectedMainCollectionId,
+      'subcollections',
+      editingSubcollection.id
+    );
+
+    await updateDoc(docRef, {
+      name: subcollectionName,
+      description: subcollectionDescription,
+      image: imageUrl,
+      showNumber: parseInt(subcollectionShowNumber, 10),
+      purchaseRate: parseFloat(subcollectionPurchaseRate),
+      tieredPricing: subcollectionTieredPricing,
+      updatedAt: serverTimestamp(),
+    });
+
+    console.log('Subcollection updated successfully');
+    fetchSubcollections();
+  } catch (error) {
+    console.error('Error updating subcollection:', error);
+    alert('Failed to update subcollection.');
+  } finally {
     setIsSubcollectionUploading(false);
     resetSubcollectionForm();
-  };
+  }
+};
 
-  const handleDeleteSubcollection = async (id, imageUrl) => {
-    if (window.confirm('Are you sure you want to delete this subcollection and all its products?')) {
-      try {
-        await deleteImageFromStorage(imageUrl);
-        const docRef = doc(db, 'collections', selectedMainCollectionId, 'subcollections', id);
-        await deleteDoc(docRef);
-        fetchSubcollections();
-      } catch (error) {
-        console.error('Error deleting subcollection:', error);
-      }
-    }
-  };
+const handleDeleteSubcollection = async (id, imageUrl) => {
+  if (!window.confirm('Are you sure you want to delete this subcollection and all its products?')) {
+    return;
+  }
 
-  const resetSubcollectionForm = () => {
-    setSubcollectionName('');
-    setSubcollectionDescription('');
-    setSubcollectionImageFile(null);
-    setSubcollectionShowNumber('');
-    setSubcollectionTieredPricing({ retail: [], wholesale: [] });
-    setEditingSubcollection(null);
-    setSubcollectionPurchaseRate(''); // Add this line
-  };
+  try {
+    await deleteImageFromStorage(imageUrl);
+
+    const docRef = doc(
+      db,
+      'collections',
+      selectedMainCollectionId,
+      'subcollections',
+      id
+    );
+
+    await deleteDoc(docRef);
+    fetchSubcollections();
+  } catch (error) {
+    console.error('Error deleting subcollection:', error);
+    alert('Failed to delete subcollection.');
+  }
+};
+
+const resetSubcollectionForm = () => {
+  setSubcollectionName('');
+  setSubcollectionDescription('');
+  setSubcollectionImageFile(null);
+  setSubcollectionShowNumber('');
+  setSubcollectionPurchaseRate('');
+  setSubcollectionTieredPricing({});
+  setEditingSubcollection(null);
+};
 
   // --- Product Handlers ---
   const handleProductImageChange = (e) => {
@@ -1693,7 +1774,7 @@ const AdminPage = () => {
     for (const productId in newCart) {
       const item = newCart[productId];
       // This is the correct way to get the pricing tiers from the subcollection
-      const itemPricingTiers = item.tieredPricing?.[offlinePricingType];
+      const itemPricingTiers = item.tieredPricing?.[offlinePricingKey];
       const pricingId = JSON.stringify(itemPricingTiers);
 
       if (!pricingGroups[pricingId]) {
@@ -1706,7 +1787,7 @@ const AdminPage = () => {
     for (const pricingId in pricingGroups) {
       const groupItems = pricingGroups[pricingId];
       const totalGroupQuantity = groupItems.reduce((total, item) => total + item.quantity, 0);
-      const tiers = groupItems[0].tieredPricing?.[offlinePricingType];
+      const tiers = groupItems[0].tieredPricing?.[offlinePricingKey];
       const groupPrice = getPriceForQuantity(tiers, totalGroupQuantity);
 
       groupItems.forEach(item => {
@@ -1809,81 +1890,102 @@ const AdminPage = () => {
   // If this function is in a component, you may need to import those Firestore functions.
   // --- Function to calculate the final price per item and the total ---
   // NOTE: This logic replaces or is integrated into your existing getOfflineCartTotal logic
-  const calculatePricedCart = async () => {
-    const cartItems = Object.values(offlineCart);
-    if (cartItems.length === 0) return { updatedCartMap: {}, total: 0 };
+const calculatePricedCart = async () => {
+  const cartItems = Object.values(offlineCart);
+  if (cartItems.length === 0) {
+    return { updatedCartMap: {}, total: 0 };
+  }
 
-    const subcollectionPricingMap = {};
-    const updatedCartMap = { ...offlineCart };
-    const pricingTypeKey = offlinePricingType === 'wholesale' ? 'wholesale' : 'retail';
+  const subcollectionPricingMap = {};
+  const updatedCartMap = { ...offlineCart };
 
-    // Phase 1: Aggregate Quantities and Fetch Pricing
-    for (const item of cartItems) {
-      const subcollectionId = item.subcollectionId;
-      const collectionId = item.collectionId;
-      const quantitySold = item.quantity;
+  // ✅ pricing key comes from role-based system
+  const pricingTypeKey = offlinePricingKey;
 
-      if (!subcollectionPricingMap[subcollectionId]) {
-        // Assumes pricing is on the subcollection document as written
-        const subcollectionRef = doc(db, 'collections', collectionId, 'subcollections', subcollectionId);
-        const subcollectionDoc = await getDoc(subcollectionRef);
+  /* -----------------------------------
+     PHASE 1: GROUP ITEMS + FETCH PRICING
+  ----------------------------------- */
+  for (const item of cartItems) {
+    const subcollectionId = item.subcollectionId;
+    const collectionId = item.collectionId;
+    const quantitySold = Number(item.quantity) || 0;
 
-        if (!subcollectionDoc.exists()) {
-          console.error(`Subcollection pricing not found: ${subcollectionId}`);
-          continue;
-        }
+    if (!subcollectionPricingMap[subcollectionId]) {
+      const subcollectionRef = doc(
+        db,
+        'collections',
+        collectionId,
+        'subcollections',
+        subcollectionId
+      );
 
-        subcollectionPricingMap[subcollectionId] = {
-          pricingData: subcollectionDoc.data().tieredPricing,
-          totalQuantity: 0,
-          items: [],
-        };
+      const subcollectionDoc = await getDoc(subcollectionRef);
+
+      if (!subcollectionDoc.exists()) {
+        console.error(`Subcollection pricing not found: ${subcollectionId}`);
+        continue;
       }
-      subcollectionPricingMap[subcollectionId].totalQuantity += quantitySold;
-      subcollectionPricingMap[subcollectionId].items.push(item);
+
+      subcollectionPricingMap[subcollectionId] = {
+        pricingData: subcollectionDoc.data().tieredPricing || {},
+        totalQuantity: 0,
+        items: [],
+      };
     }
 
-    let runningTotal = 0;
+    subcollectionPricingMap[subcollectionId].totalQuantity += quantitySold;
+    subcollectionPricingMap[subcollectionId].items.push(item);
+  }
 
-    // Phase 2: Apply Tiered Pricing and Update Item Prices
-    for (const entry of Object.values(subcollectionPricingMap)) {
-      const tiers = entry.pricingData?.[pricingTypeKey];
-      const totalGroupQuantity = entry.totalQuantity;
+  let runningTotal = 0;
 
-      let finalPricePerUnit = null;
+  /* -----------------------------------
+     PHASE 2: APPLY TIERED PRICING
+  ----------------------------------- */
+  for (const entry of Object.values(subcollectionPricingMap)) {
+    const tiers = entry.pricingData?.[pricingTypeKey];
+    const totalGroupQuantity = entry.totalQuantity;
 
-      if (tiers && tiers.length > 0) {
-        // 🛑 CRITICAL FIX: Convert price and quantity strings to numbers
-        const numericTiers = tiers.map(tier => ({
-          min_quantity: Number(tier.min_quantity) || 0,
-          max_quantity: Number(tier.max_quantity) || Infinity, // Use Infinity for open-ended tiers
-          price: Number(tier.price) || 0
-        }));
+    let finalPricePerUnit = null;
 
-        // Assume getPriceForQuantity is available
-        finalPricePerUnit = getPriceForQuantity(numericTiers, totalGroupQuantity);
-      }
+    if (Array.isArray(tiers) && tiers.length > 0) {
+      const numericTiers = tiers.map(tier => ({
+        min_quantity: Number(tier.min_quantity) || 0,
+        max_quantity:
+          tier.max_quantity !== undefined && tier.max_quantity !== null
+            ? Number(tier.max_quantity)
+            : Infinity,
+        price: Number(tier.price) || 0,
+      }));
 
-      // Apply price to each item in the group
-      for (const item of entry.items) {
-        // Use the calculated price, or fall back to the item's original price (which may still be a string)
-        const effectivePrice = finalPricePerUnit !== null
+      finalPricePerUnit = getPriceForQuantity(
+        numericTiers,
+        totalGroupQuantity
+      );
+    }
+
+    // Apply calculated price to each item
+    for (const item of entry.items) {
+      const effectivePrice =
+        typeof finalPricePerUnit === 'number'
           ? finalPricePerUnit
-          : (Number(item.price) || 0); // Ensure fallback price is also a number
+          : Number(item.price) || 0;
 
-        // Update the item's price in the cart map for display
-        updatedCartMap[item.id] = {
-          ...updatedCartMap[item.id],
-          // CRITICAL: Use a new key to store the dynamic price
-          calculatedPrice: effectivePrice
-        };
+      updatedCartMap[item.id] = {
+        ...updatedCartMap[item.id],
+        calculatedPrice: effectivePrice,
+      };
 
-        runningTotal += effectivePrice * item.quantity;
-      }
+      runningTotal += effectivePrice * (Number(item.quantity) || 0);
     }
+  }
 
-    return { updatedCartMap, total: runningTotal };
+  return {
+    updatedCartMap,
+    total: runningTotal,
   };
+};
+
   useEffect(() => {
     let isMounted = true;
     const updatePricedCart = async () => {
@@ -1911,7 +2013,7 @@ const AdminPage = () => {
 
     return () => { isMounted = false; };
     // Re-run whenever the cart contents or the pricing type changes
-  }, [offlineCart, offlinePricingType]);// Depend on the cart content and pricing type
+  }, [offlineCart, offlinePricingKey]);// Depend on the cart content and pricing type
 
   const handleFinalizeSale = async () => {
     if (Object.keys(offlineCart).length === 0) {
@@ -2111,7 +2213,11 @@ const AdminPage = () => {
           gstAmount: gstValue,
           totalAmount: totalAmountToUse,
           shippingFee: 0,
-          pricingType: offlinePricingType,
+          pricingKey: offlinePricingKey,
+role: ROLE_KEYS.find(
+  r => ROLE_CONFIG[r].pricingKey === offlinePricingKey
+),
+
         };
 
         const orderRef = await addDoc(collection(db, 'orders'), orderData);
@@ -2637,39 +2743,64 @@ const AdminPage = () => {
                         <input type="number" step="0.01" value={subcollectionPurchaseRate} onChange={(e) => setSubcollectionPurchaseRate(e.target.value)} placeholder="Purchase Rate (e.g., 0.50)" required />
                       </div>
                       <div className="tiered-pricing-container1">
-                        <div className="pricing-section">
-                          <h4>Retail Pricing</h4>
-                          {subcollectionTieredPricing.retail.map((tier, index) => (
-                            <div key={index} className="price-tier">
-                              <input type="number" placeholder="Min Qty" value={tier.min_quantity} onChange={(e) => handleTierChange('retail', index, 'min_quantity', e.target.value)} required />
-                              <input type="number" placeholder="Max Qty" value={tier.max_quantity} onChange={(e) => handleTierChange('retail', index, 'max_quantity', e.target.value)} required />
-                              <input type="number" step="0.01" placeholder="Price" value={tier.price} onChange={(e) => handleTierChange('retail', index, 'price', e.target.value)} required />
-                              <button type="button" onClick={() => handleRemoveTier('retail', index)} className="remove-tier-button">
-                                &times;
-                              </button>
-                            </div>
-                          ))}
-                          <button type="button" onClick={() => handleAddTier('retail')} className="add-tier-button">
-                            Add Retail Tier
-                          </button>
-                        </div>
-                        <div className="pricing-section">
-                          <h4>Wholesale Pricing</h4>
-                          {subcollectionTieredPricing.wholesale.map((tier, index) => (
-                            <div key={index} className="price-tier">
-                              <input type="number" placeholder="Min Qty" value={tier.min_quantity} onChange={(e) => handleTierChange('wholesale', index, 'min_quantity', e.target.value)} required />
-                              <input type="number" placeholder="Max Qty" value={tier.max_quantity} onChange={(e) => handleTierChange('wholesale', index, 'max_quantity', e.target.value)} required />
-                              <input type="number" step="0.01" placeholder="Price" value={tier.price} onChange={(e) => handleTierChange('wholesale', index, 'price', e.target.value)} required />
-                              <button type="button" onClick={() => handleRemoveTier('wholesale', index)} className="remove-tier-button">
-                                &times;
-                              </button>
-                            </div>
-                          ))}
-                          <button type="button" onClick={() => handleAddTier('wholesale')} className="add-tier-button">
-                            Add Wholesale Tier
-                          </button>
-                        </div>
-                      </div>
+  {PRICING_KEYS.map(pricingKey => (
+    <div key={pricingKey} className="pricing-section">
+      <h4>{pricingKey.toUpperCase()} Pricing</h4>
+
+      {(subcollectionTieredPricing[pricingKey] || []).map((tier, index) => (
+        <div key={index} className="price-tier">
+          <input
+            type="number"
+            placeholder="Min Qty"
+            value={tier.min_quantity}
+            onChange={(e) =>
+              handleTierChange(pricingKey, index, 'min_quantity', e.target.value)
+            }
+            required
+          />
+
+          <input
+            type="number"
+            placeholder="Max Qty"
+            value={tier.max_quantity}
+            onChange={(e) =>
+              handleTierChange(pricingKey, index, 'max_quantity', e.target.value)
+            }
+            required
+          />
+
+          <input
+            type="number"
+            step="0.01"
+            placeholder="Price"
+            value={tier.price}
+            onChange={(e) =>
+              handleTierChange(pricingKey, index, 'price', e.target.value)
+            }
+            required
+          />
+
+          <button
+            type="button"
+            onClick={() => handleRemoveTier(pricingKey, index)}
+            className="remove-tier-button"
+          >
+            &times;
+          </button>
+        </div>
+      ))}
+
+      <button
+        type="button"
+        onClick={() => handleAddTier(pricingKey)}
+        className="add-tier-button"
+      >
+        Add {pricingKey} Tier
+      </button>
+    </div>
+  ))}
+</div>
+
                       <button type="submit" disabled={isSubcollectionUploading}>
                         {isSubcollectionUploading ? 'Processing...' : editingSubcollection ? 'Update Subcollection' : 'Add Subcollection'}
                       </button>
@@ -3379,38 +3510,33 @@ const AdminPage = () => {
                         </div>
 
                         <div
-                          className="saas-users-cell saas-users-actions"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {user.role === 'retailer' && (
-                            <button
-                              className="saas-btn saas-btn--primary"
-                              onClick={() =>
-                                handleUpdateUserRole(user.id, 'wholesaler')
-                              }
-                            >
-                              Wholesaler
-                            </button>
-                          )}
+  className="saas-users-cell saas-users-actions"
+  onClick={(e) => e.stopPropagation()}
+>
+  {/* ROLE SELECT (CONFIG DRIVEN) */}
+  <select
+    value={user.role}
+    onChange={(e) =>
+      handleUpdateUserRole(user.id, e.target.value)
+    }
+    className="saas-users-role-select"
+  >
+    {ROLE_KEYS.map(role => (
+      <option key={role} value={role}>
+        {ROLE_CONFIG[role].label}
+      </option>
+    ))}
+  </select>
 
-                          {user.role === 'wholesaler' && (
-                            <button
-                              className="saas-btn saas-btn--info"
-                              onClick={() =>
-                                handleUpdateUserRole(user.id, 'retailer')
-                              }
-                            >
-                              Retailer
-                            </button>
-                          )}
+  {/* DELETE USER */}
+  <button
+    className="saas-btn saas-btn--danger"
+    onClick={() => handleDeleteUser(user.id)}
+  >
+    Delete
+  </button>
+</div>
 
-                          <button
-                            className="saas-btn saas-btn--danger"
-                            onClick={() => handleDeleteUser(user.id)}
-                          >
-                            Delete
-                          </button>
-                        </div>
                       </li>
                     );
                   })}
@@ -3429,14 +3555,21 @@ const AdminPage = () => {
               <div className="product-selection-panel">
                 <h4>Select Products</h4>
                 <div className="dropdown-group">
-                  <select
-                    className="billing-select"
-                    value={offlinePricingType}
-                    onChange={(e) => setOfflinePricingType(e.target.value)}
-                  >
-                    <option value="retail">Retail Pricing</option>
-                    <option value="wholesale">Wholesale Pricing</option>
-                  </select>
+                 <select
+  className="billing-select"
+  value={offlinePricingKey}
+  onChange={(e) => setOfflinePricingKey(e.target.value)}
+>
+  {ROLE_KEYS.map(role => (
+    <option
+      key={role}
+      value={ROLE_CONFIG[role].pricingKey}
+    >
+      {ROLE_CONFIG[role].label} Pricing
+    </option>
+  ))}
+</select>
+
                   <select
                     className="billing-select"
                     value={selectedOfflineCollectionId}

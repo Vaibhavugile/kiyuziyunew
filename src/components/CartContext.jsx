@@ -1,7 +1,12 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+} from 'react';
 import { useAuth } from './AuthContext';
-
-const WHOLESALER_MIN_ORDER_VALUE = 5000;
+import { getRoleConfig } from '../config/roles';
 
 /* =======================
    Utility functions
@@ -9,24 +14,33 @@ const WHOLESALER_MIN_ORDER_VALUE = 5000;
 
 export const getPriceForQuantity = (tiers, totalQuantity) => {
   if (!tiers || tiers.length === 0) return null;
-  const sortedTiers = [...tiers].sort((a, b) => b.min_quantity - a.min_quantity);
+
+  const sortedTiers = [...tiers].sort(
+    (a, b) => Number(b.min_quantity) - Number(a.min_quantity)
+  );
+
   for (const tier of sortedTiers) {
-    if (totalQuantity >= tier.min_quantity) {
-      return tier.price;
+    if (totalQuantity >= Number(tier.min_quantity)) {
+      return Number(tier.price);
     }
   }
-  return sortedTiers[sortedTiers.length - 1]?.price || null;
+
+  return Number(sortedTiers[sortedTiers.length - 1]?.price) || 0;
 };
 
 export const createStablePricingId = (tiers) => {
   if (!tiers) return null;
+
   const sortedTiers = [...tiers].sort(
-    (a, b) => parseInt(a.min_quantity, 10) - parseInt(b.min_quantity, 10)
+    (a, b) => Number(a.min_quantity) - Number(b.min_quantity)
   );
+
   return JSON.stringify(
-    sortedTiers.map(tier => {
+    sortedTiers.map((tier) => {
       const obj = {};
-      Object.keys(tier).sort().forEach(k => (obj[k] = tier[k]));
+      Object.keys(tier)
+        .sort()
+        .forEach((k) => (obj[k] = tier[k]));
       return obj;
     })
   );
@@ -35,11 +49,16 @@ export const createStablePricingId = (tiers) => {
 export const getCartItemId = (product) => {
   if (product.variation) {
     const variationKeys = Object.keys(product.variation)
-      .filter(k => product.variation[k] != null)
+      .filter((k) => product.variation[k] != null)
       .sort();
 
     const variationString = variationKeys
-      .map(k => String(product.variation[k]).trim().toLowerCase().replace(/\s+/g, '-'))
+      .map((k) =>
+        String(product.variation[k])
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, '-')
+      )
       .join('_');
 
     return `${product.id}_${variationString}`;
@@ -57,7 +76,7 @@ export const CartContext = createContext();
    Price recalculation
 ======================= */
 
-const recalculateCartPrices = (currentCart, userRole) => {
+const recalculateCartPrices = (currentCart, pricingKey) => {
   const newCart = { ...currentCart };
   const pricingGroups = {};
 
@@ -65,9 +84,7 @@ const recalculateCartPrices = (currentCart, userRole) => {
     const item = newCart[cartItemId];
     if (!item.tieredPricing) continue;
 
-    const roleTiers =
-      item.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail'];
-
+    const roleTiers = item.tieredPricing[pricingKey];
     if (!roleTiers) continue;
 
     const pricingId =
@@ -87,8 +104,12 @@ const recalculateCartPrices = (currentCart, userRole) => {
 
   for (const key in pricingGroups) {
     const group = pricingGroups[key];
-    const newPrice = getPriceForQuantity(group.tiers, group.totalQuantity);
-    group.cartItemIds.forEach(id => {
+    const newPrice = getPriceForQuantity(
+      group.tiers,
+      group.totalQuantity
+    );
+
+    group.cartItemIds.forEach((id) => {
       newCart[id].price = newPrice;
     });
   }
@@ -101,7 +122,9 @@ const recalculateCartPrices = (currentCart, userRole) => {
 ======================= */
 
 export const CartProvider = ({ children }) => {
-  const { userRole } = useAuth();
+  const { roleConfig } = useAuth();
+  const pricingKey = roleConfig?.pricingKey || 'retail';
+  const minOrderValue = roleConfig?.minOrderValue || 0;
 
   const [cart, setCart] = useState(() => {
     try {
@@ -116,147 +139,166 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem('cart', JSON.stringify(cart));
   }, [cart]);
 
+  /* =======================
+     TOTAL
+  ======================= */
+
   const getCartTotal = useCallback(() => {
     return Object.values(cart).reduce(
-      (sum, item) => sum + item.price * item.quantity,
+      (sum, item) => sum + Number(item.price || 0) * item.quantity,
       0
     );
   }, [cart]);
 
+  /* =======================
+     MIN ORDER CHECK (ROLE BASED)
+  ======================= */
+
   const checkMinOrderValue = useCallback(() => {
     const total = getCartTotal();
-    const isWholesaler = userRole === 'wholesaler';
-    const minimumRequired = isWholesaler ? WHOLESALER_MIN_ORDER_VALUE : 0;
 
     return {
-      isWholesaler,
-      minimumRequired,
-      isMinMet: total >= minimumRequired,
+      minimumRequired: minOrderValue,
+      isMinMet: total >= minOrderValue,
       currentTotal: total,
     };
-  }, [getCartTotal, userRole]);
+  }, [getCartTotal, minOrderValue]);
 
   /* =======================
-     ADD TO CART (unchanged)
+     ADD TO CART
   ======================= */
 
-  const addToCart = useCallback((productData) => {
-    setCart(prevCart => {
-      const cartItemId = getCartItemId(productData);
-      const currentQty = prevCart[cartItemId]?.quantity || 0;
+  const addToCart = useCallback(
+    (productData) => {
+      setCart((prevCart) => {
+        const cartItemId = getCartItemId(productData);
+        const currentQty = prevCart[cartItemId]?.quantity || 0;
 
-      const cleanProduct = { ...productData };
-      delete cleanProduct.quantity;
-      delete cleanProduct.variations;
+        const cleanProduct = { ...productData };
+        delete cleanProduct.quantity;
+        delete cleanProduct.variations;
 
-      let stockLimit;
-      if (productData.variation) {
-        stockLimit = Number(productData.variation.quantity);
-      } else {
-        stockLimit =
-          prevCart[cartItemId]?.stockLimit ??
-          Number(productData.quantity || Infinity);
-      }
-
-      if (currentQty >= stockLimit) return prevCart;
-
-      const roleTiers =
-        cleanProduct.tieredPricing?.[
-          userRole === 'wholesaler' ? 'wholesale' : 'retail'
-        ];
-
-      const pricingId = roleTiers ? createStablePricingId(roleTiers) : null;
-
-      const updatedCart = {
-        ...prevCart,
-        [cartItemId]: {
-          ...(prevCart[cartItemId] || {}),
-          ...cleanProduct,
-          stockLimit,
-          quantity: currentQty + 1,
-          pricingId,
-          images:
-            cleanProduct.images ||
-            (cleanProduct.image ? [{ url: cleanProduct.image }] : []),
-        },
-      };
-
-      return recalculateCartPrices(updatedCart, userRole);
-    });
-  }, [userRole]);
-
-  /* =======================
-     REMOVE BY CART ITEM ID
-  ======================= */
-
-  const removeFromCart = useCallback((cartItemId) => {
-    setCart(prevCart => {
-      const newCart = { ...prevCart };
-      if (!newCart[cartItemId]) return prevCart;
-
-      if (newCart[cartItemId].quantity <= 1) {
-        delete newCart[cartItemId];
-      } else {
-        newCart[cartItemId].quantity -= 1;
-      }
-
-      return recalculateCartPrices(newCart, userRole);
-    });
-  }, [userRole]);
-
-  /* =======================
-     🔥 NEW: REMOVE BY PRODUCT + VARIATION
-     Used by Checkout auto-fix
-  ======================= */
-
-  const removeItemFromCart = useCallback((productId, variation = null) => {
-    setCart(prevCart => {
-      const newCart = { ...prevCart };
-
-      Object.keys(newCart).forEach(cartItemId => {
-        const item = newCart[cartItemId];
-
-        if (item.id !== productId) return;
-
-        if (variation) {
-          const v1 = item.variation || {};
-          const v2 = variation || {};
-
-          const normalize = v =>
-            String(v ?? '').trim().toLowerCase();
-
-          const sameVariation =
-            normalize(v1.color) === normalize(v2.color) &&
-            normalize(v1.size) === normalize(v2.size);
-
-          if (!sameVariation) return;
+        let stockLimit;
+        if (productData.variation) {
+          stockLimit = Number(productData.variation.quantity);
+        } else {
+          stockLimit =
+            prevCart[cartItemId]?.stockLimit ??
+            Number(productData.quantity || Infinity);
         }
 
-        delete newCart[cartItemId];
-      });
+        if (currentQty >= stockLimit) return prevCart;
 
-      return recalculateCartPrices(newCart, userRole);
-    });
-  }, [userRole]);
+        const roleTiers =
+          cleanProduct.tieredPricing?.[pricingKey];
+
+        const pricingId = roleTiers
+          ? createStablePricingId(roleTiers)
+          : null;
+
+        const updatedCart = {
+          ...prevCart,
+          [cartItemId]: {
+            ...(prevCart[cartItemId] || {}),
+            ...cleanProduct,
+            stockLimit,
+            quantity: currentQty + 1,
+            pricingId,
+            images:
+              cleanProduct.images ||
+              (cleanProduct.image
+                ? [{ url: cleanProduct.image }]
+                : []),
+          },
+        };
+
+        return recalculateCartPrices(updatedCart, pricingKey);
+      });
+    },
+    [pricingKey]
+  );
+
+  /* =======================
+     REMOVE (−)
+  ======================= */
+
+  const removeFromCart = useCallback(
+    (cartItemId) => {
+      setCart((prevCart) => {
+        const newCart = { ...prevCart };
+        if (!newCart[cartItemId]) return prevCart;
+
+        if (newCart[cartItemId].quantity <= 1) {
+          delete newCart[cartItemId];
+        } else {
+          newCart[cartItemId].quantity -= 1;
+        }
+
+        return recalculateCartPrices(newCart, pricingKey);
+      });
+    },
+    [pricingKey]
+  );
+
+  /* =======================
+     REMOVE FULL ITEM (Checkout fix)
+  ======================= */
+
+  const removeItemFromCart = useCallback(
+    (productId, variation = null) => {
+      setCart((prevCart) => {
+        const newCart = { ...prevCart };
+
+        Object.keys(newCart).forEach((cartItemId) => {
+          const item = newCart[cartItemId];
+          if (item.id !== productId) return;
+
+          if (variation) {
+            const v1 = item.variation || {};
+            const v2 = variation || {};
+            const normalize = (v) =>
+              String(v ?? '').trim().toLowerCase();
+
+            if (
+              normalize(v1.color) !== normalize(v2.color) ||
+              normalize(v1.size) !== normalize(v2.size)
+            ) {
+              return;
+            }
+          }
+
+          delete newCart[cartItemId];
+        });
+
+        return recalculateCartPrices(newCart, pricingKey);
+      });
+    },
+    [pricingKey]
+  );
 
   const clearCart = useCallback(() => setCart({}), []);
 
+  /* =======================
+     REPRICE ON ROLE CHANGE
+  ======================= */
+
   useEffect(() => {
-    setCart(prev =>
+    setCart((prev) =>
       Object.keys(prev).length > 0
-        ? recalculateCartPrices(prev, userRole)
+        ? recalculateCartPrices(prev, pricingKey)
         : prev
     );
-  }, [userRole]);
+  }, [pricingKey]);
 
   const contextValue = {
     cart,
     addToCart,
     removeFromCart,
-    removeItemFromCart, // 🔥 EXPOSED
+    removeItemFromCart,
     getCartTotal,
     clearCart,
     checkMinOrderValue,
+    pricingKey, // 🔥 exposed
   };
 
   return (
