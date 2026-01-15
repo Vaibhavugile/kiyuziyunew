@@ -432,3 +432,207 @@
   background-color: #ccc;
   cursor: not-allowed;
 }
+/* =====================================================
+   🧾 INVOICE BASE (HIDDEN ON SCREEN)
+   ===================================================== */
+/* =====================================================
+   🧾 INVOICE BASE (HIDDEN ON SCREEN)
+   ===================================================== */
+
+.invoice-print {
+  display: none;
+}
+
+/* =====================================================
+   🖨 PRINT MODE
+   ===================================================== */
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .invoice-print,
+  .invoice-print * {
+    visibility: visible !important;
+  }
+
+  .invoice-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    display: block;
+    background: #fff;
+  }
+
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+}
+
+/* =====================================================
+   📄 INVOICE CONTAINER
+   ===================================================== */
+
+.invoice-container {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 15mm;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  color: #000;
+  box-sizing: border-box;
+}
+
+/* =====================================================
+   🏪 HEADER (CENTER)
+   ===================================================== */
+
+.invoice-header {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.invoice-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.invoice-header p {
+  margin: 1px 0;
+  font-size: 11px;
+}
+
+/* =====================================================
+   📄 INVOICE + CUSTOMER INFO (LEFT / TOP)
+   ===================================================== */
+
+.invoice-top-info {
+  margin-top: 6px;
+  margin-bottom: 10px;
+  font-size: 11px;
+}
+
+.invoice-top-info p {
+  margin: 2px 0;
+}
+
+/* =====================================================
+   📦 PRODUCT TABLE (BELOW INFO)
+   ===================================================== */
+
+.invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+  margin-bottom: 10px;
+}
+
+.invoice-table th,
+.invoice-table td {
+  border: 1px solid #000;
+  padding: 4px;
+  font-size: 11px;
+  text-align: center;
+}
+
+.invoice-table th {
+  background-color: #f0f0f0;
+  font-weight: bold;
+}
+
+.invoice-table td:nth-child(2) {
+  text-align: left;
+}
+
+/* =====================================================
+   💰 TOTALS (RIGHT SIDE)
+   ===================================================== */
+
+.invoice-summary {
+  width: 40%;
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.invoice-summary div {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+
+.invoice-summary .net-total {
+  border-top: 1px solid #000;
+  padding-top: 4px;
+  font-weight: bold;
+}
+
+/* =====================================================
+   🔤 AMOUNT IN WORDS
+   ===================================================== */
+
+.amount-words {
+  margin-top: 8px;
+  font-size: 11px;
+  font-style: italic;
+}
+
+/* =====================================================
+   📜 FOOTER (LEFT + SIGNATURE RIGHT)
+   ===================================================== */
+
+.invoice-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 18px;
+  font-size: 11px;
+}
+
+.invoice-footer p {
+  margin: 2px 0;
+}
+
+/* =====================================================
+   ✍ SIGNATURE
+   ===================================================== */
+
+.signature {
+  text-align: center;
+}
+
+.signature-line {
+  margin-top: 22px;
+  border-top: 1px solid #000;
+  width: 160px;
+  padding-top: 4px;
+}
+
+/* =====================================================
+   🔁 PRINT BUTTON (SCREEN ONLY)
+   ===================================================== */
+
+.print-invoice-btn {
+  margin-top: 12px;
+  padding: 10px;
+  width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.print-invoice-btn:hover {
+  background-color: #0056b3;
+}
+
+@media print {
+  .print-invoice-btn {
+    display: none !important;
+  }
+}

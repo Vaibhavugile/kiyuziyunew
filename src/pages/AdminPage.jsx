@@ -158,18 +158,20 @@ const AdminPage = () => {
   const [userSortField, setUserSortField] = useState('createdAt');
   const [userSortOrder, setUserSortOrder] = useState('desc'); // asc | desc
   const GST_RATE = 0.03; // 3% GST (change if needed)
-const [offlineCustomer, setOfflineCustomer] = useState({
-  fullName: '',
-  email: '',
-  phoneNumber: '',
-  addressLine1: '',
-  addressLine2: '',
-  city: '',
-  state: '',
-  pincode: '',
-});
+  const [offlineCustomer, setOfflineCustomer] = useState({
+    fullName: '',
+    email: '',
+    phoneNumber: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    pincode: '',
+  });
 
   const [isGSTApplied, setIsGSTApplied] = useState(false);
+  const [showInvoice, setShowInvoice] = useState(false);
+  const [invoiceData, setInvoiceData] = useState(null);
 
   // Add this line with your other useState calls at the top of the component:
   const [offlineSelections, setOfflineSelections] = useState({});
@@ -281,12 +283,12 @@ const [offlineCustomer, setOfflineCustomer] = useState({
     }));
   };
   // NOTE: You must have getCartItemId and getPriceForOfflineBilling (or similar) available in this file's scope.
-const handleOfflineCustomerChange = (field, value) => {
-  setOfflineCustomer(prev => ({
-    ...prev,
-    [field]: value,
-  }));
-};
+  const handleOfflineCustomerChange = (field, value) => {
+    setOfflineCustomer(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
   const handleOfflineAddToCart = (product, variation = null, incrementBy = 1) => {
 
@@ -343,6 +345,11 @@ const handleOfflineCustomerChange = (field, value) => {
       }
     });
   };
+  const convertNumberToWords = (num) => {
+  // You can plug any library here later
+  return num.toLocaleString('en-IN');
+};
+
   // --- NEW UTILITY FUNCTION for Offline Billing ---
   const getPriceForOfflineBilling = (item, offlinePricingType) => {
     // 1. Determine the pricing tiers to use based on the selected type (retail/wholesale)
@@ -496,6 +503,16 @@ const handleOfflineCustomerChange = (field, value) => {
       return { ...prevPricing, [type]: updatedTiers };
     });
   };
+useEffect(() => {
+  if (showInvoice && invoiceData) {
+    // Small delay ensures DOM + styles are fully rendered
+    const timer = setTimeout(() => {
+      window.print();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }
+}, [showInvoice, invoiceData]);
 
   // --- Utility Functions ---
   const handleImageChange = (e, setImageFile) => {
@@ -1868,18 +1885,18 @@ const handleOfflineCustomerChange = (field, value) => {
       return;
     }
     const {
-  fullName,
-  phoneNumber,
-  addressLine1,
-  city,
-  state,
-  pincode,
-} = offlineCustomer;
+      fullName,
+      phoneNumber,
+      addressLine1,
+      city,
+      state,
+      pincode,
+    } = offlineCustomer;
 
-if (!fullName || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
-  alert('Please fill all required customer details.');
-  return;
-}
+    if (!fullName || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
+      alert('Please fill all required customer details.');
+      return;
+    }
 
 
     if (window.confirm('Are you sure you want to finalize this offline sale?')) {
@@ -2018,18 +2035,18 @@ if (!fullName || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
         const totalAmountToUse = baseTotal + gstValue;
 
         // Billing Info (Unchanged)
-       
+
 
         const offlineSaleCustomerInfo = {
-  fullName: `${offlineCustomer.fullName} (Offline)`,
-  email: offlineCustomer.email || '',
-  phoneNumber: offlineCustomer.phoneNumber,
-  addressLine1: offlineCustomer.addressLine1,
-  addressLine2: offlineCustomer.addressLine2 || '',
-  city: offlineCustomer.city,
-  state: offlineCustomer.state,
-  pincode: offlineCustomer.pincode,
-};
+          fullName: `${offlineCustomer.fullName} (Offline)`,
+          email: offlineCustomer.email || '',
+          phoneNumber: offlineCustomer.phoneNumber,
+          addressLine1: offlineCustomer.addressLine1,
+          addressLine2: offlineCustomer.addressLine2 || '',
+          city: offlineCustomer.city,
+          state: offlineCustomer.state,
+          pincode: offlineCustomer.pincode,
+        };
 
 
         // Order Items (Using correctly calculated price)
@@ -2069,6 +2086,18 @@ if (!fullName || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
         await batch.commit();
         console.log('✅ All Stock quantities updated successfully!');
         console.log('------------------------------------------');
+        setInvoiceData({
+          customer: offlineSaleCustomerInfo,
+          items: orderItems,
+          subtotal: baseTotal,
+          gstRate: GST_RATE,
+          gstAmount: gstValue,
+          total: totalAmountToUse,
+          invoiceDate: new Date(),
+          invoiceNumber: orderRef.id,
+        });
+
+        setShowInvoice(true);
 
         // 5. Success and Cleanup
         alert('Offline sale finalized and stock updated successfully!');
@@ -2078,15 +2107,15 @@ if (!fullName || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
         setSelectedOfflineSubcollectionId('');
         setOfflineProducts([]);
         setOfflineCustomer({
-  fullName: '',
-  email: '',
-  phoneNumber: '',
-  addressLine1: '',
-  addressLine2: '',
-  city: '',
-  state: '',
-  pincode: '',
-});
+          fullName: '',
+          email: '',
+          phoneNumber: '',
+          addressLine1: '',
+          addressLine2: '',
+          city: '',
+          state: '',
+          pincode: '',
+        });
 
 
         if (activeTab === 'orders') fetchOrders();
@@ -2103,6 +2132,13 @@ if (!fullName || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
       }
     }
   };
+  useEffect(() => {
+  const afterPrint = () => setShowInvoice(false);
+
+  window.addEventListener('afterprint', afterPrint);
+  return () => window.removeEventListener('afterprint', afterPrint);
+}, []);
+
   useEffect(() => {
     if (selectedOfflineCollectionId) {
       fetchSubcollectionsForOffline(selectedOfflineCollectionId);
@@ -3544,70 +3580,78 @@ if (!fullName || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
                       )}
                     </div>
                     <div className="offline-customer-form">
-  <h4>Customer Details</h4>
+                      <h4>Customer Details</h4>
 
-  <input
-    type="text"
-    placeholder="Customer Name"
-    value={offlineCustomer.fullName}
-    onChange={(e) => handleOfflineCustomerChange('fullName', e.target.value)}
-  />
+                      <input
+                        type="text"
+                        placeholder="Customer Name"
+                        value={offlineCustomer.fullName}
+                        onChange={(e) => handleOfflineCustomerChange('fullName', e.target.value)}
+                      />
 
-  <input
-    type="email"
-    placeholder="Email (optional)"
-    value={offlineCustomer.email}
-    onChange={(e) => handleOfflineCustomerChange('email', e.target.value)}
-  />
+                      <input
+                        type="email"
+                        placeholder="Email (optional)"
+                        value={offlineCustomer.email}
+                        onChange={(e) => handleOfflineCustomerChange('email', e.target.value)}
+                      />
 
-  <input
-    type="tel"
-    placeholder="Phone Number"
-    value={offlineCustomer.phoneNumber}
-    onChange={(e) => handleOfflineCustomerChange('phoneNumber', e.target.value)}
-  />
+                      <input
+                        type="tel"
+                        placeholder="Phone Number"
+                        value={offlineCustomer.phoneNumber}
+                        onChange={(e) => handleOfflineCustomerChange('phoneNumber', e.target.value)}
+                      />
 
-  <input
-    type="text"
-    placeholder="Address Line 1"
-    value={offlineCustomer.addressLine1}
-    onChange={(e) => handleOfflineCustomerChange('addressLine1', e.target.value)}
-  />
+                      <input
+                        type="text"
+                        placeholder="Address Line 1"
+                        value={offlineCustomer.addressLine1}
+                        onChange={(e) => handleOfflineCustomerChange('addressLine1', e.target.value)}
+                      />
 
-  <input
-    type="text"
-    placeholder="Address Line 2 (optional)"
-    value={offlineCustomer.addressLine2}
-    onChange={(e) => handleOfflineCustomerChange('addressLine2', e.target.value)}
-  />
+                      <input
+                        type="text"
+                        placeholder="Address Line 2 (optional)"
+                        value={offlineCustomer.addressLine2}
+                        onChange={(e) => handleOfflineCustomerChange('addressLine2', e.target.value)}
+                      />
 
-  <input
-    type="text"
-    placeholder="City"
-    value={offlineCustomer.city}
-    onChange={(e) => handleOfflineCustomerChange('city', e.target.value)}
-  />
+                      <input
+                        type="text"
+                        placeholder="City"
+                        value={offlineCustomer.city}
+                        onChange={(e) => handleOfflineCustomerChange('city', e.target.value)}
+                      />
 
-  <input
-    type="text"
-    placeholder="State"
-    value={offlineCustomer.state}
-    onChange={(e) => handleOfflineCustomerChange('state', e.target.value)}
-  />
+                      <input
+                        type="text"
+                        placeholder="State"
+                        value={offlineCustomer.state}
+                        onChange={(e) => handleOfflineCustomerChange('state', e.target.value)}
+                      />
 
-  <input
-    type="text"
-    placeholder="Pincode"
-    value={offlineCustomer.pincode}
-    onChange={(e) => handleOfflineCustomerChange('pincode', e.target.value)}
-  />
-</div>
+                      <input
+                        type="text"
+                        placeholder="Pincode"
+                        value={offlineCustomer.pincode}
+                        onChange={(e) => handleOfflineCustomerChange('pincode', e.target.value)}
+                      />
+                    </div>
 
 
 
                     <button onClick={handleFinalizeSale} className="finalize-sale-btn">
                       Finalize Sale
                     </button>
+         <button
+  className="print-invoice-btn"
+  onClick={() => setShowInvoice(true)}
+>
+  🖨 Reprint Invoice
+</button>
+
+
                   </>
                 ) : (
                   <p>Cart is empty. Add products to start billing.</p>
@@ -3629,6 +3673,94 @@ if (!fullName || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
           </div>
         )}
       </div>
+  {showInvoice && invoiceData && (
+  <div className="invoice-print">
+    <div className="invoice-container compact-invoice">
+
+      {/* ================= HEADER (CENTER) ================= */}
+      <div className="invoice-header">
+        <h2>TANISHKA IMITATION JEWELLERY</h2>
+        <p>Streets Of Europe, Hinjewadi, Pune</p>
+        <p>Pune, PIN CODE-412101.</p>
+        <p>Phone :- +91 78978 97441</p>
+        <p><strong>GSTN :</strong> 27CRAPA0906N1Z0</p>
+      </div>
+
+      {/* ========== INVOICE + CUSTOMER INFO (LEFT / TOP) ========== */}
+      <div className="invoice-top-info">
+        <p><strong>Invoice No :</strong> {invoiceData.invoiceNumber}</p>
+        <p><strong>Date :</strong> {invoiceData.invoiceDate.toLocaleDateString()}</p>
+        <p><strong>Name :</strong> {invoiceData.customer.fullName}</p>
+        <p><strong>Address :</strong> {invoiceData.customer.addressLine1}</p>
+        <p><strong>GSTN No :</strong> {invoiceData.customer.gst || 'N/A'}</p>
+      </div>
+
+      {/* ================= ITEM TABLE (BELOW) ================= */}
+      <table className="invoice-table">
+        <thead>
+          <tr>
+            <th>Sr</th>
+            <th>Item Name</th>
+            <th>Qty</th>
+            <th>Rate</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {invoiceData.items.map((item, index) => {
+            const lineTotal = item.price * item.quantity;
+            return (
+              <tr key={index}>
+                <td>{index + 1}</td>
+                <td>{item.productName}</td>
+                <td>{item.quantity}</td>
+                <td>{item.price.toFixed(2)}</td>
+                <td>{lineTotal.toFixed(2)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {/* ================= TOTALS (RIGHT) ================= */}
+      <div className="invoice-summary">
+        <div>
+          <span>Total :</span>
+          <span>₹{invoiceData.subtotal.toFixed(2)}</span>
+        </div>
+        <div>
+          <span>IGST @ {(invoiceData.gstRate * 100).toFixed(0)}% :</span>
+          <span>₹{invoiceData.gstAmount.toFixed(2)}</span>
+        </div>
+        <div className="net-total">
+          <span>Net Total :</span>
+          <span>₹{invoiceData.total.toFixed(2)}</span>
+        </div>
+      </div>
+
+      {/* ================= AMOUNT IN WORDS ================= */}
+      <p className="amount-words">
+        {convertNumberToWords(invoiceData.total)} Only
+      </p>
+
+      {/* ================= FOOTER ================= */}
+      <div className="invoice-footer">
+        <div>
+          <p><strong>Invoice No :</strong> {invoiceData.invoiceNumber}</p>
+          <p><strong>Date :</strong> {invoiceData.invoiceDate.toLocaleDateString()}</p>
+        </div>
+
+        <div className="signature">
+          <p>For TANISHKA IMITATION JEWELLERY</p>
+          <div className="signature-line">Receiver's Signature</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+)}
+
+
     </div>
   );
 };
