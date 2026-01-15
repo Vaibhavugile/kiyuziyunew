@@ -29,6 +29,8 @@ import './SaasUsers.css';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { useNavigate } from 'react-router-dom';
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 // Low stock threshold constant
 const LOW_STOCK_THRESHOLD = 10;
@@ -118,6 +120,7 @@ const AdminPage = () => {
   const [paymentReports, setPaymentReports] = useState([]);
   const [isReportsLoading, setIsReportsLoading] = useState(false);
   const [productReports, setProductReports] = useState([]);
+  const [sendInvoiceOnWhatsApp, setSendInvoiceOnWhatsApp] = useState(false);
 
 
   const [userFilters, setUserFilters] = useState({
@@ -346,9 +349,9 @@ const AdminPage = () => {
     });
   };
   const convertNumberToWords = (num) => {
-  // You can plug any library here later
-  return num.toLocaleString('en-IN');
-};
+    // You can plug any library here later
+    return num.toLocaleString('en-IN');
+  };
 
   // --- NEW UTILITY FUNCTION for Offline Billing ---
   const getPriceForOfflineBilling = (item, offlinePricingType) => {
@@ -503,16 +506,16 @@ const AdminPage = () => {
       return { ...prevPricing, [type]: updatedTiers };
     });
   };
-useEffect(() => {
-  if (showInvoice && invoiceData) {
-    // Small delay ensures DOM + styles are fully rendered
-    const timer = setTimeout(() => {
-      window.print();
-    }, 300);
+  useEffect(() => {
+    if (showInvoice && invoiceData) {
+      // Small delay ensures DOM + styles are fully rendered
+      const timer = setTimeout(() => {
+        window.print();
+      }, 300);
 
-    return () => clearTimeout(timer);
-  }
-}, [showInvoice, invoiceData]);
+      return () => clearTimeout(timer);
+    }
+  }, [showInvoice, invoiceData]);
 
   // --- Utility Functions ---
   const handleImageChange = (e, setImageFile) => {
@@ -918,6 +921,37 @@ useEffect(() => {
       }
     }
   };
+  const generateInvoicePDFBlob = async () => {
+    const element = document.getElementById("invoice-pdf");
+    if (!element) return null;
+
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+    });
+
+    const imgData = canvas.toDataURL("image/jpeg", 1.0);
+
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pdfWidth = 210;
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+    pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+
+    return pdf.output("blob");
+  };
+  const uploadInvoicePDF = async (orderId) => {
+    const pdfBlob = await generateInvoicePDFBlob();
+    if (!pdfBlob) return null;
+
+    const pdfRef = ref(storage, `invoices/${orderId}.pdf`);
+    await uploadBytes(pdfRef, pdfBlob);
+
+    const downloadURL = await getDownloadURL(pdfRef);
+    return downloadURL;
+  };
+
 
   const resetMainCollectionForm = () => {
     setMainCollectionName('');
@@ -2083,6 +2117,8 @@ useEffect(() => {
         const orderRef = await addDoc(collection(db, 'orders'), orderData);
         console.log(`✅ Order added to Firestore successfully with ID: ${orderRef.id}`);
 
+
+
         await batch.commit();
         console.log('✅ All Stock quantities updated successfully!');
         console.log('------------------------------------------');
@@ -2098,6 +2134,8 @@ useEffect(() => {
         });
 
         setShowInvoice(true);
+
+
 
         // 5. Success and Cleanup
         alert('Offline sale finalized and stock updated successfully!');
@@ -2133,11 +2171,44 @@ useEffect(() => {
     }
   };
   useEffect(() => {
-  const afterPrint = () => setShowInvoice(false);
+  if (!showInvoice || !invoiceData) return;
 
-  window.addEventListener('afterprint', afterPrint);
-  return () => window.removeEventListener('afterprint', afterPrint);
-}, []);
+  const processInvoicePDF = async () => {
+    try {
+      // ⏳ wait for DOM paint
+      await new Promise(res => setTimeout(res, 500));
+
+      const pdfUrl = await uploadInvoicePDF(invoiceData.invoiceNumber);
+
+      if (!pdfUrl) return;
+
+      // save pdf url to order
+      const orderRef = doc(db, "orders", invoiceData.invoiceNumber);
+      await updateDoc(orderRef, { invoicePdfUrl: pdfUrl });
+
+      // optional WhatsApp
+      if (sendInvoiceOnWhatsApp) {
+        const phone = invoiceData.customer.phoneNumber.replace(/\D/g, "");
+        const message = encodeURIComponent(
+          `Thank you for your purchase.\n\nInvoice PDF:\n${pdfUrl}`
+        );
+        window.open(`https://wa.me/91${phone}?text=${message}`, "_blank");
+      }
+
+    } catch (err) {
+      console.error("Invoice PDF generation failed:", err);
+    }
+  };
+
+  processInvoicePDF();
+}, [showInvoice, invoiceData]);
+
+  useEffect(() => {
+    const afterPrint = () => setShowInvoice(false);
+
+    window.addEventListener('afterprint', afterPrint);
+    return () => window.removeEventListener('afterprint', afterPrint);
+  }, []);
 
   useEffect(() => {
     if (selectedOfflineCollectionId) {
@@ -3639,17 +3710,25 @@ useEffect(() => {
                       />
                     </div>
 
+                    <label className="whatsapp-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={sendInvoiceOnWhatsApp}
+                        onChange={(e) => setSendInvoiceOnWhatsApp(e.target.checked)}
+                      />
+                      Send invoice on WhatsApp
+                    </label>
 
 
                     <button onClick={handleFinalizeSale} className="finalize-sale-btn">
                       Finalize Sale
                     </button>
-         <button
-  className="print-invoice-btn"
-  onClick={() => setShowInvoice(true)}
->
-  🖨 Reprint Invoice
-</button>
+                    <button
+                      className="print-invoice-btn"
+                      onClick={() => setShowInvoice(true)}
+                    >
+                      🖨 Reprint Invoice
+                    </button>
 
 
                   </>
@@ -3673,92 +3752,92 @@ useEffect(() => {
           </div>
         )}
       </div>
-  {showInvoice && invoiceData && (
-  <div className="invoice-print">
-    <div className="invoice-container compact-invoice">
+      {showInvoice && invoiceData && (
+        <div className="invoice-print">
+          <div id="invoice-pdf" className="invoice-container compact-invoice">
 
-      {/* ================= HEADER (CENTER) ================= */}
-      <div className="invoice-header">
-        <h2>TANISHKA IMITATION JEWELLERY</h2>
-        <p>Streets Of Europe, Hinjewadi, Pune</p>
-        <p>Pune, PIN CODE-412101.</p>
-        <p>Phone :- +91 78978 97441</p>
-        <p><strong>GSTN :</strong> 27CRAPA0906N1Z0</p>
-      </div>
+            {/* ================= HEADER (CENTER) ================= */}
+            <div className="invoice-header">
+              <h2>TANISHKA IMITATION JEWELLERY</h2>
+              <p>Streets Of Europe, Hinjewadi, Pune</p>
+              <p>Pune, PIN CODE-412101.</p>
+              <p>Phone :- +91 78978 97441</p>
+              <p><strong>GSTN :</strong> 27CRAPA0906N1Z0</p>
+            </div>
 
-      {/* ========== INVOICE + CUSTOMER INFO (LEFT / TOP) ========== */}
-      <div className="invoice-top-info">
-        <p><strong>Invoice No :</strong> {invoiceData.invoiceNumber}</p>
-        <p><strong>Date :</strong> {invoiceData.invoiceDate.toLocaleDateString()}</p>
-        <p><strong>Name :</strong> {invoiceData.customer.fullName}</p>
-        <p><strong>Address :</strong> {invoiceData.customer.addressLine1}</p>
-        <p><strong>GSTN No :</strong> {invoiceData.customer.gst || 'N/A'}</p>
-      </div>
+            {/* ========== INVOICE + CUSTOMER INFO (LEFT / TOP) ========== */}
+            <div className="invoice-top-info">
+              <p><strong>Invoice No :</strong> {invoiceData.invoiceNumber}</p>
+              <p><strong>Date :</strong> {invoiceData.invoiceDate.toLocaleDateString()}</p>
+              <p><strong>Name :</strong> {invoiceData.customer.fullName}</p>
+              <p><strong>Address :</strong> {invoiceData.customer.addressLine1}</p>
+              <p><strong>GSTN No :</strong> {invoiceData.customer.gst || 'N/A'}</p>
+            </div>
 
-      {/* ================= ITEM TABLE (BELOW) ================= */}
-      <table className="invoice-table">
-        <thead>
-          <tr>
-            <th>Sr</th>
-            <th>Item Name</th>
-            <th>Qty</th>
-            <th>Rate</th>
-            <th>Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {invoiceData.items.map((item, index) => {
-            const lineTotal = item.price * item.quantity;
-            return (
-              <tr key={index}>
-                <td>{index + 1}</td>
-                <td>{item.productName}</td>
-                <td>{item.quantity}</td>
-                <td>{item.price.toFixed(2)}</td>
-                <td>{lineTotal.toFixed(2)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            {/* ================= ITEM TABLE (BELOW) ================= */}
+            <table className="invoice-table">
+              <thead>
+                <tr>
+                  <th>Sr</th>
+                  <th>Item Name</th>
+                  <th>Qty</th>
+                  <th>Rate</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoiceData.items.map((item, index) => {
+                  const lineTotal = item.price * item.quantity;
+                  return (
+                    <tr key={index}>
+                      <td>{index + 1}</td>
+                      <td>{item.productName}</td>
+                      <td>{item.quantity}</td>
+                      <td>{item.price.toFixed(2)}</td>
+                      <td>{lineTotal.toFixed(2)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
 
-      {/* ================= TOTALS (RIGHT) ================= */}
-      <div className="invoice-summary">
-        <div>
-          <span>Total :</span>
-          <span>₹{invoiceData.subtotal.toFixed(2)}</span>
+            {/* ================= TOTALS (RIGHT) ================= */}
+            <div className="invoice-summary">
+              <div>
+                <span>Total :</span>
+                <span>₹{invoiceData.subtotal.toFixed(2)}</span>
+              </div>
+              <div>
+                <span>IGST @ {(invoiceData.gstRate * 100).toFixed(0)}% :</span>
+                <span>₹{invoiceData.gstAmount.toFixed(2)}</span>
+              </div>
+              <div className="net-total">
+                <span>Net Total :</span>
+                <span>₹{invoiceData.total.toFixed(2)}</span>
+              </div>
+            </div>
+
+            {/* ================= AMOUNT IN WORDS ================= */}
+            <p className="amount-words">
+              {convertNumberToWords(invoiceData.total)} Only
+            </p>
+
+            {/* ================= FOOTER ================= */}
+            <div className="invoice-footer">
+              <div>
+                <p><strong>Invoice No :</strong> {invoiceData.invoiceNumber}</p>
+                <p><strong>Date :</strong> {invoiceData.invoiceDate.toLocaleDateString()}</p>
+              </div>
+
+              <div className="signature">
+                <p>For TANISHKA IMITATION JEWELLERY</p>
+                <div className="signature-line">Receiver's Signature</div>
+              </div>
+            </div>
+
+          </div>
         </div>
-        <div>
-          <span>IGST @ {(invoiceData.gstRate * 100).toFixed(0)}% :</span>
-          <span>₹{invoiceData.gstAmount.toFixed(2)}</span>
-        </div>
-        <div className="net-total">
-          <span>Net Total :</span>
-          <span>₹{invoiceData.total.toFixed(2)}</span>
-        </div>
-      </div>
-
-      {/* ================= AMOUNT IN WORDS ================= */}
-      <p className="amount-words">
-        {convertNumberToWords(invoiceData.total)} Only
-      </p>
-
-      {/* ================= FOOTER ================= */}
-      <div className="invoice-footer">
-        <div>
-          <p><strong>Invoice No :</strong> {invoiceData.invoiceNumber}</p>
-          <p><strong>Date :</strong> {invoiceData.invoiceDate.toLocaleDateString()}</p>
-        </div>
-
-        <div className="signature">
-          <p>For TANISHKA IMITATION JEWELLERY</p>
-          <div className="signature-line">Receiver's Signature</div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-)}
+      )}
 
 
     </div>

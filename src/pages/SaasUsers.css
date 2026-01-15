@@ -610,6 +610,8 @@
   padding-top: 4px;
 }
 
+
+
 /* =====================================================
    🔁 PRINT BUTTON (SCREEN ONLY)
    ===================================================== */
@@ -635,4 +637,52 @@
   .print-invoice-btn {
     display: none !important;
   }
+}
+.whatsapp-invoice-btn {
+  margin-top: 12px;
+  padding: 12px;
+  width: 100%;
+  font-size: 15px;
+  font-weight: 600;
+  background-color: #25D366;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.whatsapp-invoice-btn:hover {
+  background-color: #1ebc5a;
+}
+
+@media print {
+  .whatsapp-invoice-btn {
+    display: none !important;
+  }
+}
+.whatsapp-checkbox {
+  margin: 10px 0;
+  font-size: 14px;
+}
+
+.whatsapp-checkbox input {
+  margin-right: 8px;
+  transform: scale(1.1);
+  cursor: pointer;
+}
+
+.whatsapp-checkbox label {
+  cursor: pointer;
+  font-weight: 500;
+}
+.whatsapp-checkbox {
+  margin: 10px 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.whatsapp-checkbox input {
+  margin-right: 8px;
+  transform: scale(1.1);
+  cursor: pointer;
 }
