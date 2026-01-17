@@ -7,6 +7,7 @@ import Zoom from 'react-medium-image-zoom';
 import 'react-medium-image-zoom/dist/styles.css';
 import { getCartItemId } from './CartContext';
 import ProgressiveImage from "./ProgressiveImage";
+import { useAuth } from './AuthContext';
 
 const ProductCard = ({
   product,
@@ -30,6 +31,15 @@ const ProductCard = ({
     tags = [],
   } = product;
 
+  /* =====================
+     ROLE (DISPLAY ONLY)
+  ===================== */
+  const { roleConfig } = useAuth();
+  const pricingKey = roleConfig?.pricingKey || 'retail';
+
+  /* =====================
+     STATE
+  ===================== */
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedVariation, setSelectedVariation] = useState(null);
   const [showTiers, setShowTiers] = useState(false);
@@ -44,7 +54,6 @@ const ProductCard = ({
   /* =====================
      DEFAULT VARIATION
   ===================== */
-
   useEffect(() => {
     if (variations && variations.length > 0) {
       setSelectedVariation(variations[0]);
@@ -54,7 +63,6 @@ const ProductCard = ({
   /* =====================
      IMAGE ROTATION
   ===================== */
-
   useEffect(() => {
     if (imagesToDisplay.length > 1) {
       const interval = setInterval(() => {
@@ -67,9 +75,8 @@ const ProductCard = ({
   }, [imagesToDisplay]);
 
   /* =====================
-     STOCK CALCULATION
+     STOCK
   ===================== */
-
   const totalStock =
     variations && variations.length > 0
       ? variations.reduce((s, v) => s + Number(v.quantity || 0), 0)
@@ -84,7 +91,6 @@ const ProductCard = ({
   /* =====================
      CART HELPERS
   ===================== */
-
   const productWithVariation = {
     ...product,
     variation: selectedVariation,
@@ -97,9 +103,8 @@ const ProductCard = ({
   const isMaxStockReached = cartQuantity >= availableStock;
 
   /* =====================
-     ADMIN ACTIONS
+     ADMIN MODE
   ===================== */
-
   if (onEdit && onDelete) {
     const isNewArrival = tags.includes('new_arrival');
     const isTrending = tags.includes('trending');
@@ -134,20 +139,21 @@ const ProductCard = ({
   }
 
   /* =====================
-     TIER DISPLAY (UI ONLY)
+     ROLE-BASED TIERS (UI)
   ===================== */
-
   const tiers =
-    tieredPricing && Array.isArray(tieredPricing)
-      ? [...tieredPricing].sort(
+    tieredPricing?.[pricingKey] && Array.isArray(tieredPricing[pricingKey])
+      ? [...tieredPricing[pricingKey]].sort(
           (a, b) => Number(a.min_quantity) - Number(b.min_quantity)
         )
       : [];
 
+  const startingPrice =
+    tiers.length > 0 ? Number(tiers[0].price) : null;
+
   /* =====================
      RENDER
   ===================== */
-
   return (
     <div className={`product-card ${isOutOfStock ? 'out-of-stock' : ''}`}>
       {isOutOfStock && (
@@ -170,41 +176,57 @@ const ProductCard = ({
         <h4 className="product-title">{productName}</h4>
         <p className="product-code">{productCode}</p>
 
-        {/* PRICE — FINAL PRICE FROM CART CONTEXT */}
-        {unitPrice !== null && (
+        {/* PRICE */}
+        {cartQuantity > 0 ? (
           <p className="product-price">
             ₹{Number(unitPrice).toFixed(2)} / unit
           </p>
+        ) : (
+          startingPrice !== null && (
+            <p className="product-price">
+              From ₹{startingPrice.toFixed(2)} / unit
+            </p>
+          )
         )}
 
-        {/* BULK TIERS (DISPLAY ONLY) */}
+        {/* BULK PRICING (POLISHED UI) */}
         {tiers.length > 1 && (
-          <>
-            <button
-              className="toggle-tiers-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowTiers(!showTiers);
-              }}
-            >
-              {showTiers ? 'Hide Bulk Pricing' : 'Show Bulk Pricing'}
-            </button>
+  <>
+    <button
+      className="bulk-toggle-btn"
+      onClick={(e) => {
+        e.stopPropagation();
+        setShowTiers(!showTiers);
+      }}
+    >
+      {showTiers ? 'Hide bulk prices' : 'View bulk prices'}
+    </button>
 
-            {showTiers && (
-              <div className="tiered-pricing-container">
-                {tiers.map((tier, i) => (
-                  <div key={i} className="pricing-tier-row">
-                    <span>
-                      Buy {tier.min_quantity}
-                      {tier.max_quantity ? `–${tier.max_quantity}` : '+'}
-                    </span>
-                    <span>₹{tier.price} / unit</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+    {showTiers && (
+      <div className="tiered-pricing-container">
+        {tiers.map((tier, i) => {
+          const isUnlocked =
+            cartQuantity >= tier.min_quantity &&
+            (!tier.max_quantity || cartQuantity <= tier.max_quantity);
+
+          return (
+            <div
+              key={i}
+              className={`pricing-tier-row ${
+                isUnlocked ? 'active-tier' : ''
+              }`}
+            >
+              Buy {tier.min_quantity}
+              {tier.max_quantity ? `–${tier.max_quantity}` : '+'}
+              {' '}@ ₹{tier.price} each
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </>
+)}
+
 
         <p className="product-quantity">
           In Stock: {availableStock}
@@ -250,9 +272,7 @@ const ProductCard = ({
             onClick={() => onIncrement(productWithVariation)}
             disabled={isMaxStockReached}
           >
-            {isMaxStockReached
-              ? 'Out of Stock'
-              : 'Add to Cart'}
+            {isMaxStockReached ? 'Out of Stock' : 'Add to Cart'}
           </button>
         ) : (
           <div className="quantity-controls">

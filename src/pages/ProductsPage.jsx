@@ -1029,22 +1029,25 @@ const handleAddToCart = (product, variation) => {
 
   const subcollection = subcollectionsMap[product.subcollectionId];
   const tieredPricing = subcollection
-    ? subcollection.tieredPricing?.[pricingKey] ?? null
-    : null;
+  ? subcollection.tieredPricing ?? null
+  : null;
+
+
 
   return (
     <ProductCard
-      key={`${product.id}-${product.subcollectionId || "all"}`} // ✅ stable key
-      product={product}
-      price={price}
-      tieredPricing={tieredPricing}
-      onIncrement={(productData) =>
-        handleAddToCart(productData, productData.variation)
-      }
-      onDecrement={(cartItemId) => removeFromCart(cartItemId)}
-      onQuickView={() => {}}
-      cart={cart}
-    />
+  key={`${product.id}-${product.subcollectionId || "all"}`}
+  product={{
+    ...product,
+    tieredPricing
+  }}
+  onIncrement={(productData) =>
+    handleAddToCart(productData, productData.variation)
+  }
+  onDecrement={(cartItemId) => removeFromCart(cartItemId)}
+  cart={cart}
+/>
+
   );
 })}
 

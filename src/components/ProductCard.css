@@ -152,89 +152,67 @@
     margin: 5px 0 0; 
     font-weight: 500;
 }
+.pricing-tier-row {
+  font-size: 0.85rem;
+  color: #374151;
+  padding: 3px 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.pricing-tier-row.active-tier {
+  background-color: #ecfdf5;
+  color: #065f46;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 4px 6px;
+}
 
 
 /* --- Tiered Pricing Box (Main Price Button) --- */
-.tiered-pricing-container {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 10px 0 15px;
-  padding: 10px; 
-  border-radius: 10px;
-  background-color: var(--primary-brand-color); 
-  border: 1px solid var(--primary-brand-color);
+/* =====================
+   BULK / TIERED PRICING
+===================== */
+
+/* Toggle button */
+/* =====================
+   BULK PRICING – SIMPLE TEXT STYLE
+===================== */
+
+.bulk-toggle-btn {
+  margin-top: 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  font-size: 0.85rem;
+  color: #1d4ed8;
   cursor: pointer;
-  
-  /* --- COLLAPSE/EXPAND LOGIC --- */
-  max-height: 55px; 
-  overflow: hidden; 
-  position: relative;
-  transition: all 0.3s ease, max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-  color: white; 
-  box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
 }
 
-.tiered-pricing-container:hover {
-    background-color: #2980b9; 
-    box-shadow: 0 6px 15px rgba(52, 152, 219, 0.4);
+.bulk-toggle-btn:hover {
+  text-decoration: underline;
 }
 
-.tiered-pricing-container::after {
-  content: 'HOVER FOR BULK PRICES'; 
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 25px;
-  background: linear-gradient(to top, var(--primary-brand-color) 30%, transparent 100%);
-  color: white;
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-align: center;
-  padding-top: 2px;
-  opacity: 1;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
+.tiered-pricing-container {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
 }
 
-.product-card:hover .tiered-pricing-container {
-  max-height: 180px; 
-  overflow-y: auto; 
-  background-color: #2980b9; 
+.pricing-tier-row {
+  font-size: 0.85rem;
+  color: #374151;
+  padding: 3px 0;
 }
 
-.product-card:hover .tiered-pricing-container::after {
-  opacity: 0;
+.pricing-tier-row:not(:last-child) {
+  border-bottom: 1px dotted #e5e7eb;
 }
 
 
-.tiered-pricing-container h4 {
-    font-size: 1.1rem;
-    color: white; 
-    margin: 0 0 10px;
-    font-weight: 700;
-    text-align: center;
-    border-bottom: 1px dashed rgba(255, 255, 255, 0.5); 
-    padding-bottom: 5px;
-}
 
-.pricing-tier-row { 
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.95rem;
-  color: white; 
-  min-height: 20px;
-}
-.pricing-tier-row span:first-child {
-    font-weight: 500;
-}
-.pricing-tier-row span:last-child {
-    color: var(--secondary-color); 
-    font-weight: 700;
-    font-size: 1em;
-}
+
 
 /* --- Variations Selector (💡 FIX 1: ADD SEPARATION) --- */
 .variations-selector {
@@ -543,3 +521,6 @@
         gap: 5px;
     }
 }
+/* =====================
+   BULK PRICING UI
+===================== */
