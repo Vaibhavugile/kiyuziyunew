@@ -32,6 +32,7 @@ import { useNavigate } from 'react-router-dom';
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { ROLE_CONFIG } from "../config/roles";
+import { useMemo } from 'react';
 
 
 // Low stock threshold constant
@@ -127,7 +128,6 @@ const [subcollectionTieredPricing, setSubcollectionTieredPricing] =
   // NEW: State for search and filter
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [groupedOrders, setGroupedOrders] = useState({});
-  const [groupedOrdersFromFiltered, setGroupedOrdersFromFiltered] = useState({});
 
   const [orderReports, setOrderReports] = useState([]);
   const [paymentReports, setPaymentReports] = useState([]);
@@ -198,7 +198,6 @@ const [offlinePricingKey, setOfflinePricingKey] = useState('retail');
   const [imageSrc, setImageSrc] = useState(null);
   const [completedCrop, setCompletedCrop] = useState(null);
   const imgRef = useRef(null);
-  const [sortedDateKeys, setSortedDateKeys] = useState([]);
   const [modalImage, setModalImage] = useState(null);
   const openImageModal = (imageUrl) => {
     if (imageUrl) {
@@ -662,9 +661,11 @@ const [offlinePricingKey, setOfflinePricingKey] = useState('retail');
   }, [activeTab]);
   // NEW: Filtered orders based on search and date range
   // Updated: Filtered orders based on search, date, and now status
-  const filteredOrders = orders.filter((order) => {
+const filteredOrders = useMemo(() => {
+  return orders.filter((order) => {
     // Search filter logic
     const searchTerm = orderSearchTerm.toLowerCase();
+
     const matchesSearch =
       order.id.toLowerCase().includes(searchTerm) ||
       (order.billingInfo?.fullName || '').toLowerCase().includes(searchTerm) ||
@@ -674,41 +675,52 @@ const [offlinePricingKey, setOfflinePricingKey] = useState('retail');
     // Date filter logic
     const orderDate = getSafeDate(order.createdAt);
 
-    const isAfterStartDate = startDate ? orderDate >= new Date(startDate) : true;
-    const isBeforeEndDate = endDate ? orderDate <= new Date(endDate) : true;
+    const isAfterStartDate = startDate
+      ? orderDate >= new Date(startDate)
+      : true;
 
-    // NEW: Status filter logic
-    const matchesStatus = statusFilter === 'All' || order.status === statusFilter;
+    const isBeforeEndDate = endDate
+      ? orderDate <= new Date(endDate)
+      : true;
 
-    return matchesSearch && isAfterStartDate && isBeforeEndDate && matchesStatus;
+    // Status filter logic
+    const matchesStatus =
+      statusFilter === 'All' || order.status === statusFilter;
+
+    return (
+      matchesSearch &&
+      isAfterStartDate &&
+      isBeforeEndDate &&
+      matchesStatus
+    );
   });
-  useEffect(() => {
-    const groups = filteredOrders.reduce((acc, order) => {
-      const dateKey = formatOrderDate(order.createdAt);
-      if (!acc[dateKey]) {
-        acc[dateKey] = [];
-      }
-      acc[dateKey].push(order);
-      return acc;
-    }, {});
-    setGroupedOrdersFromFiltered(groups);
-  }, [filteredOrders]);
-  useEffect(() => {
-    // Sort the keys to ensure "Today", "Yesterday", and then other dates
-    const keys = Object.keys(groupedOrdersFromFiltered);
+}, [orders, orderSearchTerm, startDate, endDate, statusFilter]);
+const groupedOrdersFromFiltered = useMemo(() => {
+  return filteredOrders.reduce((acc, order) => {
+    const dateKey = formatOrderDate(order.createdAt);
 
-    keys.sort((a, b) => {
-      if (a === "Today") return -1;
-      if (b === "Today") return 1;
-      if (a === "Yesterday") return -1;
-      if (b === "Yesterday") return 1;
+    if (!acc[dateKey]) {
+      acc[dateKey] = [];
+    }
 
-      // For all other dates, sort in descending order
-      return new Date(b) - new Date(a);
-    });
+    acc[dateKey].push(order);
+    return acc;
+  }, {});
+}, [filteredOrders]);
+const sortedDateKeys = useMemo(() => {
+  const keys = Object.keys(groupedOrdersFromFiltered);
 
-    setSortedDateKeys(keys);
-  }, [groupedOrdersFromFiltered]);
+  return keys.sort((a, b) => {
+    if (a === 'Today') return -1;
+    if (b === 'Today') return 1;
+    if (a === 'Yesterday') return -1;
+    if (b === 'Yesterday') return 1;
+
+    // Other dates: newest first
+    return new Date(b) - new Date(a);
+  });
+}, [groupedOrdersFromFiltered]);
+
 
   // New: Fetches low stock products
   useEffect(() => {

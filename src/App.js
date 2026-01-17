@@ -17,6 +17,7 @@ import OrderHistoryPage from './pages/OrderHistoryPage'; // Import the new page
 import ReportPage from './pages/ReportPage';
 import TermsAndPolicies from './pages/TermsAndPolicies';
 import UserOrdersPage from './pages/UserOrdersPage';
+import OrderEditPage from './pages/OrderEditPage';
 
 function App() {
   return (
@@ -36,6 +37,8 @@ function App() {
             <Route path="/report" element={<ReportPage />} />
             <Route path="/terms" element={<TermsAndPolicies />} />
             <Route path="/admin/users/:userId/orders" element={<UserOrdersPage />} />
+            <Route path="/admin/orders/edit" element={<OrderEditPage />} />
+
 
           </Routes> 
           <Footer />
