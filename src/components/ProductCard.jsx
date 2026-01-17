@@ -69,7 +69,8 @@ const ProductCard = ({
         setCurrentImageIndex(
           (prev) => (prev + 1) % imagesToDisplay.length
         );
-      }, 5000);
+      },3000);
+
       return () => clearInterval(interval);
     }
   }, [imagesToDisplay]);
@@ -164,10 +165,12 @@ const ProductCard = ({
       <div className="product-image-container">
         <Zoom>
           <ProgressiveImage
-            src={imagesToDisplay[currentImageIndex]?.url}
-            alt={productName}
-            className="product-image"
-          />
+  key={currentImageIndex}   // 🔑 forces smooth re-render
+  src={imagesToDisplay[currentImageIndex]?.url}
+  alt={productName}
+  className="product-image"
+/>
+
         </Zoom>
       </div>
 

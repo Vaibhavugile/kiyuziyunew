@@ -3438,7 +3438,6 @@ role: ROLE_KEYS.find(
                   <div>Last Order</div>
                   <div>Orders</div>
                   <div>Total Amount</div>
-                  <div>Net Profit</div>
                   <div>Created</div>
                   <div>Role</div>
                   <div>Actions</div>
@@ -3487,17 +3486,7 @@ role: ROLE_KEYS.find(
                           ₹{(stats.lifetimeValue || 0).toLocaleString('en-IN')}
                         </div>
 
-                        <div className="saas-users-cell saas-users-profit">
-                          <span
-                            className={
-                              (stats.lifetimeProfit || 0) >= 0
-                                ? 'saas-profit'
-                                : 'saas-loss'
-                            }
-                          >
-                            ₹{(stats.lifetimeProfit || 0).toLocaleString('en-IN')}
-                          </span>
-                        </div>
+                        
 
                         <div className="saas-users-cell saas-users-muted">
                           {formatDate(user.createdAt)}
