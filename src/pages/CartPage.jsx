@@ -1,40 +1,69 @@
-// CartPage.jsx
-
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useCart } from '../components/CartContext';
 import { useAuth } from '../components/AuthContext';
 import './CartPage.css';
 import { useNavigate } from 'react-router-dom';
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from 'firebase/firestore';
+import { db } from '../firebase';
 
 const CartPage = () => {
   const navigate = useNavigate();
 
-  // Cart helpers
+  /* =====================
+     CART CONTEXT
+  ===================== */
   const {
     cart,
     addToCart,
     removeFromCart,
-    getCartTotal,
+    getCartSubtotal,
+    getFinalTotal,
     clearCart,
+
+    // 🔥 coupon
+    applyCoupon,
+    removeCoupon,
+    appliedCoupon,
+    couponDiscount,
+    couponError,
   } = useCart();
 
-  // 🔑 READ ROLE CONFIG DIRECTLY (GOOD OPTION)
-  const { roleConfig } = useAuth();
+  /* =====================
+     ROLE / MIN ORDER
+  ===================== */
+const { userRole, roleConfig, currentUser } = useAuth();
 
-  // 🔒 LOCAL, RELIABLE MIN ORDER LOGIC
   const minimumRequired = Number(roleConfig?.minOrderValue || 0);
-  const currentTotal = getCartTotal();
+  const subtotal = getCartSubtotal();
 
   const isMinOrderApplicable = minimumRequired > 0;
-  const isMinMet = currentTotal >= minimumRequired;
+  const isMinMet = subtotal >= minimumRequired;
 
   const minimumRemaining = Math.max(
     0,
-    minimumRequired - currentTotal
+    minimumRequired - subtotal
   );
 
   const showMinOrderWarning =
     isMinOrderApplicable && !isMinMet;
+
+  /* =====================
+     COUPON LOCAL STATE
+  ===================== */
+  const [couponInput, setCouponInput] = useState('');
+  const [loadingCoupon, setLoadingCoupon] = useState(false);
+const [couponUiError, setCouponUiError] = useState(null);
+
+  /* =====================
+     HANDLERS
+  ===================== */
 
   const handleDecrement = useCallback(
     (cartItemId) => {
@@ -49,6 +78,81 @@ const CartPage = () => {
     },
     [addToCart]
   );
+
+ const handleApplyCoupon = async () => {
+  if (!couponInput.trim()) return;
+
+  try {
+    setLoadingCoupon(true);
+    setCouponUiError(null); // 🔥 reset UI error
+
+    const couponRef = doc(
+      db,
+      'coupons',
+      couponInput.trim().toUpperCase()
+    );
+    const couponSnap = await getDoc(couponRef);
+
+    if (!couponSnap.exists()) {
+      throw new Error('Invalid coupon code');
+    }
+
+    const coupon = couponSnap.data();
+
+    /* =========================
+       FRONTEND SAFETY CHECKS
+    ========================= */
+
+    // Role check
+    if (
+      Array.isArray(coupon.allowedRoles) &&
+      coupon.allowedRoles.length > 0 &&
+      !coupon.allowedRoles.includes(userRole)
+    ) {
+      throw new Error('Coupon is not available for your role');
+    }
+
+    // Min order
+    if (subtotal < coupon.minOrderValue) {
+      throw new Error(
+        `Minimum order of ₹${coupon.minOrderValue} required`
+      );
+    }
+
+    // Global limit
+    if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses) {
+      throw new Error('Coupon usage limit reached');
+    }
+
+    // 🔥 Per-user limit
+    if (coupon.maxUsesPerUser > 0 && currentUser?.uid) {
+      const usageQuery = query(
+        collection(db, 'couponUsages'),
+        where('couponCode', '==', coupon.code),
+        where('userId', '==', currentUser.uid)
+      );
+
+      const usageSnap = await getDocs(usageQuery);
+
+      if (usageSnap.size >= coupon.maxUsesPerUser) {
+        throw new Error(
+          `You can use this coupon only ${coupon.maxUsesPerUser} time(s)`
+        );
+      }
+    }
+
+    // ✅ APPLY
+    await applyCoupon(coupon, userRole);
+    setCouponInput('');
+  } catch (err) {
+    console.error(err.message);
+    setCouponUiError(err.message); // ✅ SHOW IN UI
+  } finally {
+    setLoadingCoupon(false);
+  }
+};
+
+
 
   // 🔒 HARD NAVIGATION GUARD
   const handleCheckout = () => {
@@ -65,9 +169,11 @@ const CartPage = () => {
       ) : (
         <div className="cart-main-content-wrapper">
 
-          {/* CART ITEMS */}
+          {/* =====================
+              CART ITEMS
+          ===================== */}
           <div className="cart-items-list">
-            {Object.keys(cart).map(cartItemId => {
+            {Object.keys(cart).map((cartItemId) => {
               const item = cart[cartItemId];
 
               return (
@@ -98,7 +204,7 @@ const CartPage = () => {
                     </p>
 
                     <p className="cart-item-price">
-                      Price: ₹{item.price}
+                      Price: ₹{Number(item.price).toFixed(2)}
                     </p>
                   </div>
 
@@ -120,16 +226,66 @@ const CartPage = () => {
             })}
           </div>
 
-          {/* ORDER SUMMARY */}
+          {/* =====================
+              ORDER SUMMARY
+          ===================== */}
           <div className="cart-summary">
             <h3>Order Summary</h3>
 
+            {/* SUBTOTAL */}
             <div className="cart-summary-line">
               <p>Subtotal:</p>
-              <span>₹{currentTotal.toFixed(2)}</span>
+              <span>₹{subtotal.toFixed(2)}</span>
             </div>
 
-            {/* MINIMUM ORDER (ROLE-BASED) */}
+            {/* COUPON SECTION */}
+            <div className="coupon-section">
+  {!appliedCoupon ? (
+    <>
+      <input
+        type="text"
+        value={couponInput}
+        placeholder="Enter coupon code"
+        onChange={(e) => setCouponInput(e.target.value)}
+        className="coupon-input"
+      />
+      <button
+        onClick={handleApplyCoupon}
+        disabled={loadingCoupon}
+        className="apply-coupon-btn"
+      >
+        {loadingCoupon ? 'Applying...' : 'Apply'}
+      </button>
+
+      {couponUiError && (
+        <p className="coupon-error">⚠️ {couponUiError}</p>
+      )}
+    </>
+  ) : (
+    <div className="coupon-applied">
+      <span>
+        ✅ Coupon <strong>{appliedCoupon.code}</strong> applied
+      </span>
+      <button onClick={() => {
+        removeCoupon();
+        setCouponUiError(null);
+      }}>
+        Remove
+      </button>
+    </div>
+  )}
+</div>
+
+
+            {/* DISCOUNT */}
+            {couponDiscount > 0 && (
+              <div className="cart-summary-line discount-line">
+                <p>Coupon Discount:</p>
+                <span>- ₹{couponDiscount.toFixed(2)}</span>
+              </div>
+            )}
+
+            {/* MINIMUM ORDER */}
             {isMinOrderApplicable && (
               <div
                 className={`cart-summary-line minimum-order-line ${
@@ -141,9 +297,10 @@ const CartPage = () => {
               </div>
             )}
 
+            {/* FINAL TOTAL */}
             <div className="cart-total final-total">
               <p>Total:</p>
-              <span>₹{currentTotal.toFixed(2)}</span>
+              <span>₹{getFinalTotal().toFixed(2)}</span>
             </div>
 
             {/* WARNING */}
@@ -154,6 +311,7 @@ const CartPage = () => {
               </p>
             )}
 
+            {/* ACTIONS */}
             <div className="cart-actions-buttons">
               <button
                 className={`checkout-btn ${

@@ -8,6 +8,7 @@ import BestSellersSection from "../components/BestSellersSection";
 import NewArrivalsSection from "../components/NewArrivalsSection";
 import TrendingSection from "../components/TrendingSection";
 import "./HomePage.css";
+import BulkEnquirySection from '../components/BulkEnquirySection';
 
 const HomePage = () => {
   const [collections, setCollections] = useState([]);
@@ -96,6 +97,9 @@ const HomePage = () => {
           </div>
         )}
       </section>
+    <BulkEnquirySection />
+  
+
 
       {/* Other sections */}
       <TrendingSection />

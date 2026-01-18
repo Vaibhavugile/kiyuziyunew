@@ -3,6 +3,8 @@ import { useCart } from '../components/CartContext';
 import { useAuth } from '../components/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import './CheckoutPage.css';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase'
 
 const SHIPPING_FEE = 199;
 
@@ -10,12 +12,20 @@ const CheckoutPage = () => {
   const {
     cart,
     getCartTotal,
+    getCartSubtotal,
+    getFinalTotal,
     clearCart,
     checkMinOrderValue,
-    removeItemFromCart
+    removeItemFromCart,
+
+    // 🔥 coupon
+    appliedCoupon,
+    couponDiscount,
+    removeCoupon,
   } = useCart();
 
-  const { currentUser } = useAuth();
+
+const { currentUser, userRole } = useAuth();
   const navigate = useNavigate();
 
   // ✅ ROLE-FREE minimum order handling
@@ -50,6 +60,47 @@ const CheckoutPage = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+  const validateCouponBeforeOrder = async () => {
+    if (!appliedCoupon) return { valid: true };
+
+    const couponRef = doc(db, 'coupons', appliedCoupon.code);
+    const couponSnap = await getDoc(couponRef);
+
+    if (!couponSnap.exists()) {
+      removeCoupon();
+      throw new Error('Coupon no longer exists');
+    }
+
+    const coupon = couponSnap.data();
+    const subtotal = getCartSubtotal();
+
+    if (!coupon.isActive) {
+      throw new Error('Coupon is disabled');
+    }
+
+    if (coupon.expiry?.toDate() < new Date()) {
+      throw new Error('Coupon has expired');
+    }
+
+    if (subtotal < coupon.minOrderValue) {
+      throw new Error('Cart no longer meets coupon requirements');
+    }
+
+    if (coupon.usedCount >= coupon.maxUses) {
+      throw new Error('Coupon usage limit reached');
+    }
+
+    let discount = 0;
+    if (coupon.type === 'percentage') {
+      discount = (subtotal * coupon.value) / 100;
+    } else {
+      discount = coupon.value;
+    }
+
+    discount = Math.min(discount, subtotal);
+
+    return { valid: true, discount };
   };
 
   const handleSubmitOrder = async (e) => {
@@ -124,17 +175,30 @@ const CheckoutPage = () => {
       return;
     }
 
-    const subtotal = getCartTotal();
-    const totalWithShipping = subtotal + SHIPPING_FEE;
+    const subtotal = getCartSubtotal();
+
+    let couponDiscountFinal = 0;
+    if (appliedCoupon) {
+      const result = await validateCouponBeforeOrder();
+      couponDiscountFinal = result.discount;
+    }
+
+    const totalWithShipping =
+      subtotal - couponDiscountFinal + SHIPPING_FEE;
+
 
     const orderData = {
       userId: currentUser?.uid || 'guest',
+      role: userRole || 'retailer', 
       items: validatedItems,
       subtotal,
       shippingFee: SHIPPING_FEE,
       totalAmount: totalWithShipping,
       billingInfo: formData,
       status: 'Pending',
+      couponCode: appliedCoupon?.code || null,
+      couponDiscount: couponDiscountFinal,
+
     };
 
     try {
@@ -174,7 +238,7 @@ const CheckoutPage = () => {
         try {
           const json = await response.json();
           msg = json.error || msg;
-        } catch {}
+        } catch { }
         throw new Error(msg);
       }
 
@@ -268,8 +332,16 @@ const CheckoutPage = () => {
 
             <div className="cart-total-section">
               <p>Subtotal</p>
-              <p>₹{getCartTotal().toFixed(2)}</p>
+              <p>₹{getCartSubtotal().toFixed(2)}</p>
             </div>
+            {appliedCoupon && (
+  <div className="cart-total-section discount-line">
+    <p>Coupon ({appliedCoupon.code})</p>
+    <p>- ₹{couponDiscount.toFixed(2)}</p>
+  </div>
+)}
+
+
 
             {isMinOrderApplicable && (
               <div className={`cart-total-section minimum-order-line ${isMinMet ? 'met' : 'not-met'}`}>
@@ -285,7 +357,8 @@ const CheckoutPage = () => {
 
             <div className="cart-total-section total-final">
               <p>Total</p>
-              <p>₹{(getCartTotal() + SHIPPING_FEE).toFixed(2)}</p>
+              <p>₹{getFinalTotal() + SHIPPING_FEE}</p>
+
             </div>
           </div>
         </div>

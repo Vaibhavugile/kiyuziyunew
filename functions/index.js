@@ -1,96 +1,86 @@
-const { onRequest } = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const admin = require('firebase-admin');
 
 admin.initializeApp();
 const db = admin.firestore();
 
-exports.backfillOrderProfit = onRequest(
-  { timeoutSeconds: 540, memory: "1GiB" },
-  async (req, res) => {
-    try {
-      const limit = 100;
-      const startAfterId = req.query.startAfter || null;
+exports.onOrderCreated = onDocumentCreated(
+  'orders/{orderId}',
+  async (event) => {
+    const order = event.data?.data();
+    if (!order || !order.couponCode) return;
 
-      let queryRef = db
-        .collection("orders")
-        .orderBy(admin.firestore.FieldPath.documentId())
-        .limit(limit);
+    const couponRef = db.collection('coupons').doc(order.couponCode);
 
-      if (startAfterId) {
-        const lastDoc = await db.collection("orders").doc(startAfterId).get();
-        if (lastDoc.exists) {
-          queryRef = queryRef.startAfter(lastDoc);
+    await db.runTransaction(async (tx) => {
+      /* =========================
+         FETCH COUPON
+      ========================= */
+      const couponSnap = await tx.get(couponRef);
+      if (!couponSnap.exists) return;
+
+      const coupon = couponSnap.data();
+
+      /* =========================
+         HARD VALIDATIONS
+      ========================= */
+      if (!coupon.isActive) throw new Error('Coupon disabled');
+      if (coupon.expiry?.toDate() < new Date()) {
+        throw new Error('Coupon expired');
+      }
+
+      // 🔐 Role check
+      if (
+        Array.isArray(coupon.allowedRoles) &&
+        coupon.allowedRoles.length > 0 &&
+        !coupon.allowedRoles.includes(order.role)
+      ) {
+        throw new Error('Coupon not allowed for role');
+      }
+
+      // 🌍 GLOBAL LIMIT
+      if (
+        coupon.maxUses > 0 &&
+        coupon.usedCount >= coupon.maxUses
+      ) {
+        throw new Error('Coupon global limit reached');
+      }
+
+      /* =========================
+         👤 PER-USER LIMIT (ZOMATO)
+      ========================= */
+      if (coupon.maxUsesPerUser > 0 && order.userId) {
+        const usageQuery = db
+          .collection('couponUsages')
+          .where('couponCode', '==', order.couponCode)
+          .where('userId', '==', order.userId);
+
+        const usageSnap = await tx.get(usageQuery);
+
+        if (usageSnap.size >= coupon.maxUsesPerUser) {
+          throw new Error('Coupon already used by this customer');
         }
       }
 
-      const snap = await queryRef.get();
+      /* =========================
+         ✅ APPLY COUPON
+      ========================= */
 
-      if (snap.empty) {
-        return res.json({
-          success: true,
-          message: "Backfill completed",
-          updatedOrders: 0,
-        });
-      }
-
-      let updated = 0;
-      let lastProcessedId = null;
-
-      for (const docSnap of snap.docs) {
-        const order = docSnap.data();
-        let orderCost = 0;
-        let orderProfit = 0;
-
-        const items = order.items || [];
-
-        for (const item of items) {
-          if (!item.collectionId || !item.subcollectionId) continue;
-
-          const subSnap = await db
-            .collection("collections")
-            .doc(item.collectionId)
-            .collection("subcollections")
-            .doc(item.subcollectionId)
-            .get();
-
-          const purchaseRate = subSnap.exists
-            ? subSnap.data().purchaseRate || 0
-            : 0;
-
-          const qty = item.quantity || 0;
-          const sell = item.priceAtTimeOfOrder || 0;
-
-          item.purchaseRateAtOrder = purchaseRate;
-          item.itemCost = purchaseRate * qty;
-          item.itemProfit = (sell - purchaseRate) * qty;
-
-          orderCost += item.itemCost;
-        }
-
-        // ❌ Ignore cancelled orders in profit
-        if (order.status !== "Cancelled") {
-          orderProfit = (order.totalAmount || 0) - orderCost;
-        }
-
-        await docSnap.ref.update({
-          items,
-          orderPurchaseCost: orderCost,
-          orderProfit,
-          profitCalculatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        updated++;
-        lastProcessedId = docSnap.id;
-      }
-
-      return res.json({
-        success: true,
-        updatedOrders: updated,
-        nextCursor: lastProcessedId,
+      // 1️⃣ increment global usage
+      tx.update(couponRef, {
+        usedCount: admin.firestore.FieldValue.increment(1),
       });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: err.message });
-    }
+
+      // 2️⃣ log usage
+      tx.set(db.collection('couponUsages').doc(), {
+        couponCode: order.couponCode,
+        userId: order.userId || 'guest',
+        role: order.role || 'retailer',
+        orderId: event.params.orderId,
+        orderTotal: order.totalAmount,
+        discountAmount: order.couponDiscount || 0,
+        usedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
   }
 );

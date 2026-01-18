@@ -289,3 +289,102 @@
     margin-top: 20px;
     font-weight: 500;
 }
+/* ---------------------------------------------------- */
+/* 3. COUPON SECTION (Cart Summary) */
+/* ---------------------------------------------------- */
+
+.coupon-section {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border: 1px dashed #ced4da;
+    border-radius: 8px;
+}
+
+.coupon-section input.coupon-input {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 1em;
+    border-radius: 6px;
+    border: 1px solid #ced4da;
+    margin-bottom: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.coupon-section input.coupon-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+}
+
+.apply-coupon-btn {
+    width: 100%;
+    padding: 10px;
+    background-color: #28a745;
+    color: #fff;
+    font-weight: 600;
+    font-size: 1em;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.apply-coupon-btn:hover:not(:disabled) {
+    background-color: #218838;
+    transform: translateY(-1px);
+}
+
+.apply-coupon-btn:disabled {
+    background-color: #a9dfbf;
+    cursor: not-allowed;
+}
+
+.coupon-error {
+    margin-top: 8px;
+    font-size: 0.9em;
+    color: #dc3545;
+    font-weight: 500;
+}
+
+/* Coupon Applied State */
+.coupon-applied {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #e6fffa;
+    border: 1px solid #38b2ac;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 0.95em;
+}
+
+.coupon-applied span {
+    color: #155724;
+    font-weight: 600;
+}
+
+.coupon-applied button {
+    background: transparent;
+    border: none;
+    color: #dc3545;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.coupon-applied button:hover {
+    text-decoration: underline;
+}
+
+/* Discount Line Highlight */
+.cart-summary-line.discount-line span {
+    color: #28a745;
+    font-weight: 600;
+}
+.coupon-error {
+  margin-top: 6px;
+  color: #d32f2f;
+  font-size: 13px;
+  font-weight: 500;
+}

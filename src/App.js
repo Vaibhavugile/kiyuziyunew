@@ -18,7 +18,9 @@ import ReportPage from './pages/ReportPage';
 import TermsAndPolicies from './pages/TermsAndPolicies';
 import UserOrdersPage from './pages/UserOrdersPage';
 import OrderEditPage from './pages/OrderEditPage';
-
+import CouponAdmin from './pages/CouponAdmin';
+import CouponUsageHistory from './pages/CouponUsageHistory';
+import CouponAnalytics from './pages/CouponAnalytics';
 function App() {
   return (
     <AuthProvider>
@@ -38,6 +40,17 @@ function App() {
             <Route path="/terms" element={<TermsAndPolicies />} />
             <Route path="/admin/users/:userId/orders" element={<UserOrdersPage />} />
             <Route path="/admin/orders/edit" element={<OrderEditPage />} />
+<Route
+  path="/admin/coupons"
+  element={ <CouponAdmin />}
+/>
+<Route
+  path="/admin/coupons/usage"
+  element={<CouponUsageHistory />}
+/>
+<Route path="/admin/coupon-analytics" element={<CouponAnalytics />} />
+
+
 
 
           </Routes> 

@@ -103,50 +103,62 @@ export default function OrderEditPage() {
 
   /* ------------------ RECALCULATION ------------------ */
   const recalculateOrder = (order) => {
-    let subtotal = 0;
-    let purchaseCost = 0;
+  let subtotal = 0;
+  let purchaseCost = 0;
 
-    const updatedItems = order.items.map(item => {
-      const qty = Number(item.quantity || 0);
-      const sell = Number(item.priceAtTimeOfOrder || 0);
-      const cost = Number(item.purchaseRateAtOrder || 0);
+  const updatedItems = order.items.map(item => {
+    const qty = Number(item.quantity || 0);
+    const sell = Number(item.priceAtTimeOfOrder || 0);
+    const cost = Number(item.purchaseRateAtOrder || 0);
 
-      const itemSubtotal = qty * sell;
-      const itemPurchase = qty * cost;
-      const itemProfit = itemSubtotal - itemPurchase;
+    const itemSubtotal = qty * sell;
+    const itemPurchase = qty * cost;
+    const itemProfit = itemSubtotal - itemPurchase;
 
-      subtotal += itemSubtotal;
-      purchaseCost += itemPurchase;
+    subtotal += itemSubtotal;
+    purchaseCost += itemPurchase;
 
-      return { ...item, itemProfit };
-    });
+    return { ...item, itemProfit };
+  });
 
-    const shippingFee = Number(order.shippingFee || 0);
-    const totalAmount = subtotal + shippingFee;
+  const shippingFee = Number(order.shippingFee || 0);
+  const couponDiscount = Number(order.couponDiscount || 0);
 
-    return {
-      items: updatedItems,
-      subtotal,
-      totalAmount,
-      orderPurchaseCost: purchaseCost,
-      orderProfit: subtotal - purchaseCost,
-    };
+  // ✅ FIXED TOTAL
+  const totalAmount =
+    Math.max(0, subtotal - couponDiscount + shippingFee);
+
+  // ✅ FIXED PROFIT
+  const orderProfit =
+    Math.max(0, subtotal - couponDiscount - purchaseCost);
+
+  return {
+    items: updatedItems,
+    subtotal,
+    couponDiscount,
+    totalAmount,
+    orderPurchaseCost: purchaseCost,
+    orderProfit,
   };
+};
+
 
   /* ------------------ SAVE EDIT ------------------ */
   const saveEditedOrder = async () => {
     const recalculated = recalculateOrder(editableOrder);
     const orderRef = doc(db, 'orders', editableOrder.id);
 
-    await updateDoc(orderRef, {
-      items: recalculated.items,
-      subtotal: recalculated.subtotal,
-      totalAmount: recalculated.totalAmount,
-      orderPurchaseCost: recalculated.orderPurchaseCost,
-      orderProfit: recalculated.orderProfit,
-      editedManually: true,
-      updatedAt: serverTimestamp(),
-    });
+  await updateDoc(orderRef, {
+  items: recalculated.items,
+  subtotal: recalculated.subtotal,
+  couponDiscount: recalculated.couponDiscount || 0,
+  totalAmount: recalculated.totalAmount,
+  orderPurchaseCost: recalculated.orderPurchaseCost,
+  orderProfit: recalculated.orderProfit,
+  editedManually: true,
+  updatedAt: serverTimestamp(),
+});
+
 
     setOrders(prev =>
       prev
@@ -271,7 +283,19 @@ export default function OrderEditPage() {
                           <strong className={item.itemProfit >= 0 ? 'profit' : 'loss'}>
                             Profit: ₹{item.itemProfit}
                           </strong>
+          
+                                       {order.couponCode && (
+  <div className="coupon-info">
+    <span>
+      🎟 Coupon: <strong>{order.couponCode}</strong>
+    </span>
+    <span>
+      Discount: − ₹{Number(order.couponDiscount || 0)}
+    </span>
+  </div>
+)}
                         </div>
+ 
                       </div>
                     ))}
                   </div>

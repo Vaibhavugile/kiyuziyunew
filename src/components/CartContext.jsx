@@ -6,7 +6,6 @@ import React, {
   useCallback,
 } from 'react';
 import { useAuth } from './AuthContext';
-import { getRoleConfig } from '../config/roles';
 
 /* =======================
    Utility functions
@@ -32,7 +31,7 @@ export const createStablePricingId = (tiers) => {
   if (!tiers) return null;
 
   const sortedTiers = [...tiers].sort(
-    (a, b) => Number(a.min_quantity) - Number(b.min_quantity)
+    (a, b) => Number(a.min_quantity) - Number(a.min_quantity)
   );
 
   return JSON.stringify(
@@ -122,9 +121,15 @@ const recalculateCartPrices = (currentCart, pricingKey) => {
 ======================= */
 
 export const CartProvider = ({ children }) => {
-  const { roleConfig } = useAuth();
+const { roleConfig, userRole } = useAuth();
+
+
   const pricingKey = roleConfig?.pricingKey || 'retail';
   const minOrderValue = roleConfig?.minOrderValue || 0;
+
+  /* =======================
+     CART STATE
+  ======================= */
 
   const [cart, setCart] = useState(() => {
     try {
@@ -140,18 +145,34 @@ export const CartProvider = ({ children }) => {
   }, [cart]);
 
   /* =======================
-     TOTAL
+     COUPON STATE
   ======================= */
 
-  const getCartTotal = useCallback(() => {
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponError, setCouponError] = useState(null);
+
+  /* =======================
+     TOTALS
+  ======================= */
+
+  const getCartSubtotal = useCallback(() => {
     return Object.values(cart).reduce(
       (sum, item) => sum + Number(item.price || 0) * item.quantity,
       0
     );
   }, [cart]);
 
+  const getCartTotal = useCallback(() => {
+    return getCartSubtotal();
+  }, [getCartSubtotal]);
+
+  const getFinalTotal = useCallback(() => {
+    return Math.max(0, getCartSubtotal() - couponDiscount);
+  }, [getCartSubtotal, couponDiscount]);
+
   /* =======================
-     MIN ORDER CHECK (ROLE BASED)
+     MIN ORDER CHECK
   ======================= */
 
   const checkMinOrderValue = useCallback(() => {
@@ -241,7 +262,7 @@ export const CartProvider = ({ children }) => {
   );
 
   /* =======================
-     REMOVE FULL ITEM (Checkout fix)
+     REMOVE FULL ITEM
   ======================= */
 
   const removeItemFromCart = useCallback(
@@ -276,7 +297,114 @@ export const CartProvider = ({ children }) => {
     [pricingKey]
   );
 
-  const clearCart = useCallback(() => setCart({}), []);
+  const clearCart = useCallback(() => {
+    setCart({});
+    setAppliedCoupon(null);
+    setCouponDiscount(0);
+    setCouponError(null);
+  }, []);
+
+  /* =======================
+     COUPON LOGIC
+  ======================= */
+
+  const applyCoupon = async (couponDoc) => {
+  try {
+    /* =========================
+       DEBUG START
+    ========================= */
+    console.group('🧪 COUPON APPLY DEBUG');
+console.log('👤 userRole (from auth):', userRole);
+
+    console.log('📄 couponDoc:', couponDoc);
+    console.log('🏷️ couponDoc.code:', couponDoc?.code);
+    console.log('👥 couponDoc.allowedRoles:', couponDoc?.allowedRoles);
+    console.log('👤 userRole (received):', userRole);
+    console.log('📦 typeof userRole:', typeof userRole);
+
+    if (Array.isArray(couponDoc?.allowedRoles)) {
+      console.log(
+        '✅ Role match check:',
+        couponDoc.allowedRoles.includes(userRole)
+      );
+    } else {
+      console.log('⚠️ allowedRoles is NOT an array');
+    }
+
+    console.groupEnd();
+    /* =========================
+       DEBUG END
+    ========================= */
+
+    setCouponError(null);
+
+    // ❌ inactive
+    if (!couponDoc.isActive) {
+      throw new Error('Coupon is disabled');
+    }
+
+    // ❌ expired
+    if (couponDoc.expiry?.toDate() < new Date()) {
+      throw new Error('Coupon has expired');
+    }
+
+    // ❌ role restriction
+  if (
+  Array.isArray(couponDoc.allowedRoles) &&
+  couponDoc.allowedRoles.length > 0 &&
+  !couponDoc.allowedRoles.includes(userRole)
+) {
+  throw new Error('Coupon is not available for your role');
+}
+
+
+    const subtotal = getCartSubtotal();
+
+    // ❌ min order
+    if (subtotal < couponDoc.minOrderValue) {
+      throw new Error(
+        `Minimum order ₹${couponDoc.minOrderValue} required`
+      );
+    }
+
+    // ❌ usage limit
+    if (
+      couponDoc.maxUses > 0 &&
+      couponDoc.usedCount >= couponDoc.maxUses
+    ) {
+      throw new Error('Coupon usage limit reached');
+    }
+
+    /* =========================
+       CALCULATE DISCOUNT
+    ========================= */
+    let discount = 0;
+
+    if (couponDoc.type === 'percentage') {
+      discount = (subtotal * couponDoc.value) / 100;
+    } else {
+      discount = couponDoc.value;
+    }
+
+    discount = Math.min(discount, subtotal);
+
+    setAppliedCoupon(couponDoc);
+    setCouponDiscount(discount);
+
+  } catch (err) {
+    console.error('❌ COUPON ERROR:', err.message);
+    setAppliedCoupon(null);
+    setCouponDiscount(0);
+    setCouponError(err.message);
+  }
+};
+
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponDiscount(0);
+    setCouponError(null);
+  };
 
   /* =======================
      REPRICE ON ROLE CHANGE
@@ -288,17 +416,33 @@ export const CartProvider = ({ children }) => {
         ? recalculateCartPrices(prev, pricingKey)
         : prev
     );
+    removeCoupon();
   }, [pricingKey]);
+
+  /* =======================
+     CONTEXT VALUE
+  ======================= */
 
   const contextValue = {
     cart,
     addToCart,
     removeFromCart,
     removeItemFromCart,
-    getCartTotal,
     clearCart,
+
+    getCartTotal,
+    getCartSubtotal,
+    getFinalTotal,
     checkMinOrderValue,
-    pricingKey, // 🔥 exposed
+
+    pricingKey,
+
+    // 🔥 coupon
+    applyCoupon,
+    removeCoupon,
+    appliedCoupon,
+    couponDiscount,
+    couponError,
   };
 
   return (
