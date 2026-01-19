@@ -23,8 +23,8 @@ const ProductCard = ({
     id,
     productName,
     productCode,
-    images,
-    image,
+    image,               // ✅ main image
+  additionalImages = [], // ✅ gallery images
     variations,
     quantity,
     tieredPricing,
@@ -44,12 +44,10 @@ const ProductCard = ({
   const [selectedVariation, setSelectedVariation] = useState(null);
   const [showTiers, setShowTiers] = useState(false);
 
-  const imagesToDisplay =
-    images && images.length > 0
-      ? images
-      : image
-      ? [{ url: image }]
-      : [];
+ const imagesToDisplay = [
+  ...(image ? [{ url: image }] : []),
+  ...additionalImages.map(url => ({ url })),
+];
 
   /* =====================
      DEFAULT VARIATION
@@ -69,7 +67,7 @@ const ProductCard = ({
         setCurrentImageIndex(
           (prev) => (prev + 1) % imagesToDisplay.length
         );
-      },3000);
+      },5000);
 
       return () => clearInterval(interval);
     }

@@ -1308,163 +1308,309 @@ const resetSubcollectionForm = () => {
 
     setCurrentImageIndex(currentImageIndex + 1);
   };
-  const handleAddAllProducts = async (e) => {
-    e.preventDefault();
-    setIsProductUploading(true);
+ const handleAddAllProducts = async (e) => {
+  e.preventDefault();
+  setIsProductUploading(true);
 
-    try {
-      const productCollectionRef = collection(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products");
+  try {
+    const productCollectionRef = collection(
+      db,
+      "collections",
+      selectedMainCollectionId,
+      "subcollections",
+      selectedSubcollectionId,
+      "products"
+    );
 
-      // Use a batch write for efficiency when saving multiple documents
-      const batch = writeBatch(db);
+    const batch = writeBatch(db);
 
-      // Iterate over the `newProducts` array, which holds all the product data
-      for (const product of newProducts) {
-        // Check if product has necessary details before trying to save
-        if (!product.productName || !product.productCode) {
-          console.error("Skipping product with missing name or code:", product);
-          continue; // Move to the next product if this one is incomplete
-        }
-
-        // Step 1: Upload the main product image for the current product in the loop
-        let mainImageUrl = '';
-        // Make sure the image is available for the current product
-        const mainImageFile = product.images.length > 0 ? product.images[0].file : null;
-
-        if (mainImageFile) {
-          mainImageUrl = await uploadImageAndGetURL(mainImageFile);
-        }
-
-        // Step 2: Prepare the variations array
-        // Check if the `variations` property exists on the product object
-        const finalVariations = product.variations
-          ? product.variations.map(v => ({ color: v.color, size: v.size, quantity: Number(v.quantity) }))
-          : [{ color: '', size: '', quantity: Number(product.quantity) }];
-
-        // Calculate the total quantity from the final variations array
-        const totalQuantity = finalVariations.reduce((sum, v) => sum + v.quantity, 0);
-
-        // Step 3: Prepare the data object for the current product
-        const productData = {
-          productName: product.productName,
-          productCode: product.productCode,
-          quantity: totalQuantity,
-          image: mainImageUrl,
-          variations: finalVariations,
-          mainCollection: selectedMainCollectionId,
-          timestamp: serverTimestamp(),
-        };
-
-        console.log("Saving the following product data:", productData);
-
-        // Add the new document to the batch
-        const newDocRef = doc(productCollectionRef);
-        batch.set(newDocRef, productData);
+    for (const product of newProducts) {
+      // Safety check
+      if (!product.productName || !product.productCode) {
+        console.error("Skipping product with missing name/code:", product);
+        continue;
       }
 
-      // Commit the batch to save all products at once
-      await batch.commit();
+      /* -----------------------------------------
+         STEP 1: UPLOAD ALL IMAGES (MAIN + EXTRA)
+      ------------------------------------------ */
+      const uploadedImageUrls = [];
 
-      console.log("All products added successfully.");
-      alert("All products added successfully!");
-      fetchProducts();
-      resetProductForm();
-      setNewProducts([]); // Reset the array after a successful upload
-      setProductVariations([]);
-      setNewVariation({ color: '', size: '', quantity: '' });
-    } catch (err) {
-      console.error("Error adding all products:", err);
-      alert("Failed to save products.");
-    } finally {
-      setIsProductUploading(false);
-    }
-  };
+      for (const img of product.images || []) {
+        if (img.file) {
+          const url = await uploadImageAndGetURL(img.file);
+          uploadedImageUrls.push(url);
+        }
+      }
 
-  const startEditProduct = (product) => {
-    console.log("Starting edit for product:", product);
-    setEditingProduct(product);
-    setProductName(product.productName);
-    setProductCode(product.productCode);
+      // Split images
+      const mainImageUrl = uploadedImageUrls[0] || "";
+      const additionalImageUrls = uploadedImageUrls.slice(1);
 
-    // CRITICAL FIX: Load variations or single quantity
-    if (product.variations && product.variations.length > 0) {
-      setProductVariations(product.variations); // Load existing variations
-      setProductQuantity(''); // Clear single quantity input
-    } else {
-      setProductVariations([]); // Clear variations state
-      setProductQuantity(product.quantity || ''); // Load single quantity (or empty if none)
-    }
-
-    setNewVariation({ color: '', size: '', quantity: '' }); // Clear the "Add Variation" inputs
-    // Note: Your original code uses product.images for setAdditionalImages, but product.image for the main image src. I'll maintain the existing logic for additional images below.
-    setAdditionalImages((product.images || []).map(url => ({ previewUrl: url })));
-    setShowProductForm(true);
-  };
-  const handleUpdateProduct = async (e) => {
-    e.preventDefault();
-    setIsProductUploading(true);
-
-    try {
-      const productDocRef = doc(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products", editingProduct.id);
-
-      // Filter out existing images from new uploads to avoid re-uploading
-      const newImagesToUpload = additionalImages.filter(img => img.file);
-      const uploadedUrls = await Promise.all(
-        newImagesToUpload.map(img => uploadImageAndGetURL(img.file))
-      );
-
-      // Combine existing image URLs with the new ones
-      const existingUrls = additionalImages.filter(img => !img.file).map(img => img.previewUrl);
-      const allImageUrls = [...existingUrls, ...uploadedUrls];
-
-      // --- VARIATION LOGIC FIX: Determine final quantity and variations ---
-      let finalQuantity = 0;
+      /* -----------------------------------------
+         STEP 2: HANDLE VARIATIONS / QUANTITY
+      ------------------------------------------ */
       let finalVariations = [];
+      let totalQuantity = 0;
 
-      if (productVariations.length > 0) {
-        finalVariations = productVariations.map(v => ({ color: v.color, size: v.size, quantity: Number(v.quantity) }));
-        finalQuantity = finalVariations.reduce((sum, v) => sum + v.quantity, 0);
+      if (product.variations && product.variations.length > 0) {
+        finalVariations = product.variations.map(v => ({
+          color: v.color || "",
+          size: v.size || "",
+          quantity: Number(v.quantity) || 0,
+        }));
+
+        totalQuantity = finalVariations.reduce(
+          (sum, v) => sum + v.quantity,
+          0
+        );
       } else {
-        // If no variations are set, use the single quantity value
-        finalQuantity = Number(productQuantity);
+        totalQuantity = Number(product.quantity) || 0;
+        finalVariations = [];
       }
-      // --- END VARIATION LOGIC FIX ---
 
+      /* -----------------------------------------
+         STEP 3: PREPARE PRODUCT DATA (🔥 IMPORTANT)
+      ------------------------------------------ */
       const productData = {
-        productName: productName,
-        productCode: productCode,
-        quantity: finalQuantity, // Save the calculated total quantity
-        variations: finalVariations, // Save the variations array (will be empty if a single-quantity product)
-        images: allImageUrls,
+        productName: product.productName,
+        productCode: product.productCode,
+
+        image: mainImageUrl,                      // ✅ main image
+        additionalImages: additionalImageUrls,    // ✅ REQUIRED BY ProductCard
+
+        quantity: totalQuantity,
+        variations: finalVariations,
+
+        mainCollection: selectedMainCollectionId,
+        createdAt: serverTimestamp(),
       };
 
-      await updateDoc(productDocRef, productData);
-      fetchProducts();
-      resetProductForm();
-    } catch (err) {
-      console.error("Error updating product:", err);
-      alert("Failed to update product data.");
-    } finally {
-      setIsProductUploading(false);
-    }
-  };
+      console.log("Saving product:", productData);
 
-  const handleDeleteProduct = async (productId, imageUrl) => {
-    if (window.confirm("Are you sure you want to delete this product?")) {
-      try {
-        if (imageUrl) {
-          const imageRef = ref(storage, imageUrl);
-          await deleteObject(imageRef);
-        }
-        const productDocRef = doc(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products", productId);
-        await deleteDoc(productDocRef);
-        fetchProducts();
-      } catch (err) {
-        console.error("Error deleting product:", err);
-        alert("Failed to delete product.");
+      const newDocRef = doc(productCollectionRef);
+      batch.set(newDocRef, productData);
+    }
+
+    await batch.commit();
+
+    alert("All products added successfully!");
+    fetchProducts();
+    resetProductForm();
+
+    // Cleanup
+    setNewProducts([]);
+    setProductVariations([]);
+    setNewVariation({ color: "", size: "", quantity: "" });
+
+  } catch (err) {
+    console.error("Error adding products:", err);
+    alert("Failed to save products.");
+  } finally {
+    setIsProductUploading(false);
+  }
+};
+
+
+  const startEditProduct = (product) => {
+  console.log("Starting edit for product:", product);
+
+  setEditingProduct(product);
+
+  // Basic info
+  setProductName(product.productName || "");
+  setProductCode(product.productCode || "");
+
+  /* -----------------------------------------
+     STEP 1: LOAD VARIATIONS OR SINGLE QUANTITY
+  ------------------------------------------ */
+  if (product.variations && product.variations.length > 0) {
+    setProductVariations(
+      product.variations.map(v => ({
+        color: v.color || "",
+        size: v.size || "",
+        quantity: v.quantity || "",
+      }))
+    );
+    setProductQuantity("");
+  } else {
+    setProductVariations([]);
+    setProductQuantity(product.quantity || "");
+  }
+
+  setNewVariation({ color: "", size: "", quantity: "" });
+
+  /* -----------------------------------------
+     STEP 2: LOAD ADDITIONAL IMAGES (🔥 IMPORTANT)
+  ------------------------------------------ */
+  setAdditionalImages(
+    (product.additionalImages || []).map(url => ({
+      previewUrl: url
+    }))
+  );
+
+  /* -----------------------------------------
+     STEP 3: SHOW FORM
+  ------------------------------------------ */
+  setShowProductForm(true);
+};
+
+  const handleUpdateProduct = async (e) => {
+  e.preventDefault();
+  setIsProductUploading(true);
+
+  try {
+    const productDocRef = doc(
+      db,
+      "collections",
+      selectedMainCollectionId,
+      "subcollections",
+      selectedSubcollectionId,
+      "products",
+      editingProduct.id
+    );
+
+    /* -----------------------------------------
+       STEP 1: UPLOAD ONLY NEW IMAGES
+    ------------------------------------------ */
+    const uploadedNewImageUrls = [];
+
+    for (const img of additionalImages) {
+      // img.file exists ONLY for newly added images
+      if (img.file) {
+        const url = await uploadImageAndGetURL(img.file);
+        uploadedNewImageUrls.push(url);
       }
     }
-  };
+
+    /* -----------------------------------------
+       STEP 2: KEEP EXISTING IMAGE URLS
+    ------------------------------------------ */
+    const existingImageUrls = additionalImages
+      .filter(img => !img.file && img.previewUrl)
+      .map(img => img.previewUrl);
+
+    const allImageUrls = [
+      ...(editingProduct.image ? [editingProduct.image] : []),
+      ...existingImageUrls,
+      ...uploadedNewImageUrls,
+    ];
+
+    const mainImageUrl = allImageUrls[0] || "";
+    const additionalImageUrls = allImageUrls.slice(1);
+
+    /* -----------------------------------------
+       STEP 3: HANDLE VARIATIONS / QUANTITY
+    ------------------------------------------ */
+    let finalVariations = [];
+    let finalQuantity = 0;
+
+    if (productVariations.length > 0) {
+      finalVariations = productVariations.map(v => ({
+        color: v.color || "",
+        size: v.size || "",
+        quantity: Number(v.quantity) || 0,
+      }));
+
+      finalQuantity = finalVariations.reduce(
+        (sum, v) => sum + v.quantity,
+        0
+      );
+    } else {
+      finalQuantity = Number(productQuantity) || 0;
+      finalVariations = [];
+    }
+
+    /* -----------------------------------------
+       STEP 4: UPDATE FIRESTORE (🔥 IMPORTANT)
+    ------------------------------------------ */
+    const productData = {
+      productName,
+      productCode,
+
+      image: mainImageUrl,                      // ✅ main image
+      additionalImages: additionalImageUrls,    // ✅ what ProductCard expects
+
+      quantity: finalQuantity,
+      variations: finalVariations,
+
+      updatedAt: serverTimestamp(),
+    };
+
+    await updateDoc(productDocRef, productData);
+
+    alert("Product updated successfully!");
+    fetchProducts();
+    resetProductForm();
+
+    // Cleanup
+    setEditingProduct(null);
+    setAdditionalImages([]);
+    setProductVariations([]);
+    setNewVariation({ color: "", size: "", quantity: "" });
+
+  } catch (err) {
+    console.error("Error updating product:", err);
+    alert("Failed to update product.");
+  } finally {
+    setIsProductUploading(false);
+  }
+};
+
+
+  const handleDeleteProduct = async (product) => {
+  if (!window.confirm("Are you sure you want to delete this product?")) {
+    return;
+  }
+
+  try {
+    /* -----------------------------------------
+       STEP 1: COLLECT ALL IMAGE URLS
+    ------------------------------------------ */
+    const imageUrls = [
+      product.image,
+      ...(product.additionalImages || []),
+    ];
+
+    /* -----------------------------------------
+       STEP 2: DELETE ALL IMAGES FROM STORAGE
+    ------------------------------------------ */
+    for (const url of imageUrls) {
+      if (url) {
+        try {
+          const imageRef = ref(storage, url);
+          await deleteObject(imageRef);
+        } catch (err) {
+          console.warn("Failed to delete image:", url, err);
+          // Continue deleting others even if one fails
+        }
+      }
+    }
+
+    /* -----------------------------------------
+       STEP 3: DELETE PRODUCT DOCUMENT
+    ------------------------------------------ */
+    const productDocRef = doc(
+      db,
+      "collections",
+      selectedMainCollectionId,
+      "subcollections",
+      selectedSubcollectionId,
+      "products",
+      product.id
+    );
+
+    await deleteDoc(productDocRef);
+
+    fetchProducts();
+    alert("Product deleted successfully!");
+
+  } catch (err) {
+    console.error("Error deleting product:", err);
+    alert("Failed to delete product.");
+  }
+};
+
   const filteredAndSortedUsers = [...users]
 
     /* =========================
@@ -3125,7 +3271,8 @@ role: ROLE_KEYS.find(
                                 key={product.id}
                                 product={product} // This passes the entire product object
                                 onEdit={() => startEditProduct(product)}
-                                onDelete={() => handleDeleteProduct(product.id, product.image)}
+                                onDelete={() => handleDeleteProduct(product)}
+
                                 // 🔥 NEW PROP ADDED 🔥
                                 onToggleHighlight={handleToggleHighlight}
                               />
