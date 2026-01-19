@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import './CheckoutPage.css';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase'
+import { getRoleConfig } from '../config/roles';
 
 const SHIPPING_FEE = 199;
 
@@ -25,7 +26,7 @@ const CheckoutPage = () => {
   } = useCart();
 
 
-const { currentUser, userRole } = useAuth();
+  const { currentUser, userRole } = useAuth();
   const navigate = useNavigate();
 
   // ✅ ROLE-FREE minimum order handling
@@ -40,6 +41,8 @@ const { currentUser, userRole } = useAuth();
     0,
     minimumRequired - getCartTotal()
   );
+  const roleConfig = getRoleConfig(userRole);
+  const isOnlinePayment = roleConfig.paymentMode === 'ONLINE';
 
   const [invalidItems, setInvalidItems] = useState([]);
 
@@ -56,6 +59,14 @@ const { currentUser, userRole } = useAuth();
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
+const loadRazorpay = () =>
+  new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -189,7 +200,7 @@ const { currentUser, userRole } = useAuth();
 
     const orderData = {
       userId: currentUser?.uid || 'guest',
-      role: userRole || 'retailer', 
+      role: userRole || 'retailer',
       items: validatedItems,
       subtotal,
       shippingFee: SHIPPING_FEE,
@@ -242,8 +253,31 @@ const { currentUser, userRole } = useAuth();
         throw new Error(msg);
       }
 
-      clearCart();
-      navigate('/order-success');
+      const data = await response.json();
+      const createdOrderId = data.orderId;
+
+      console.log('✅ Order created with ID:', createdOrderId);
+
+      // 🔀 STEP 7: Branch payment flow
+      if (!isOnlinePayment) {
+        // MANUAL payment roles (wholesaler, distributor, dealer, vip)
+        clearCart();
+        navigate('/order-success');
+        return;
+      }
+
+      // ONLINE payment (retailer)
+      // ⚠️ DO NOTHING MORE FOR NOW
+      // Razorpay will be added in next step
+      console.log('🟡 Starting Razorpay for order:', createdOrderId);
+
+await startRazorpayPayment(
+  createdOrderId,
+  totalWithShipping // final amount
+);
+
+
+
 
     } catch (err) {
       if (err.message !== "VALIDATION_FAILED") {
@@ -253,6 +287,49 @@ const { currentUser, userRole } = useAuth();
       setIsProcessing(false);
     }
   };
+const startRazorpayPayment = async (orderId, amount) => {
+  const res = await loadRazorpay();
+  if (!res) {
+    setError('Razorpay SDK failed to load');
+    return;
+  }
+
+  const options = {
+    key: 'rzp_test_Rbd4yxUECD23kA', // 🔴 test key for now
+    amount: Math.round(amount * 100), // paise
+    currency: 'INR',
+    name: 'Kiyu-Ziyu Jewellery',
+    description: `Order #${orderId}`,
+    handler: async function (response) {
+      console.log('✅ Payment success', response);
+
+      // ✅ mark order as paid
+      await fetch(
+        'https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/markOrderPaid',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId,
+            paymentId: response.razorpay_payment_id,
+          }),
+        }
+      );
+
+      clearCart();
+      navigate('/order-success');
+    },
+    prefill: {
+      name: formData.fullName,
+      email: formData.email,
+      contact: formData.phoneNumber,
+    },
+    theme: { color: '#e73e35' },
+  };
+
+  const paymentObject = new window.Razorpay(options);
+  paymentObject.open();
+};
 
   const handleAutoFixCart = () => {
     invalidItems.forEach(({ productId, variation }) =>
@@ -302,8 +379,13 @@ const { currentUser, userRole } = useAuth();
                 className="checkout-btn"
                 disabled={isProcessing || showMinOrderWarning}
               >
-                {isProcessing ? 'Processing…' : 'Place Order'}
+                {isProcessing
+                  ? 'Processing…'
+                  : isOnlinePayment
+                    ? 'Pay & Place Order'
+                    : 'Place Order (Manual Payment)'}
               </button>
+
             </form>
           </div>
 
@@ -335,11 +417,11 @@ const { currentUser, userRole } = useAuth();
               <p>₹{getCartSubtotal().toFixed(2)}</p>
             </div>
             {appliedCoupon && (
-  <div className="cart-total-section discount-line">
-    <p>Coupon ({appliedCoupon.code})</p>
-    <p>- ₹{couponDiscount.toFixed(2)}</p>
-  </div>
-)}
+              <div className="cart-total-section discount-line">
+                <p>Coupon ({appliedCoupon.code})</p>
+                <p>- ₹{couponDiscount.toFixed(2)}</p>
+              </div>
+            )}
 
 
 

@@ -53,9 +53,26 @@ export default function TermsAndPolicies() {
             <li>Please check your order details carefully before confirming.</li>
           </ul>
         </article>
+        <article id="shipping-delivery" className="terms-section">
+  <h3>5. Shipping & Delivery Policy</h3>
+  <ul>
+    <li>Orders are processed within 1–2 business days after confirmation.</li>
+    <li>Minimum delivery timeline: <strong>3 business days</strong>.</li>
+    <li>Maximum delivery timeline: <strong>10 business days</strong>.</li>
+    <li>
+      Delivery timelines may vary depending on location, courier availability,
+      public holidays, and bulk order volume.
+    </li>
+    <li>
+      Bulk or custom orders may require additional processing time and will be
+      communicated separately.
+    </li>
+  </ul>
+</article>
+
 
         <article id="disclaimer" className="terms-section">
-          <h3>5. Disclaimer</h3>
+          <h3>6. Disclaimer</h3>
           <p>
             Minor color or design variations may occur due to lighting or screen
             settings. This will not be considered as a defect.

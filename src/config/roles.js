@@ -16,6 +16,9 @@ export const ROLE_CONFIG = {
     minOrderValue: 100,
     canSeeBulkPricing: false,
     pricingKey: 'retail',
+
+    // 💳 PAYMENT
+    paymentMode: 'ONLINE', // ✅ Razorpay enabled
   },
 
   wholesaler: {
@@ -23,6 +26,9 @@ export const ROLE_CONFIG = {
     minOrderValue: 5000,
     canSeeBulkPricing: true,
     pricingKey: 'wholesale',
+
+    // 📲 Manual payment (WhatsApp)
+    paymentMode: 'MANUAL',
   },
 
   distributor: {
@@ -30,6 +36,8 @@ export const ROLE_CONFIG = {
     minOrderValue: 20000,
     canSeeBulkPricing: true,
     pricingKey: 'distributor',
+
+    paymentMode: 'MANUAL',
   },
 
   dealer: {
@@ -37,6 +45,8 @@ export const ROLE_CONFIG = {
     minOrderValue: 10000,
     canSeeBulkPricing: true,
     pricingKey: 'dealer',
+
+    paymentMode: 'MANUAL',
   },
 
   vip: {
@@ -44,6 +54,8 @@ export const ROLE_CONFIG = {
     minOrderValue: 100,
     canSeeBulkPricing: true,
     pricingKey: 'vip',
+
+    paymentMode: 'MANUAL', // can change later if needed
   },
 };
 
