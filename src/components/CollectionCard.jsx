@@ -4,9 +4,17 @@ import "./CollectionCard.css";
 /**
  * CollectionCard
  * - Image always visible
- * - Bottom overlay shows “Explore” + Product Name (both styled pills)
+ * - Bottom overlay shows “Explore” + Product Name
+ * - Supports admin actions via children
  */
-const CollectionCard = ({ id, title, image, alt, onClick }) => {
+const CollectionCard = ({
+  id,
+  title,
+  image,
+  alt,
+  onClick,
+  children, // ✅ ADMIN ACTIONS
+}) => {
   return (
     <article
       className="collection-card"
@@ -15,9 +23,22 @@ const CollectionCard = ({ id, title, image, alt, onClick }) => {
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => {
-        if ((e.key === "Enter" || e.key === " ") && onClick) onClick(e);
+        if ((e.key === "Enter" || e.key === " ") && onClick) {
+          e.preventDefault();
+          onClick(e);
+        }
       }}
     >
+      {/* 🔧 ADMIN ACTIONS (Edit / Delete) */}
+      {children && (
+        <div
+          className="collection-admin-actions"
+          onClick={(e) => e.stopPropagation()} // prevent navigation
+        >
+          {children}
+        </div>
+      )}
+
       <div className="collection-card-media">
         {image ? (
           <img
@@ -43,8 +64,7 @@ const CollectionCard = ({ id, title, image, alt, onClick }) => {
               <span className="arrow" aria-hidden="true">›</span>
             </button>
 
-           <span className="product-pill">
-
+            <span className="product-pill">
               <span className="pill-text">{title}</span>
             </span>
           </div>

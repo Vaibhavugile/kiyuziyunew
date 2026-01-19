@@ -241,3 +241,30 @@
   box-shadow: 0 6px 16px rgba(14,23,36,0.04);
   z-index: 5;
 }
+/* ---------- ADMIN ACTIONS ---------- */
+.collection-admin-actions {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 8px;
+  z-index: 20;
+}
+
+.collection-admin-actions button {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(255,255,255,0.95);
+  color: #0e1724;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.collection-admin-actions button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+}
