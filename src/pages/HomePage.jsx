@@ -9,7 +9,7 @@ import NewArrivalsSection from "../components/NewArrivalsSection";
 import TrendingSection from "../components/TrendingSection";
 import "./HomePage.css";
 import BulkEnquirySection from '../components/BulkEnquirySection';
-
+import InstagramReelsSection from "../components/InstagramReelsSection";
 const HomePage = () => {
   const [collections, setCollections] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -86,17 +86,20 @@ const HomePage = () => {
                 role="listitem"
                 aria-label={`Open ${col.title || col.name} collection`}
               >
-                <CollectionCard
-                  id={col.id}
-                  title={col.title || col.name || "Collection"}
-                  image={col.image || ""}
-                  alt={col.imageAlt || col.title || col.name || "Collection image"}
-                />
+              <CollectionCard
+  id={col.id}
+  title={col.title || col.name || "Collection"}
+  image={col.image || ""}
+  additionalImages={col.additionalImages || []}   // ⭐ REQUIRED
+  alt={col.imageAlt || col.title || col.name || "Collection image"}
+/>
+
               </Link>
             ))}
           </div>
         )}
       </section>
+      <InstagramReelsSection />
     <BulkEnquirySection />
   
 

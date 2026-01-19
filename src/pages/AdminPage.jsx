@@ -50,6 +50,8 @@ const AdminPage = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isCropping, setIsCropping] = useState(false);
   const [imageToCrop, setImageToCrop] = useState(null);
+  const [mainCollectionAdditionalImages, setMainCollectionAdditionalImages] = useState([]);
+
   const ROLE_KEYS = Object.keys(ROLE_CONFIG);
 const PRICING_KEYS = ROLE_KEYS.map(
   role => ROLE_CONFIG[role].pricingKey
@@ -880,72 +882,150 @@ const sortedDateKeys = useMemo(() => {
       }
     }
   };
+const handleMainCollectionAdditionalImagesChange = (e) => {
+  const files = Array.from(e.target.files || []);
+
+  setMainCollectionAdditionalImages(
+    files.map(file => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }))
+  );
+};
 
   // --- Main Collection Handlers ---
-  const handleAddMainCollection = async (e) => {
-    e.preventDefault();
-    if (!mainCollectionName || !mainCollectionImageFile || !mainCollectionShowNumber) {
-      alert('Please fill out all fields.');
-      return;
-    }
-    setIsMainCollectionUploading(true);
-    try {
-      const imageUrl = await uploadImageAndGetURL(mainCollectionImageFile);
-      const newDoc = await addDoc(collection(db, 'collections'), {
-        title: mainCollectionName,
-        image: imageUrl,
-        showNumber: parseInt(mainCollectionShowNumber),
-      });
-      console.log('Main Collection added with ID: ', newDoc.id);
-      fetchMainCollections();
-    } catch (error) {
-      console.error('Error adding main collection:', error);
-    }
-    setIsMainCollectionUploading(false);
-    resetMainCollectionForm();
-  };
+const handleAddMainCollection = async (e) => {
+  e.preventDefault();
 
-  const startEditMainCollection = (item) => {
-    setEditingMainCollection(item);
-    setMainCollectionName(item.title);
-    setMainCollectionShowNumber(item.showNumber);
-  };
+  if (!mainCollectionName || !mainCollectionImageFile || !mainCollectionShowNumber) {
+    alert('Please fill out all fields.');
+    return;
+  }
 
-  const handleUpdateMainCollection = async (e) => {
-    e.preventDefault();
-    if (!editingMainCollection) return;
-    setIsMainCollectionUploading(true);
-    let imageUrl = editingMainCollection.image;
-    if (mainCollectionImageFile) {
-      await deleteImageFromStorage(editingMainCollection.image);
-      imageUrl = await uploadImageAndGetURL(mainCollectionImageFile);
-    }
-    try {
-      const docRef = doc(db, 'collections', editingMainCollection.id);
-      await updateDoc(docRef, {
-        title: mainCollectionName,
-        image: imageUrl,
-        showNumber: parseInt(mainCollectionShowNumber),
-      });
-      console.log('Main Collection updated successfully');
-      fetchMainCollections();
-    } catch (error) {
-      console.error('Error updating main collection:', error);
-    }
-    setIsMainCollectionUploading(false);
-    resetMainCollectionForm();
-  };
+  setIsMainCollectionUploading(true);
 
-  const handleDeleteMainCollection = async (id, imageUrl) => {
-    if (window.confirm('Are you sure you want to delete this main collection and all its subcollections and products?')) {
-      try {
-        await deleteImageFromStorage(imageUrl);
-        await deleteDoc(doc(db, 'collections', id));
-        fetchMainCollections();
-      } catch (error) {
+  try {
+    /* ---------- UPLOAD MAIN IMAGE ---------- */
+    const mainImageUrl = await uploadImageAndGetURL(mainCollectionImageFile);
+
+    /* ---------- UPLOAD ADDITIONAL IMAGES ---------- */
+    const uploadedAdditionalImages = [];
+
+    for (const img of mainCollectionAdditionalImages) {
+      if (img.file) {
+        const url = await uploadImageAndGetURL(img.file);
+        uploadedAdditionalImages.push(url);
       }
     }
-  };
+
+    await addDoc(collection(db, 'collections'), {
+      title: mainCollectionName,
+      image: mainImageUrl,
+      additionalImages: uploadedAdditionalImages,
+      showNumber: parseInt(mainCollectionShowNumber, 10),
+      createdAt: serverTimestamp(),
+    });
+
+    fetchMainCollections();
+    resetMainCollectionForm();
+  } catch (error) {
+    console.error('Error adding main collection:', error);
+    alert('Failed to add main collection.');
+  } finally {
+    setIsMainCollectionUploading(false);
+  }
+};
+
+
+ const startEditMainCollection = (item) => {
+  setEditingMainCollection(item);
+  setMainCollectionName(item.title);
+  setMainCollectionShowNumber(item.showNumber);
+
+  setMainCollectionAdditionalImages(
+    (item.additionalImages || []).map(url => ({
+      previewUrl: url,
+    }))
+  );
+};
+
+
+  const handleUpdateMainCollection = async (e) => {
+  e.preventDefault();
+  if (!editingMainCollection) return;
+
+  setIsMainCollectionUploading(true);
+
+  try {
+    let mainImageUrl = editingMainCollection.image;
+
+    /* ---------- REPLACE MAIN IMAGE IF CHANGED ---------- */
+    if (mainCollectionImageFile) {
+      await deleteImageFromStorage(editingMainCollection.image);
+      mainImageUrl = await uploadImageAndGetURL(mainCollectionImageFile);
+    }
+
+    /* ---------- HANDLE ADDITIONAL IMAGES ---------- */
+    const existingAdditional = mainCollectionAdditionalImages
+      .filter(img => !img.file)
+      .map(img => img.previewUrl);
+
+    const newUploads = [];
+
+    for (const img of mainCollectionAdditionalImages) {
+      if (img.file) {
+        const url = await uploadImageAndGetURL(img.file);
+        newUploads.push(url);
+      }
+    }
+
+    const allAdditionalImages = [...existingAdditional, ...newUploads];
+
+    await updateDoc(
+      doc(db, 'collections', editingMainCollection.id),
+      {
+        title: mainCollectionName,
+        image: mainImageUrl,
+        additionalImages: allAdditionalImages,
+        showNumber: parseInt(mainCollectionShowNumber, 10),
+        updatedAt: serverTimestamp(),
+      }
+    );
+
+    fetchMainCollections();
+    resetMainCollectionForm();
+  } catch (error) {
+    console.error('Error updating main collection:', error);
+    alert('Failed to update main collection.');
+  } finally {
+    setIsMainCollectionUploading(false);
+  }
+};
+
+
+  const handleDeleteMainCollection = async (item) => {
+  if (!window.confirm('Delete this collection and all its data?')) return;
+
+  try {
+    const urlsToDelete = [
+      item.image,
+      ...(item.additionalImages || []),
+    ];
+
+    for (const url of urlsToDelete) {
+      if (url) {
+        await deleteObject(ref(storage, url));
+      }
+    }
+
+    await deleteDoc(doc(db, 'collections', item.id));
+    fetchMainCollections();
+  } catch (err) {
+    console.error('Error deleting main collection:', err);
+    alert('Failed to delete collection.');
+  }
+};
+
   const generateInvoicePDFBlob = async () => {
     const element = document.getElementById("invoice-pdf");
     if (!element) return null;
@@ -2824,6 +2904,16 @@ role: ROLE_KEYS.find(
                       <input type="file" onChange={(e) => handleImageChange(e, setMainCollectionImageFile)} required={!editingMainCollection} />
                     </div>
                     <div className="form-group">
+  <label>Additional Images:</label>
+  <input
+    type="file"
+    multiple
+    accept="image/*"
+    onChange={handleMainCollectionAdditionalImagesChange}
+  />
+</div>
+
+                    <div className="form-group">
                       <label>Show Number:</label>
                       <input type="number" value={mainCollectionShowNumber} onChange={(e) => setMainCollectionShowNumber(e.target.value)} placeholder="Order (e.g., 1, 2)" required />
                     </div>
@@ -2849,7 +2939,7 @@ role: ROLE_KEYS.find(
                           <CollectionCard key={item.id} title={item.title} image={item.image} showNumber={item.showNumber}>
                             <div className="admin-actions">
                               <button onClick={() => startEditMainCollection(item)}>Edit</button>
-                              <button onClick={() => handleDeleteMainCollection(item.id, item.image)}>Delete</button>
+<button onClick={() => handleDeleteMainCollection(item)}>Delete</button>
                             </div>
                           </CollectionCard>
                         ))}

@@ -268,3 +268,16 @@
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0,0,0,0.2);
 }
+/* ---------- IMAGE CROSSFADE (NO BLANK FLASH) ---------- */
+.collection-card-media img {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.8s ease-in-out;
+  will-change: opacity;
+}
+
+.collection-card-media img.active {
+  opacity: 1;
+  z-index: 1;
+}

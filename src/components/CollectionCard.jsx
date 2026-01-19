@@ -1,20 +1,67 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import "./CollectionCard.css";
 
 /**
  * CollectionCard
- * - Image always visible
- * - Bottom overlay shows “Explore” + Product Name
+ * - Supports main + additional images
+ * - Preloads images
+ * - Cross-fade rotation every 5 seconds (NO BLANK FLASH)
+ * - Bottom overlay shows “Explore” + Title
  * - Supports admin actions via children
  */
 const CollectionCard = ({
   id,
   title,
   image,
+  additionalImages = [],
   alt,
   onClick,
-  children, // ✅ ADMIN ACTIONS
+  children,
 }) => {
+  /* ---------------------------------
+     IMAGE SETUP
+  ---------------------------------- */
+  const imagesToDisplay = [
+    ...(image ? [image] : []),
+    ...additionalImages,
+  ];
+
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [loadedImages, setLoadedImages] = useState({});
+
+  /* ---------------------------------
+     PRELOAD ALL IMAGES (CRITICAL FIX)
+  ---------------------------------- */
+  useEffect(() => {
+    imagesToDisplay.forEach((src) => {
+      if (!loadedImages[src]) {
+        const img = new Image();
+        img.src = src;
+        img.onload = () => {
+          setLoadedImages((prev) => ({
+            ...prev,
+            [src]: true,
+          }));
+        };
+      }
+    });
+  }, [imagesToDisplay]);
+
+  /* ---------------------------------
+     AUTO ROTATION (5 SECONDS)
+  ---------------------------------- */
+  useEffect(() => {
+    if (imagesToDisplay.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) =>
+        (prev + 1) % imagesToDisplay.length
+      );
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [imagesToDisplay.length]);
+
   return (
     <article
       className="collection-card"
@@ -29,30 +76,36 @@ const CollectionCard = ({
         }
       }}
     >
-      {/* 🔧 ADMIN ACTIONS (Edit / Delete) */}
+      {/* 🔧 ADMIN ACTIONS */}
       {children && (
         <div
           className="collection-admin-actions"
-          onClick={(e) => e.stopPropagation()} // prevent navigation
+          onClick={(e) => e.stopPropagation()}
         >
           {children}
         </div>
       )}
 
       <div className="collection-card-media">
-        {image ? (
-          <img
-            src={image}
-            alt={alt || title}
-            className="collection-image"
-            loading="lazy"
-            decoding="async"
-          />
+        {imagesToDisplay.length > 0 ? (
+          imagesToDisplay.map((src, index) => (
+            <img
+              key={src}
+              src={src}
+              alt={alt || title}
+              className={`collection-image ${
+                index === currentImageIndex ? "active" : ""
+              }`}
+              loading="lazy"
+              decoding="async"
+              draggable={false}
+            />
+          ))
         ) : (
           <div className="collection-image--placeholder" />
         )}
 
-        {/* Bottom overlay with Explore + Title */}
+        {/* Bottom overlay */}
         <div className="bottom-overlay">
           <div className="overlay-content">
             <button
