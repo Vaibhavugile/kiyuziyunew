@@ -21,6 +21,7 @@ import OrderEditPage from './pages/OrderEditPage';
 import CouponAdmin from './pages/CouponAdmin';
 import CouponUsageHistory from './pages/CouponUsageHistory';
 import CouponAnalytics from './pages/CouponAnalytics';
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 function App() {
   return (
     <AuthProvider>
@@ -40,6 +41,7 @@ function App() {
             <Route path="/terms" element={<TermsAndPolicies />} />
             <Route path="/admin/users/:userId/orders" element={<UserOrdersPage />} />
             <Route path="/admin/orders/edit" element={<OrderEditPage />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
 <Route
   path="/admin/coupons"
   element={ <CouponAdmin />}

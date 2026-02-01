@@ -283,12 +283,22 @@ const [offlinePricingKey, setOfflinePricingKey] = useState('retail');
 
 
   // Handlers for Tiered Pricing (now for Subcollections)
-  const handleAddTier = (type) => {
-    setSubcollectionTieredPricing((prevPricing) => ({
+ const handleAddTier = (type) => {
+  setSubcollectionTieredPricing((prevPricing) => {
+    const existingTiers = Array.isArray(prevPricing[type])
+      ? prevPricing[type]
+      : [];
+
+    return {
       ...prevPricing,
-      [type]: [...prevPricing[type], { min_quantity: '', max_quantity: '', price: '' }],
-    }));
-  };
+      [type]: [
+        ...existingTiers,
+        { min_quantity: "", max_quantity: "", price: "" }
+      ],
+    };
+  });
+};
+
   const onCropComplete = (crop) => {
     setCompletedCrop(crop);
   };
@@ -2109,6 +2119,62 @@ const resetSubcollectionForm = () => {
     }
   };
 
+const handleExportUsers = () => {
+  if (!filteredAndSortedUsers.length) return;
+
+  const headers = [
+    "Name",
+    "Role",
+    "Mobile",
+    "Address",
+    "Last Login",
+    "Last Order",
+    "Total Orders",
+    "Total Amount",
+    "Created At",
+  ];
+
+  const rows = filteredAndSortedUsers.map((user) => {
+    const stats = userOrderStats[user.id] || {};
+
+    return [
+      user.name || "",
+      user.role || "",
+      user.mobile || "",
+      user.address || "",
+      formatDate(user.lastLogin),
+      stats.lastOrderDate ? formatDate(stats.lastOrderDate) : "",
+      stats.totalOrders || 0,
+      stats.lifetimeValue || 0,
+      formatDate(user.createdAt),
+    ];
+  });
+
+  const csvContent = [
+    headers.join(","),
+    ...rows.map((row) =>
+      row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+    ),
+  ].join("\n");
+
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.setAttribute(
+    "download",
+    `users_export_${new Date().toISOString().slice(0, 10)}.csv`
+  );
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
 
 
   const handleOfflineRemoveFromCart = (cartItemId) => {
@@ -2545,6 +2611,7 @@ role: ROLE_KEYS.find(
   };
 
   processInvoicePDF();
+  
 }, [showInvoice, invoiceData]);
 
   useEffect(() => {
@@ -2779,47 +2846,66 @@ role: ROLE_KEYS.find(
   return (
     <div className="admin-page">
       <h1>Admin Dashboard</h1>
-      <div className="admin-tabs">
-        <button
-          className={activeTab === 'collections' ? 'active' : ''}
-          onClick={() => setActiveTab('collections')}
-        >
-          Collections
-        </button>
-        <button
-          className={activeTab === 'orders' ? 'active' : ''}
-          onClick={() => setActiveTab('orders')}
-        >
-          Orders
-        </button>
-        <button
-          className={activeTab === 'lowStock' ? 'active' : ''}
-          onClick={() => setActiveTab('lowStock')}
-        >
-          Low Stock Alerts ({lowStockProducts.length})
-        </button>
-        <button
-          className={activeTab === 'reports' ? 'active' : ''}
-          onClick={() => setActiveTab('reports')}
-        >
-          Reports
-        </button>
-        <button
-          className={activeTab === 'users' ? 'active' : ''}
-          onClick={() => setActiveTab('users')}
-        >
-          User Management
-        </button>
-        <button
-          className={`admin-menu-item ${activeTab === 'offline-billing' ? 'active' : ''}`}
-          onClick={() => setActiveTab('offline-billing')}
-        >
-          Offline Billing
-        </button>
+    <div className="admin-tabs">
+  <button
+    className={activeTab === "collections" ? "active" : ""}
+    onClick={() => setActiveTab("collections")}
+  >
+    Collections
+  </button>
 
+  <button
+    className={activeTab === "orders" ? "active" : ""}
+    onClick={() => setActiveTab("orders")}
+  >
+    Orders
+  </button>
 
+  <button
+    className={activeTab === "lowStock" ? "active" : ""}
+    onClick={() => setActiveTab("lowStock")}
+  >
+    Low Stock Alerts ({lowStockProducts.length})
+  </button>
 
-      </div>
+  <button
+    className={activeTab === "reports" ? "active" : ""}
+    onClick={() => setActiveTab("reports")}
+  >
+    Reports
+  </button>
+
+  <button
+    className={activeTab === "users" ? "active" : ""}
+    onClick={() => setActiveTab("users")}
+  >
+    User Management
+  </button>
+
+  <button
+    className={`admin-menu-item ${activeTab === "offline-billing" ? "active" : ""}`}
+    onClick={() => setActiveTab("offline-billing")}
+  >
+    Offline Billing
+  </button>
+
+  {/* 🔥 NEW: COUPONS */}
+  <button
+    className="admin-menu-item"
+    onClick={() => (window.location.href = "/admin/coupons")}
+  >
+    Coupons
+  </button>
+
+  {/* 🔥 NEW: ORDER EDIT */}
+  <button
+    className="admin-menu-item"
+    onClick={() => (window.location.href = "/admin/orders/edit")}
+  >
+    Edit Orders
+  </button>
+</div>
+
 
       <div className="tab-content">
         {/* --- Collections, Subcollections, and Products Tabs --- */}
@@ -3668,6 +3754,16 @@ role: ROLE_KEYS.find(
               >
                 {userSortOrder === 'asc' ? '⬆ Ascending' : '⬇ Descending'}
               </button>
+              <div className="saas-users-export-bar">
+  <button
+    className="saas-btn saas-btn--secondary"
+    onClick={handleExportUsers}
+    disabled={filteredAndSortedUsers.length === 0}
+  >
+    ⬇ Export Users
+  </button>
+</div>
+
             </div>
 
             {/* CONTENT */}

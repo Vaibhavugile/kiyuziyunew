@@ -1,14 +1,15 @@
 /* eslint-disable no-console */
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const Razorpay = require("razorpay");
 
 admin.initializeApp();
 const db = admin.firestore();
 
 /* ======================================================
-   🔹 MARK ORDER AS PAID (Razorpay callback)
+   🔹 CREATE RAZORPAY ORDER (ENABLES UPI / QR)
 ====================================================== */
-exports.markOrderPaid = functions.https.onRequest(async (req, res) => {
+exports.createRazorpayOrder = functions.https.onRequest(async (req, res) => {
   // ---- CORS ----
   const allowedOrigins = [
     "https://kiyuziyuofficial.com",
@@ -33,37 +34,43 @@ exports.markOrderPaid = functions.https.onRequest(async (req, res) => {
   }
 
   try {
-    const { orderId, paymentId } = req.body || {};
+    const { amount, receipt } = req.body || {};
 
-    if (!orderId || !paymentId) {
+    // ------------------ BASIC VALIDATION ------------------
+    if (!amount || amount <= 0 || !receipt) {
       return res.status(400).json({
-        error: "Missing orderId or paymentId",
+        error: "Invalid amount or receipt",
       });
     }
 
-    const orderRef = db.collection("orders").doc(orderId);
-    const snap = await orderRef.get();
+    const razorpayKey = functions.config().razorpay?.key;
+    const razorpaySecret = functions.config().razorpay?.secret;
 
-    if (!snap.exists) {
-      return res.status(404).json({
-        error: "Order not found",
+    if (!razorpayKey || !razorpaySecret) {
+      console.error("❌ Razorpay keys missing in env");
+      return res.status(500).json({
+        error: "Payment gateway not configured",
       });
     }
 
-    await orderRef.update({
-      paymentStatus: "PAID",
-      paymentId,
-      paidAt: admin.firestore.FieldValue.serverTimestamp(),
+    const razorpay = new Razorpay({
+      key_id: razorpayKey,
+      key_secret: razorpaySecret,
     });
 
-    return res.status(200).json({
-      success: true,
-      orderId,
+    // ------------------ CREATE RAZORPAY ORDER ------------------
+    const order = await razorpay.orders.create({
+      amount: Math.round(amount * 100), // paise
+      currency: "INR",
+      receipt,
+      payment_capture: 1,
     });
+
+    return res.status(200).json(order);
   } catch (err) {
-    console.error("markOrderPaid error:", err.message);
+    console.error("createRazorpayOrder error:", err);
     return res.status(500).json({
-      error: "Failed to mark order as paid",
+      error: "Failed to create Razorpay order",
     });
   }
 });

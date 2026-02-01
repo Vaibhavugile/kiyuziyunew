@@ -13,12 +13,12 @@ export const ROLES = {
 export const ROLE_CONFIG = {
   retailer: {
     label: 'Retail Customer',
-    minOrderValue: 100,
+    minOrderValue: 0,
     canSeeBulkPricing: false,
     pricingKey: 'retail',
 
     // 💳 PAYMENT
-    paymentMode: 'ONLINE', // ✅ Razorpay enabled
+    paymentMode: 'MANUAL', // ✅ Razorpay enabled
   },
 
   wholesaler: {
@@ -42,7 +42,7 @@ export const ROLE_CONFIG = {
 
   dealer: {
     label: 'Dealer',
-    minOrderValue: 10000,
+    minOrderValue: 20000,
     canSeeBulkPricing: true,
     pricingKey: 'dealer',
 
@@ -51,7 +51,7 @@ export const ROLE_CONFIG = {
 
   vip: {
     label: 'VIP Customer',
-    minOrderValue: 100,
+    minOrderValue: 20000,
     canSeeBulkPricing: true,
     pricingKey: 'vip',
 

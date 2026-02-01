@@ -686,3 +686,22 @@
   transform: scale(1.1);
   cursor: pointer;
 }
+.saas-users-export-bar {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.saas-btn--secondary {
+  background: #f5f7fa;
+  border: 1px solid #d6dde6;
+  color: #0e1724;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.saas-btn--secondary:hover {
+  background: #e9eef4;
+}

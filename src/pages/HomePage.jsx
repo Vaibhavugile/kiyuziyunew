@@ -99,7 +99,7 @@ const HomePage = () => {
           </div>
         )}
       </section>
-      <InstagramReelsSection />
+      {/* <InstagramReelsSection /> */}
     <BulkEnquirySection />
   
 

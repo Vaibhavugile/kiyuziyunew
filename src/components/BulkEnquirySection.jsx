@@ -1,5 +1,8 @@
 import React, { useState } from "react";
 import "./BulkEnquirySection.css";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "../firebase";
 
 const MIN_QTY = 200;
 
@@ -16,39 +19,58 @@ const BulkEnquirySection = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
+
+  const uploadImage = async (file) => {
+  if (!file) return null;
+
+  const fileName = `${Date.now()}_${file.name}`;
+  const storageRef = ref(storage, `bulk-enquiries/${fileName}`);
+
+  await uploadBytes(storageRef, file);
+  const downloadURL = await getDownloadURL(storageRef);
+
+  return {
+    name: fileName,
+    url: downloadURL,
+  };
+};
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
-    setForm((prev) => ({
-      ...prev,
-      image: file,
-    }));
+    setForm((prev) => ({ ...prev, image: file }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+ const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (!form.name || !form.phone) {
-      alert("Please enter name and contact number");
-      return;
+  try {
+    let imageData = null;
+
+    // 🔥 Upload image if selected
+    if (form.image) {
+      imageData = await uploadImage(form.image);
     }
 
-    if (Number(form.quantity) < MIN_QTY) {
-      alert(`Minimum bulk order quantity is ${MIN_QTY}`);
-      return;
-    }
+    await addDoc(collection(db, "bulkEnquiries"), {
+      name: form.name || "",
+      phone: form.phone || "",
+      productName: form.productName || "",
+      productCode: form.productCode || "",
+      quantity: form.quantity ? Number(form.quantity) : null,
+      message: form.message || "",
 
-    // 🔥 Later: send to Firestore / WhatsApp
-    console.log("Bulk Enquiry Submitted:", form);
+      imageName: imageData?.name || "",
+      imageURL: imageData?.url || "",
 
-    alert("Your bulk enquiry has been submitted. Our team will contact you shortly.");
+      source: "website",
+      status: "new",
+      createdAt: serverTimestamp(),
+    });
+
+    alert("Thank you! Our wholesale team will contact you shortly.");
 
     setForm({
       name: "",
@@ -59,16 +81,20 @@ const BulkEnquirySection = () => {
       message: "",
       image: null,
     });
-  };
+  } catch (error) {
+    console.error("Bulk enquiry save failed:", error);
+    alert("Something went wrong. Please try again.");
+  }
+};
+
 
   return (
     <section className="bulk-enquiry-section">
-      {/* HEADER */}
       <div className="bulk-enquiry-header">
         <h2>Bulk Order Enquiry</h2>
         <p>
-          Looking to place a bulk order for a single product?  
-          Share your requirements and our wholesale team will assist you.
+          Looking to place a bulk order? Share your requirements and our team
+          will assist you.
         </p>
 
         <div className="bulk-badges">
@@ -79,111 +105,87 @@ const BulkEnquirySection = () => {
         </div>
       </div>
 
-      {/* FORM */}
       <form className="bulk-enquiry-form" onSubmit={handleSubmit}>
         <div className="bulk-form-grid">
-          {/* NAME */}
           <div className="bulk-form-group">
             <label>Your Name</label>
             <input
-              type="text"
               name="name"
-              placeholder="Enter your full name"
               value={form.name}
               onChange={handleChange}
-              required
+              placeholder="Your name (optional)"
             />
           </div>
 
-          {/* PHONE */}
           <div className="bulk-form-group">
             <label>Contact Number</label>
             <input
-              type="tel"
               name="phone"
-              placeholder="WhatsApp / Mobile number"
               value={form.phone}
               onChange={handleChange}
-              required
+              placeholder="WhatsApp / Phone (optional)"
             />
           </div>
 
-          {/* PRODUCT NAME */}
           <div className="bulk-form-group">
             <label>Product Name</label>
             <input
-              type="text"
               name="productName"
-              placeholder="Product name (if known)"
               value={form.productName}
               onChange={handleChange}
+              placeholder="Product name (optional)"
             />
           </div>
 
-          {/* PRODUCT CODE */}
           <div className="bulk-form-group">
             <label>Product Code</label>
             <input
-              type="text"
               name="productCode"
-              placeholder="Product code / SKU"
               value={form.productCode}
               onChange={handleChange}
+              placeholder="SKU / Model (optional)"
             />
           </div>
 
-          {/* QUANTITY */}
           <div className="bulk-form-group">
             <label>Required Quantity</label>
             <input
               type="number"
               name="quantity"
-              placeholder="Enter quantity"
               value={form.quantity}
               onChange={handleChange}
-              required
+              placeholder={`Minimum ${MIN_QTY}+ (optional)`}
             />
-            <span className="bulk-quantity-note">
-              Minimum bulk order: {MIN_QTY} units
-            </span>
           </div>
 
-          {/* IMAGE UPLOAD */}
           <div className="bulk-form-group">
-            <label>Product Image (optional)</label>
+            <label>Product Image</label>
             <label className="bulk-file-upload">
-              <input
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={handleImageChange}
-              />
+              <input type="file" hidden accept="image/*" onChange={handleImageChange} />
               <span>
-                {form.image ? form.image.name : "Click to upload product image"}
+                {form.image ? form.image.name : "Upload image (optional)"}
               </span>
             </label>
           </div>
 
-          {/* MESSAGE */}
           <div className="bulk-form-group full">
             <label>Additional Details</label>
             <textarea
               name="message"
               rows="4"
-              placeholder="Any specific requirements, customization, delivery timeline, etc."
               value={form.message}
               onChange={handleChange}
+              placeholder="Any extra details (optional)"
             />
           </div>
         </div>
 
-        {/* SUBMIT */}
         <div className="bulk-submit">
           <button type="submit">Submit Bulk Enquiry</button>
         </div>
 
         <div className="bulk-trust">
-          🔒 Your information is secure. Our team usually responds within 24 hours.
+          🔒 Your details are secure. We usually respond within 24 hours.
         </div>
       </form>
     </section>

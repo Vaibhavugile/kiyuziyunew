@@ -290,46 +290,72 @@ await startRazorpayPayment(
 const startRazorpayPayment = async (orderId, amount) => {
   const res = await loadRazorpay();
   if (!res) {
-    setError('Razorpay SDK failed to load');
+    setError("Razorpay SDK failed to load");
     return;
   }
 
-  const options = {
-    key: 'rzp_test_Rbd4yxUECD23kA', // 🔴 test key for now
-    amount: Math.round(amount * 100), // paise
-    currency: 'INR',
-    name: 'Kiyu-Ziyu Jewellery',
-    description: `Order #${orderId}`,
-    handler: async function (response) {
-      console.log('✅ Payment success', response);
+  // 🔥 STEP 1: Create Razorpay Order from backend
+  const orderRes = await fetch(
+    "https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/createRazorpayOrder",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount, // amount in rupees
+        receipt: orderId,
+      }),
+    }
+  );
 
-      // ✅ mark order as paid
+  if (!orderRes.ok) {
+    setError("Failed to initialize payment");
+    return;
+  }
+
+  const razorpayOrder = await orderRes.json();
+
+  // 🔥 STEP 2: Open Razorpay Checkout
+  const options = {
+    key: "rzp_live_S5qE67r4g2LR2M", // ✅ key_id only
+    amount: razorpayOrder.amount, // already in paise
+    currency: "INR",
+    name: "Kiyu-Ziyu Jewellery",
+    description: `Order #${orderId}`,
+    order_id: razorpayOrder.id, // 🔥 THIS ENABLES UPI & QR
+
+    handler: async function (response) {
+      // 🔐 STEP 3: Verify payment on backend
       await fetch(
-        'https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/markOrderPaid',
+        "https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/markOrderPaid",
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             orderId,
             paymentId: response.razorpay_payment_id,
+            razorpayOrderId: response.razorpay_order_id,
+            razorpaySignature: response.razorpay_signature,
           }),
         }
       );
 
       clearCart();
-      navigate('/order-success');
+      navigate("/order-success");
     },
+
     prefill: {
       name: formData.fullName,
       email: formData.email,
       contact: formData.phoneNumber,
     },
-    theme: { color: '#e73e35' },
+
+    theme: { color: "#e73e35" },
   };
 
-  const paymentObject = new window.Razorpay(options);
-  paymentObject.open();
+  const rzp = new window.Razorpay(options);
+  rzp.open();
 };
+
 
   const handleAutoFixCart = () => {
     invalidItems.forEach(({ productId, variation }) =>
