@@ -44,10 +44,8 @@ const ProductCard = ({
   const [selectedVariation, setSelectedVariation] = useState(null);
   const [showTiers, setShowTiers] = useState(false);
 
- const imagesToDisplay = [
-  ...(image ? [{ url: image }] : []),
-  ...additionalImages.map(url => ({ url })),
-];
+ const mainImage = image || additionalImages?.[0] || null;
+
 
   /* =====================
      DEFAULT VARIATION
@@ -61,17 +59,7 @@ const ProductCard = ({
   /* =====================
      IMAGE ROTATION
   ===================== */
-  useEffect(() => {
-    if (imagesToDisplay.length > 1) {
-      const interval = setInterval(() => {
-        setCurrentImageIndex(
-          (prev) => (prev + 1) % imagesToDisplay.length
-        );
-      },5000);
-
-      return () => clearInterval(interval);
-    }
-  }, [imagesToDisplay]);
+  
 
   /* =====================
      STOCK
@@ -160,17 +148,14 @@ const ProductCard = ({
       )}
 
       {/* IMAGE */}
-      <div className="product-image-container">
-        <Zoom>
-          <ProgressiveImage
-  key={currentImageIndex}   // 🔑 forces smooth re-render
-  src={imagesToDisplay[currentImageIndex]?.url}
-  alt={productName}
-  className="product-image"
-/>
+     <div className="product-image-container">
+  <ProgressiveImage
+    src={mainImage}
+    alt={productName}
+    className="product-image"
+  />
+</div>
 
-        </Zoom>
-      </div>
 
       {/* INFO */}
       <div className="product-info">

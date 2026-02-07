@@ -33,6 +33,8 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { ROLE_CONFIG } from "../config/roles";
 import { useMemo } from 'react';
+import { Html5QrcodeScanner } from "html5-qrcode";
+import { Html5Qrcode } from "html5-qrcode";
 
 
 // Low stock threshold constant
@@ -51,6 +53,8 @@ const AdminPage = () => {
   const [isCropping, setIsCropping] = useState(false);
   const [imageToCrop, setImageToCrop] = useState(null);
   const [mainCollectionAdditionalImages, setMainCollectionAdditionalImages] = useState([]);
+  const [allProductsMap, setAllProductsMap] = useState({});
+
 
   const ROLE_KEYS = Object.keys(ROLE_CONFIG);
 const PRICING_KEYS = ROLE_KEYS.map(
@@ -70,6 +74,14 @@ const [subcollectionsMap, setSubcollectionsMap] = useState({});
   const [isSubcollectionLoading, setIsSubcollectionLoading] = useState(false);
   const [isSubcollectionUploading, setIsSubcollectionUploading] = useState(false);
   const [editingSubcollection, setEditingSubcollection] = useState(null);
+  // 🔥 Barcode scan input
+const barcodeInputRef = useRef(null);
+const [scannedBarcode, setScannedBarcode] = useState("");
+
+const [showCameraScanner, setShowCameraScanner] = useState(false);
+const html5QrCodeRef = useRef(null);
+
+
 const emptyPricing = PRICING_KEYS.reduce((acc, key) => {
   acc[key] = [];
   return acc;
@@ -2289,6 +2301,84 @@ const calculatePricedCart = async () => {
     total: runningTotal,
   };
 };
+useEffect(() => {
+  const fetchAllProductsForScan = async () => {
+    console.log("📦 Loading ALL products for barcode scan...");
+
+    const collectionsSnap = await getDocs(collection(db, "collections"));
+    const map = {};
+
+    for (const col of collectionsSnap.docs) {
+      const subSnap = await getDocs(
+        collection(db, "collections", col.id, "subcollections")
+      );
+
+      for (const sub of subSnap.docs) {
+        const prodSnap = await getDocs(
+          collection(
+            db,
+            "collections",
+            col.id,
+            "subcollections",
+            sub.id,
+            "products"
+          )
+        );
+
+        prodSnap.forEach(docSnap => {
+          map[docSnap.id] = {
+            id: docSnap.id,
+            ...docSnap.data(),
+            collectionId: col.id,
+            subcollectionId: sub.id,
+          };
+        });
+      }
+    }
+
+    console.log("✅ All products loaded:", Object.keys(map).length);
+    setAllProductsMap(map);
+  };
+
+  fetchAllProductsForScan();
+}, []);
+
+const handleBarcodeScan = (barcodeValue) => {
+  const code = barcodeValue.trim();
+
+  console.log("📦 Barcode scanned:", code);
+
+  const product = allProductsMap[code];
+
+  if (!product) {
+    alert(`❌ Product not found for barcode:\n${code}`);
+    return;
+  }
+
+  console.log("✅ Product found:", product.productName);
+
+  // Ensure product is visible in UI filters
+  setSelectedOfflineCollectionId(product.collectionId);
+  setSelectedOfflineSubcollectionId(product.subcollectionId);
+
+  // Handle variants
+  if (product.variations && product.variations.length > 0) {
+    const selectedVariant =
+      offlineSelections[product.id] ||
+      product.variations.find(v => Number(v.quantity) > 0);
+
+    if (!selectedVariant) {
+      alert("All variants are out of stock.");
+      return;
+    }
+
+    handleOfflineAddToCart(product, selectedVariant);
+  } else {
+    handleOfflineAddToCart(product, null);
+  }
+};
+
+
 
   useEffect(() => {
     let isMounted = true;
@@ -2317,7 +2407,54 @@ const calculatePricedCart = async () => {
 
     return () => { isMounted = false; };
     // Re-run whenever the cart contents or the pricing type changes
-  }, [offlineCart, offlinePricingKey]);// Depend on the cart content and pricing type
+  }, [offlineCart, offlinePricingKey]);
+  
+
+  useEffect(() => {
+  const handleKeyPress = (e) => {
+    // Only listen in Offline Billing tab
+    if (activeTab !== "offline-billing") return;
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+
+      const code = scannedBarcode.trim();
+      if (!code) return;
+
+      handleBarcodeScan(code);
+      setScannedBarcode("");
+    }
+  };
+
+  window.addEventListener("keydown", handleKeyPress);
+  return () => window.removeEventListener("keydown", handleKeyPress);
+}, [scannedBarcode, activeTab, offlineProducts, offlineSelections, offlineCart]);
+
+useEffect(() => {
+  if (!showCameraScanner) return;
+
+  const scanner = new Html5QrcodeScanner(
+    "camera-scanner",
+    { fps: 10, qrbox: 250 },
+    false
+  );
+
+  scanner.render(
+    (decodedText) => {
+      console.log("📷 Camera scanned:", decodedText);
+      handleBarcodeScan(decodedText);
+      scanner.clear();
+      setShowCameraScanner(false);
+    },
+    (err) => {
+      // ignore scan errors
+    }
+  );
+
+  return () => {
+    scanner.clear().catch(() => {});
+  };
+}, [showCameraScanner]);
 
   const handleFinalizeSale = async () => {
     if (Object.keys(offlineCart).length === 0) {
@@ -3885,6 +4022,22 @@ role: ROLE_KEYS.find(
         {activeTab === 'offline-billing' && (
           <div className="offline-billing-section">
             <h2>Offline Billing</h2>
+
+{/* 🔑 HIDDEN BARCODE INPUT (USB / Bluetooth Scanner) */}
+<input
+  ref={barcodeInputRef}
+  type="text"
+  value={scannedBarcode}
+  onChange={(e) => setScannedBarcode(e.target.value)}
+  autoFocus
+  style={{
+    position: "absolute",
+    opacity: 0,
+    pointerEvents: "none",
+    height: 0,
+  }}
+/>
+
             <div className="billing-container">
               <div className="product-selection-panel">
                 <h4>Select Products</h4>
@@ -3939,6 +4092,21 @@ role: ROLE_KEYS.find(
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="product-search-bar"
                 />
+                {/* 📷 CAMERA SCAN BUTTON */}
+<button
+  className="scan-camera-btn"
+  onClick={() => setShowCameraScanner(true)}
+  style={{
+    marginBottom: "12px",
+    padding: "8px 12px",
+    borderRadius: "6px",
+    border: "1px solid #ccc",
+    cursor: "pointer",
+  }}
+>
+  📷 Scan with Camera
+</button>
+
 
                 {isOfflineProductsLoading ? (
                   <p className="loading-message">Loading products...</p>
@@ -4218,6 +4386,7 @@ role: ROLE_KEYS.find(
             </div>
           </div>
         )}
+
       </div>
       {showInvoice && invoiceData && (
         <div className="invoice-print">
@@ -4305,6 +4474,43 @@ role: ROLE_KEYS.find(
           </div>
         </div>
       )}
+      {/* 📷 CAMERA SCANNER MODAL */}
+{showCameraScanner && (
+  <div
+    className="camera-scanner-modal"
+    style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,0.6)",
+      zIndex: 9999,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    }}
+  >
+    <div
+      style={{
+        background: "#fff",
+        padding: "16px",
+        borderRadius: "8px",
+        width: "320px",
+      }}
+    >
+      <div id="camera-scanner" />
+      <button
+        onClick={() => setShowCameraScanner(false)}
+        style={{
+          marginTop: "12px",
+          width: "100%",
+          padding: "8px",
+        }}
+      >
+        Close
+      </button>
+    </div>
+  </div>
+)}
+
 
 
     </div>

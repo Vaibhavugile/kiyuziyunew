@@ -42,7 +42,7 @@ export const ROLE_CONFIG = {
 
   dealer: {
     label: 'Dealer',
-    minOrderValue: 20000,
+    minOrderValue: 50000,
     canSeeBulkPricing: true,
     pricingKey: 'dealer',
 

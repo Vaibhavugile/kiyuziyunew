@@ -1,0 +1,93 @@
+.bulk-table-wrapper {
+  padding: 30px;
+}
+
+.bulk-table-wrapper h2 {
+  margin-bottom: 15px;
+  font-size: 26px;
+}
+
+.bulk-loading {
+  padding: 40px;
+  text-align: center;
+  font-size: 18px;
+}
+
+.bulk-table-scroll {
+  overflow-x: auto;
+}
+
+.bulk-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.bulk-table th,
+.bulk-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+  font-size: 14px;
+  vertical-align: top;
+}
+
+.bulk-table th {
+  background: #f8f9fb;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.bulk-table tr:hover {
+  background: #fafafa;
+}
+
+.message-cell {
+  max-width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table-image {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.no-data {
+  text-align: center;
+  padding: 30px;
+  color: #888;
+}
+
+.status {
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.status.new {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+.bulk-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.bulk-sort {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  background: #fff;
+  cursor: pointer;
+}

@@ -90,6 +90,12 @@ const { currentUser } = useAuth();
     total: 0,
     completed: 0
   });
+const getPreviewImage = (url) => {
+  if (!url) return null;
+
+  // Low-cost preview (small size)
+  return `${url}&w=200&quality=40`;
+};
 
 
   // ---------------------------------------------------------------------
@@ -224,18 +230,22 @@ const { currentUser } = useAuth();
     return Array.from(new Set(urls));
   };
   const prefetchProductImages = useCallback((productsToPrefetch = []) => {
-    productsToPrefetch.forEach((product) => {
-      const imageUrls = getAllImageUrls(product);
+  productsToPrefetch.forEach((product) => {
+    const mainImage =
+      product?.image || product?.images?.[0] || null;
 
-      imageUrls.forEach((url) => {
-        if (!prefetchedImagesRef.current.has(url)) {
-          const img = new Image();
-          img.src = url;
-          prefetchedImagesRef.current.add(url);
-        }
-      });
-    });
-  }, []);
+    if (!mainImage) return;
+
+    const previewUrl = getPreviewImage(mainImage);
+
+    if (!prefetchedImagesRef.current.has(previewUrl)) {
+      const img = new Image();
+      img.src = previewUrl; // ✅ small preview only
+      prefetchedImagesRef.current.add(previewUrl);
+    }
+  });
+}, []);
+
   useEffect(() => {
     if (!products.length) return;
 
@@ -623,6 +633,50 @@ const handleAddToCart = (product, variation) => {
       };
     });
   };
+  const fetchProductsForImageDownload = async () => {
+  // 🔥 CASE 1 — ALL PRODUCTS
+  if (selectedSubcollectionId === "all") {
+    const q = query(
+      collectionGroup(db, "products"),
+      where("mainCollection", "==", collectionId),
+      orderBy("productCode")
+    );
+
+    const snap = await getDocs(q);
+
+    return snap.docs.map(d => {
+      const pathParts = d.ref.path.split("/");
+      const subcollectionId =
+        pathParts[pathParts.indexOf("subcollections") + 1];
+
+      return {
+        id: d.id,
+        ...d.data(),
+        subcollectionId
+      };
+    });
+  }
+
+  // 🔥 CASE 2 — SINGLE SUBCOLLECTION
+  const productsCollectionPath = collection(
+    db,
+    "collections",
+    collectionId,
+    "subcollections",
+    selectedSubcollectionId,
+    "products"
+  );
+
+  const q = query(productsCollectionPath, orderBy("productCode"));
+  const snap = await getDocs(q);
+
+  return snap.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+    subcollectionId: selectedSubcollectionId
+  }));
+};
+
 
   const handleDownloadCollectionImagesDirect = async () => {
     try {
@@ -633,7 +687,8 @@ const handleAddToCart = (product, variation) => {
       const storageInstance = getStorage();
 
       // 🔥 Fetch ALL products (no pagination)
-      const allProducts = await fetchAllProductsForDownload();
+      const allProducts = await fetchProductsForImageDownload();
+
 
       if (!allProducts.length) {
         alert("No products found");
@@ -941,53 +996,52 @@ const handleAddToCart = (product, variation) => {
           {selectedSubcollectionId !== 'all' && (
             <div className="filter-group">
               <button
-                // 🌟 CHANGE THE HANDLER 🌟
                 onClick={handleGeneratePDF}
                 disabled={isFetchingMore || isLoadingProducts}
                 className="download-btn"
                 title={`Generate PDF catalog for ${subcollectionsMap[selectedSubcollectionId]?.name || 'category'}`}
               >
-                {/* You can still use the FaDownload icon */}
                 <FaDownload />
-                {/* 🌟 CHANGE THE TEXT 🌟 */}
                 {isFetchingMore ? 'Preparing PDF...' : 'Generate PDF'}
               </button>
             </div>
           )}
-          {selectedSubcollectionId === 'all' && (
-            <div className="filter-group">
-              <div className="filter-group">
-                <button
-                  onClick={handleDownloadCollectionImagesDirect}
-                  className="download-btn"
-                >
-                  <FaDownload />
-                  Download Images
-                </button>
-                {isDownloadingImages && (
-                  <div className="download-progress-card">
-                    <div className="progress-header">
-                      <span>Downloading Images</span>
-                      <span>{downloadProgress}%</span>
-                    </div>
+         <div className="filter-group">
+  <button
+    onClick={handleDownloadCollectionImagesDirect}
+    className="download-btn"
+  >
+    <FaDownload />
+    {selectedSubcollectionId === "all"
+      ? "Download All Images"
+      : "Download Category Images"}
+  </button>
 
-                    <div className="progress-bar">
-                      <div
-                        className="progress-fill"
-                        style={{ width: `${downloadProgress}%` }}
-                      />
-                    </div>
+  {isDownloadingImages && (
+    <div className="download-progress-card">
+      <div className="progress-header">
+        <span>
+          {selectedSubcollectionId === "all"
+            ? "Downloading Collection Images"
+            : "Downloading Category Images"}
+        </span>
+        <span>{downloadProgress}%</span>
+      </div>
 
-                    <div className="progress-meta">
-                      {downloadStats.completed} / {downloadStats.total} images
-                    </div>
-                  </div>
-                )}
+      <div className="progress-bar">
+        <div
+          className="progress-fill"
+          style={{ width: `${downloadProgress}%` }}
+        />
+      </div>
 
-              </div>
+      <div className="progress-meta">
+        {downloadStats.completed} / {downloadStats.total} images
+      </div>
+    </div>
+  )}
+</div>
 
-            </div>
-          )}
 
           {/* Sort by */}
           <div className="filter-group">

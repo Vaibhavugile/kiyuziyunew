@@ -1,29 +1,58 @@
 import { useState } from "react";
 
-const getLowQualityUrl = (url) => {
-  if (!url) return url;
+/**
+ * Remove Firebase token → allows browser caching
+ */
+const stripFirebaseToken = (url) => {
+  try {
+    const u = new URL(url);
+    u.searchParams.delete("token");
+    return u.toString();
+  } catch {
+    return url;
+  }
+};
 
-  // Firebase image resize (small + low quality)
-  // Works with Firebase Storage served images
-  return `${url}&w=50&quality=10`;
+/**
+ * Build optimized Firebase image URL
+ */
+const getOptimizedUrl = (url, { w, q }) => {
+  if (!url) return "";
+
+  const cleanUrl = stripFirebaseToken(url);
+
+  // If params already exist, append safely
+  return `${cleanUrl}${cleanUrl.includes("?") ? "&" : "?"}w=${w}&quality=${q}`;
 };
 
 export default function ProgressiveImage({ src, alt, className = "" }) {
   const [loaded, setLoaded] = useState(false);
 
+  // 🔹 Very small blurred placeholder (≈5–10 KB)
+  const lowQualitySrc = getOptimizedUrl(src, {
+    w: 40,
+    q: 10,
+  });
+
+  // 🔹 Main image (≈150–250 KB instead of MBs)
+  const fullQualitySrc = getOptimizedUrl(src, {
+    w: 450,
+    q: 65,
+  });
+
   return (
     <div className={`progressive-img ${className}`}>
-      {/* Low quality blurred placeholder */}
+      {/* Placeholder */}
       <img
-        src={getLowQualityUrl(src)}
+        src={lowQualitySrc}
         alt=""
         aria-hidden="true"
         className="img-placeholder"
       />
 
-      {/* Full quality image */}
+      {/* Main image */}
       <img
-        src={src}
+        src={fullQualitySrc}
         alt={alt}
         loading="lazy"
         className={`img-full ${loaded ? "visible" : ""}`}

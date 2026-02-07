@@ -22,6 +22,8 @@ import CouponAdmin from './pages/CouponAdmin';
 import CouponUsageHistory from './pages/CouponUsageHistory';
 import CouponAnalytics from './pages/CouponAnalytics';
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import BulkEnquiryList from "./pages/BulkEnquiryList";
+import BarcodePrintingPage from './pages/BarcodePrintingPage';
 function App() {
   return (
     <AuthProvider>
@@ -41,6 +43,7 @@ function App() {
             <Route path="/terms" element={<TermsAndPolicies />} />
             <Route path="/admin/users/:userId/orders" element={<UserOrdersPage />} />
             <Route path="/admin/orders/edit" element={<OrderEditPage />} />
+            <Route path="/admin/bulk" element={<BulkEnquiryList />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
 <Route
   path="/admin/coupons"
@@ -51,6 +54,11 @@ function App() {
   element={<CouponUsageHistory />}
 />
 <Route path="/admin/coupon-analytics" element={<CouponAnalytics />} />
+<Route
+  path="/admin/barcode-printing"
+  element={<BarcodePrintingPage />}
+/>
+
 
 
 
