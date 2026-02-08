@@ -33,7 +33,11 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { ROLE_CONFIG } from "../config/roles";
 import { useMemo } from 'react';
-import { Html5QrcodeScanner } from "html5-qrcode";
+import {
+  Html5QrcodeScanner,
+  Html5QrcodeSupportedFormats
+} from "html5-qrcode";
+
 import { Html5Qrcode } from "html5-qrcode";
 
 
@@ -148,6 +152,54 @@ const [subcollectionTieredPricing, setSubcollectionTieredPricing] =
   const [isReportsLoading, setIsReportsLoading] = useState(false);
   const [productReports, setProductReports] = useState([]);
   const [sendInvoiceOnWhatsApp, setSendInvoiceOnWhatsApp] = useState(false);
+  const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
+
+// 🔊 Scanner Sounds
+const readySound = new Audio("/sounds/scanner-ready.mp3");
+const successSound = new Audio("/sounds/scan-success.mp3");
+const errorSound = new Audio("/sounds/scan-error.mp3");
+readySound.volume = 0.5;   // softer
+successSound.volume = 1;   // loud beep
+errorSound.volume = 0.8;   // medium
+useEffect(() => {
+  const unlockAudio = () => {
+    if (isAudioUnlocked) return;
+
+    const temp = new Audio("/sounds/scan-success.mp3");
+    temp.volume = 0;
+    temp.play().catch(() => {});
+
+    setIsAudioUnlocked(true);
+    console.log("🔓 Audio unlocked");
+  };
+
+  window.addEventListener("click", unlockAudio);
+  window.addEventListener("keydown", unlockAudio);
+
+  return () => {
+    window.removeEventListener("click", unlockAudio);
+    window.removeEventListener("keydown", unlockAudio);
+  };
+}, [isAudioUnlocked]);
+
+
+const playSound = (file) => {
+  if (!isAudioUnlocked) return;
+
+  try {
+    const sound = new Audio(file);
+    sound.volume = 1;
+
+    sound.play().catch((err) => {
+      console.log("Play blocked:", err);
+    });
+  } catch (err) {
+    console.log("Sound error:", err);
+  }
+};
+
+
+const [isScannerReadyPlayed, setIsScannerReadyPlayed] = useState(false);
 
 
   const [userFilters, setUserFilters] = useState({
@@ -2301,82 +2353,149 @@ const calculatePricedCart = async () => {
     total: runningTotal,
   };
 };
-useEffect(() => {
-  const fetchAllProductsForScan = async () => {
-    console.log("📦 Loading ALL products for barcode scan...");
+const fetchAllProductsForScan = async () => {
+  console.log("📦 Loading ALL products for barcode scan...");
 
-    const collectionsSnap = await getDocs(collection(db, "collections"));
-    const map = {};
+  const collectionsSnap = await getDocs(collection(db, "collections"));
 
-    for (const col of collectionsSnap.docs) {
-      const subSnap = await getDocs(
-        collection(db, "collections", col.id, "subcollections")
-      );
+  const allProductPromises = [];
 
-      for (const sub of subSnap.docs) {
-        const prodSnap = await getDocs(
-          collection(
-            db,
-            "collections",
-            col.id,
-            "subcollections",
-            sub.id,
-            "products"
+  collectionsSnap.docs.forEach(col => {
+    allProductPromises.push(
+      getDocs(collection(db, "collections", col.id, "subcollections"))
+        .then(subSnap =>
+          Promise.all(
+            subSnap.docs.map(sub =>
+              getDocs(
+                collection(
+                  db,
+                  "collections",
+                  col.id,
+                  "subcollections",
+                  sub.id,
+                  "products"
+                )
+              ).then(prodSnap => ({
+                colId: col.id,
+                subId: sub.id,
+                prodSnap
+              }))
+            )
           )
-        );
+        )
+    );
+  });
 
-        prodSnap.forEach(docSnap => {
-          map[docSnap.id] = {
-            id: docSnap.id,
-            ...docSnap.data(),
-            collectionId: col.id,
-            subcollectionId: sub.id,
-          };
-        });
-      }
-    }
+  const results = await Promise.all(allProductPromises);
 
-    console.log("✅ All products loaded:", Object.keys(map).length);
-    setAllProductsMap(map);
-  };
+  const map = {};
+
+  results.flat(2).forEach(({ colId, subId, prodSnap }) => {
+    prodSnap.forEach(docSnap => {
+      map[docSnap.id] = {
+        id: docSnap.id,
+        ...docSnap.data(),
+        collectionId: colId,
+        subcollectionId: subId,
+      };
+    });
+  });
+
+  console.log("✅ Products loaded:", Object.keys(map).length);
+
+  setAllProductsMap(map);
+
+  // 👉 Save cache (Step 3)
+  localStorage.setItem(
+    "offlineProductsCache",
+    JSON.stringify(map)
+  );
+};
+useEffect(() => {
+  const cached = localStorage.getItem("offlineProductsCache");
+
+  if (cached) {
+    console.log("⚡ Loaded products from cache");
+
+    setAllProductsMap(JSON.parse(cached));
+  }
+}, []);
+useEffect(() => {
+  if (activeTab !== "offline-billing") return;
+
+  // Already loaded? Skip
+  if (Object.keys(allProductsMap).length > 0) return;
 
   fetchAllProductsForScan();
-}, []);
+}, [activeTab]);
+useEffect(() => {
+  if (
+    Object.keys(allProductsMap).length > 0 &&
+    !isScannerReadyPlayed
+  ) {
+    console.log("🔊 Scanner Ready");
+
+    playSound(readySound);
+    setIsScannerReadyPlayed(true);
+  }
+}, [allProductsMap, isScannerReadyPlayed]);
+
+
 
 const handleBarcodeScan = (barcodeValue) => {
   const code = barcodeValue.trim();
 
   console.log("📦 Barcode scanned:", code);
 
-  const product = allProductsMap[code];
+  // ⏳ Products still loading
+  if (Object.keys(allProductsMap).length === 0) {
+    playSound("/sounds/scan-error.mp3");
 
-  if (!product) {
-    alert(`❌ Product not found for barcode:\n${code}`);
+    alert("⏳ Products are still loading. Please scan again.");
     return;
   }
 
+  const product = allProductsMap[code];
+
+  // ❌ Product not found
+  if (!product) {
+    playSound("/sounds/scan-error.mp3");
+
+    alert(`❌ Product not found:\n${code}`);
+    return;
+  }
+
+  // ✅ SUCCESS BEEP
+  playSound("/sounds/scan-success.mp3");
+
   console.log("✅ Product found:", product.productName);
 
-  // Ensure product is visible in UI filters
+  // Ensure product visible
   setSelectedOfflineCollectionId(product.collectionId);
   setSelectedOfflineSubcollectionId(product.subcollectionId);
 
-  // Handle variants
+  // 🔀 Variants
   if (product.variations && product.variations.length > 0) {
     const selectedVariant =
       offlineSelections[product.id] ||
       product.variations.find(v => Number(v.quantity) > 0);
 
     if (!selectedVariant) {
+      playSound("/sounds/scan-error.mp3");
+
       alert("All variants are out of stock.");
       return;
     }
 
     handleOfflineAddToCart(product, selectedVariant);
+
   } else {
     handleOfflineAddToCart(product, null);
   }
 };
+
+
+
 
 
 
@@ -2430,31 +2549,78 @@ const handleBarcodeScan = (barcodeValue) => {
   return () => window.removeEventListener("keydown", handleKeyPress);
 }, [scannedBarcode, activeTab, offlineProducts, offlineSelections, offlineCart]);
 
+
 useEffect(() => {
   if (!showCameraScanner) return;
 
-  const scanner = new Html5QrcodeScanner(
-    "camera-scanner",
-    { fps: 10, qrbox: 250 },
-    false
-  );
+  let html5QrCode;
+  let isMounted = true;
 
-  scanner.render(
-    (decodedText) => {
-      console.log("📷 Camera scanned:", decodedText);
-      handleBarcodeScan(decodedText);
-      scanner.clear();
-      setShowCameraScanner(false);
-    },
-    (err) => {
-      // ignore scan errors
+  const startScanner = async () => {
+    try {
+      html5QrCode = new Html5Qrcode("camera-scanner");
+
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 300, height: 120 },
+          aspectRatio: 1.8,
+        },
+
+        // ✅ SUCCESS SCAN
+        (decodedText) => {
+          if (!isMounted) return;
+
+          console.log("📷 Camera scanned:", decodedText);
+
+          // 🔊 Beep
+          playSound("/sounds/scan-success.mp3");
+
+          // Add to cart
+          handleBarcodeScan(decodedText);
+
+          // Stay on billing tab
+          setActiveTab("offline-billing");
+
+          // ❌ DO NOT stop scanner here
+          // Just close modal
+          setShowCameraScanner(false);
+        },
+
+        (err) => {
+          // optional
+        }
+      );
+
+    } catch (err) {
+      console.error("Camera start error:", err);
+
+      alert(
+        "Camera failed to start.\n\n" +
+        "Please allow permission & use HTTPS."
+      );
     }
-  );
+  };
 
+  startScanner();
+
+  // ==============================
+  // 🧹 CLEANUP — SAFE STOP HERE
+  // ==============================
   return () => {
-    scanner.clear().catch(() => {});
+    isMounted = false;
+
+    if (html5QrCode) {
+      html5QrCode
+        .stop()
+        .then(() => html5QrCode.clear())
+        .catch(() => {});
+    }
   };
 }, [showCameraScanner]);
+
+
 
   const handleFinalizeSale = async () => {
     if (Object.keys(offlineCart).length === 0) {
@@ -4106,6 +4272,17 @@ role: ROLE_KEYS.find(
 >
   📷 Scan with Camera
 </button>
+<button
+  onClick={() => playSound("/sounds/scan-success.mp3")}
+>
+  🔊 Test playSound()
+</button>
+
+{Object.keys(allProductsMap).length === 0 && (
+  <p style={{ fontSize: 12, color: "#888", marginBottom: "8px" }}>
+    ⏳ Loading barcode data…
+  </p>
+)}
 
 
                 {isOfflineProductsLoading ? (
@@ -4476,40 +4653,30 @@ role: ROLE_KEYS.find(
       )}
       {/* 📷 CAMERA SCANNER MODAL */}
 {showCameraScanner && (
-  <div
-    className="camera-scanner-modal"
-    style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,0.6)",
-      zIndex: 9999,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    }}
-  >
-    <div
-      style={{
-        background: "#fff",
-        padding: "16px",
-        borderRadius: "8px",
-        width: "320px",
-      }}
-    >
-      <div id="camera-scanner" />
+  <div className="camera-scanner-modal">
+    <div className="scanner-container">
+
+      {/* Camera Feed Wrapper */}
+      <div className="camera-wrapper">
+        <div id="camera-scanner" />
+
+        {/* Overlay INSIDE camera wrapper */}
+        <div className="scanner-overlay">
+          <div className="laser-line"></div>
+        </div>
+      </div>
+
       <button
         onClick={() => setShowCameraScanner(false)}
-        style={{
-          marginTop: "12px",
-          width: "100%",
-          padding: "8px",
-        }}
+        className="close-scanner-btn"
       >
-        Close
+        Close Scanner
       </button>
+
     </div>
   </div>
 )}
+
 
 
 

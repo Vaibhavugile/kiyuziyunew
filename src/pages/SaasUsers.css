@@ -705,3 +705,107 @@
 .saas-btn--secondary:hover {
   background: #e9eef4;
 }
+/* ===== Modal Backdrop ===== */
+/* ===== Modal ===== */
+.camera-scanner-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== Container ===== */
+.scanner-container {
+  background: #000;
+  padding: 14px;
+  border-radius: 14px;
+  width: 360px;
+  box-shadow: 0 0 25px rgba(0,0,0,0.6);
+}
+
+/* ===== Camera Wrapper ===== */
+.camera-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* Camera video */
+#camera-scanner video {
+  width: 100%;
+  border-radius: 10px;
+}
+
+/* ===== Rectangle Overlay ===== */
+.scanner-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 88%;
+  height: 26%;   /* shorter = barcode focus */
+  transform: translate(-50%, -50%);
+  border: 2px solid #ff2a2a;
+  border-radius: 6px;
+  box-shadow: 0 0 10px rgba(255,0,0,0.7);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+
+/* ===== Laser Line ===== */
+.laser-line {
+  position: absolute;
+  width: 100%;
+  height: 1.5px;   /* thinner */
+  background: linear-gradient(
+    to right,
+    transparent,
+    red,
+    transparent
+  );
+  box-shadow: 0 0 6px red;
+  animation: laserMove 1.8s linear infinite;
+}
+
+
+/* Laser animation */
+@keyframes laserMove {
+  0%   { top: 0%; }
+  50%  { top: 96%; }
+  100% { top: 0%; }
+}
+
+/* ===== Close Button ===== */
+.close-scanner-btn {
+  margin-top: 14px;
+  width: 100%;
+  padding: 10px;
+  background: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+/* Hide default QR frame */
+#camera-scanner__scan_region img,
+#camera-scanner__scan_region canvas {
+  display: none !important;
+}
+
+#camera-scanner__dashboard_section {
+  display: none !important;
+}
+.camera-wrapper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1;
+}
+
+/* Cut out scan zone */
+.scanner-overlay {
+  z-index: 2;
+}
