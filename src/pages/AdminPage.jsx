@@ -81,9 +81,11 @@ const [subcollectionsMap, setSubcollectionsMap] = useState({});
   // 🔥 Barcode scan input
 const barcodeInputRef = useRef(null);
 const [scannedBarcode, setScannedBarcode] = useState("");
+const [lastScannedProduct, setLastScannedProduct] = useState(null);
 
 const [showCameraScanner, setShowCameraScanner] = useState(false);
 const html5QrCodeRef = useRef(null);
+const [isScanMode, setIsScanMode] = useState(false);
 
 
 const emptyPricing = PRICING_KEYS.reduce((acc, key) => {
@@ -2356,14 +2358,26 @@ const calculatePricedCart = async () => {
 const fetchAllProductsForScan = async () => {
   console.log("📦 Loading ALL products for barcode scan...");
 
-  const collectionsSnap = await getDocs(collection(db, "collections"));
+  try {
+    const collectionsSnap = await getDocs(
+      collection(db, "collections")
+    );
 
-  const allProductPromises = [];
+    const allProductPromises = [];
 
-  collectionsSnap.docs.forEach(col => {
-    allProductPromises.push(
-      getDocs(collection(db, "collections", col.id, "subcollections"))
-        .then(subSnap =>
+    /* ===============================
+       FETCH ALL COLLECTION PRODUCTS
+    =============================== */
+    collectionsSnap.docs.forEach(col => {
+      allProductPromises.push(
+        getDocs(
+          collection(
+            db,
+            "collections",
+            col.id,
+            "subcollections"
+          )
+        ).then(subSnap =>
           Promise.all(
             subSnap.docs.map(sub =>
               getDocs(
@@ -2383,43 +2397,78 @@ const fetchAllProductsForScan = async () => {
             )
           )
         )
-    );
-  });
-
-  const results = await Promise.all(allProductPromises);
-
-  const map = {};
-
-  results.flat(2).forEach(({ colId, subId, prodSnap }) => {
-    prodSnap.forEach(docSnap => {
-      map[docSnap.id] = {
-        id: docSnap.id,
-        ...docSnap.data(),
-        collectionId: colId,
-        subcollectionId: subId,
-      };
+      );
     });
-  });
 
-  console.log("✅ Products loaded:", Object.keys(map).length);
+    const results = await Promise.all(allProductPromises);
 
-  setAllProductsMap(map);
+    const map = {};
 
-  // 👉 Save cache (Step 3)
-  localStorage.setItem(
-    "offlineProductsCache",
-    JSON.stringify(map)
-  );
+    /* ===============================
+       BUILD SCAN MAP (UPDATED)
+    =============================== */
+    results.flat(2).forEach(
+      ({ colId, subId, prodSnap }) => {
+        prodSnap.forEach(docSnap => {
+
+          const data = docSnap.data();
+
+          /* 🔥 KEY CHANGE: LOWERCASE MAP KEY */
+          const normalizedId =
+            docSnap.id.toLowerCase();
+
+          map[normalizedId] = {
+            id: docSnap.id, // original ID
+            ...data,
+            collectionId: colId,
+            subcollectionId: subId,
+          };
+
+        });
+      }
+    );
+
+    console.log(
+      "✅ Products loaded:",
+      Object.keys(map).length
+    );
+
+    setAllProductsMap(map);
+
+    /* ===============================
+       CACHE SAVE
+    =============================== */
+    localStorage.setItem(
+      "offlineProductsCache",
+      JSON.stringify(map)
+    );
+
+  } catch (error) {
+    console.error(
+      "❌ Error loading products for scan:",
+      error
+    );
+  }
 };
+
 useEffect(() => {
-  const cached = localStorage.getItem("offlineProductsCache");
+  if (activeTab !== "offline-billing") return;
+
+  const cached = localStorage.getItem(
+    "offlineProductsCache"
+  );
 
   if (cached) {
     console.log("⚡ Loaded products from cache");
 
     setAllProductsMap(JSON.parse(cached));
   }
-}, []);
+
+  // 🔄 ALWAYS refresh in background
+  fetchAllProductsForScan();
+
+}, [activeTab]);
+
 useEffect(() => {
   if (activeTab !== "offline-billing") return;
 
@@ -2441,57 +2490,151 @@ useEffect(() => {
 }, [allProductsMap, isScannerReadyPlayed]);
 
 
-
 const handleBarcodeScan = (barcodeValue) => {
-  const code = barcodeValue.trim();
 
-  console.log("📦 Barcode scanned:", code);
+  /* ==============================
+     🧹 SANITIZE BARCODE INPUT
+  ============================== */
+  const rawCode = String(barcodeValue);
 
-  // ⏳ Products still loading
+  const code = rawCode
+    .replace(/[\n\r\t]/g, "")     // Remove hidden chars
+    .replace(/\s+/g, "")         // Remove spaces
+    .replace(/[^a-zA-Z0-9]/g, "")// Remove noise
+    .trim();
+
+  const normalizedCode = code.toLowerCase();
+
+  console.log(
+    "📦 Barcode scanned:",
+    code,
+    "Length:",
+    code.length
+  );
+
+  /* ==============================
+     ⏳ PRODUCTS STILL LOADING
+  ============================== */
   if (Object.keys(allProductsMap).length === 0) {
+
     playSound("/sounds/scan-error.mp3");
 
-    alert("⏳ Products are still loading. Please scan again.");
+    alert(
+      "⏳ Products are still loading. Please scan again."
+    );
+
     return;
   }
 
-  const product = allProductsMap[code];
+  /* ==============================
+     🔎 FIND PRODUCT (UPDATED)
+  ============================== */
+  const product =
+    allProductsMap[code] ||                 // exact
+    allProductsMap[normalizedCode];         // lowercase
 
-  // ❌ Product not found
+  /* ==============================
+     ❌ PRODUCT NOT FOUND
+  ============================== */
   if (!product) {
+
     playSound("/sounds/scan-error.mp3");
+
+    console.warn(
+      "❌ Product not found for barcode:",
+      code
+    );
 
     alert(`❌ Product not found:\n${code}`);
+
+    setTimeout(() => {
+      barcodeInputRef.current?.focus();
+    }, 50);
+
     return;
   }
 
-  // ✅ SUCCESS BEEP
+  /* ==============================
+     ✅ SUCCESS SOUND
+  ============================== */
   playSound("/sounds/scan-success.mp3");
 
-  console.log("✅ Product found:", product.productName);
+  console.log(
+    "✅ Product found:",
+    product.productName
+  );
 
-  // Ensure product visible
-  setSelectedOfflineCollectionId(product.collectionId);
-  setSelectedOfflineSubcollectionId(product.subcollectionId);
+  /* ==============================
+     🔥 LAST SCANNED POPUP
+  ============================== */
+  setLastScannedProduct({
+    name: product.productName,
+    code: product.productCode || product.id,
+  });
 
-  // 🔀 Variants
-  if (product.variations && product.variations.length > 0) {
+  setTimeout(() => {
+    setLastScannedProduct(null);
+  }, 1500);
+
+  /* ==============================
+     📂 AUTO-SELECT FILTERS
+  ============================== */
+  setSelectedOfflineCollectionId(
+    product.collectionId
+  );
+
+  setSelectedOfflineSubcollectionId(
+    product.subcollectionId
+  );
+
+  /* ==============================
+     🔀 VARIANT HANDLING
+  ============================== */
+  if (
+    product.variations &&
+    product.variations.length > 0
+  ) {
+
     const selectedVariant =
       offlineSelections[product.id] ||
-      product.variations.find(v => Number(v.quantity) > 0);
+      product.variations.find(
+        v => Number(v.quantity) > 0
+      );
 
+    /* ❌ OUT OF STOCK */
     if (!selectedVariant) {
+
       playSound("/sounds/scan-error.mp3");
 
       alert("All variants are out of stock.");
+
+      setTimeout(() => {
+        barcodeInputRef.current?.focus();
+      }, 50);
+
       return;
     }
 
-    handleOfflineAddToCart(product, selectedVariant);
+    /* ✅ ADD VARIANT */
+    handleOfflineAddToCart(
+      product,
+      selectedVariant
+    );
 
   } else {
+
+    /* ==============================
+       ✅ SIMPLE PRODUCT
+    ============================== */
     handleOfflineAddToCart(product, null);
   }
+
+  /* ==============================
+     🔁 REFOCUS FOR NEXT SCAN
+  ============================== */
+  setTimeout(() => {
+    barcodeInputRef.current?.focus();
+  }, 50);
 };
 
 
@@ -2500,6 +2643,7 @@ const handleBarcodeScan = (barcodeValue) => {
 
 
   useEffect(() => {
+    
     let isMounted = true;
     const updatePricedCart = async () => {
       if (Object.keys(offlineCart).length === 0) {
@@ -2528,16 +2672,28 @@ const handleBarcodeScan = (barcodeValue) => {
     // Re-run whenever the cart contents or the pricing type changes
   }, [offlineCart, offlinePricingKey]);
   
+  useEffect(() => {
+  if (activeTab === "offline-billing") {
+    barcodeInputRef.current?.focus();
+  }
+}, [activeTab]);
+
+
 
   useEffect(() => {
+  if (!isScanMode) return;
+
   const handleKeyPress = (e) => {
-    // Only listen in Offline Billing tab
     if (activeTab !== "offline-billing") return;
 
     if (e.key === "Enter") {
       e.preventDefault();
 
-      const code = scannedBarcode.trim();
+      const code = scannedBarcode
+        .replace(/[\n\r\t]/g, "")
+        .replace(/\s+/g, "")
+        .trim();
+
       if (!code) return;
 
       handleBarcodeScan(code);
@@ -2546,8 +2702,13 @@ const handleBarcodeScan = (barcodeValue) => {
   };
 
   window.addEventListener("keydown", handleKeyPress);
-  return () => window.removeEventListener("keydown", handleKeyPress);
-}, [scannedBarcode, activeTab, offlineProducts, offlineSelections, offlineCart]);
+
+  return () => {
+    window.removeEventListener("keydown", handleKeyPress);
+  };
+}, [scannedBarcode, activeTab, isScanMode]);
+
+
 
 
 useEffect(() => {
@@ -2556,6 +2717,12 @@ useEffect(() => {
   let html5QrCode;
   let isMounted = true;
 
+  // ⚡ Laser-mode scan control
+  let lastScanTime = 0;
+  let lastScannedCode = null;
+
+  const SCAN_DELAY = 300; // 🔥 Laser speed (ms)
+
   const startScanner = async () => {
     try {
       html5QrCode = new Html5Qrcode("camera-scanner");
@@ -2563,18 +2730,33 @@ useEffect(() => {
       await html5QrCode.start(
         { facingMode: "environment" },
         {
-          fps: 10,
+          fps: 15, // 🔥 Faster frame rate
           qrbox: { width: 300, height: 120 },
           aspectRatio: 1.8,
         },
 
-        // ✅ SUCCESS SCAN
+        // ==============================
+        // ⚡ LASER SPEED SCAN
+        // ==============================
         (decodedText) => {
           if (!isMounted) return;
 
-          console.log("📷 Camera scanned:", decodedText);
+          const now = Date.now();
 
-          // 🔊 Beep
+          // 🚫 Prevent duplicate rapid scans
+          if (
+            decodedText === lastScannedCode &&
+            now - lastScanTime < SCAN_DELAY
+          ) {
+            return;
+          }
+
+          lastScanTime = now;
+          lastScannedCode = decodedText;
+
+          console.log("⚡ Laser scan:", decodedText);
+
+          // 🔊 Fast beep
           playSound("/sounds/scan-success.mp3");
 
           // Add to cart
@@ -2582,14 +2764,10 @@ useEffect(() => {
 
           // Stay on billing tab
           setActiveTab("offline-billing");
-
-          // ❌ DO NOT stop scanner here
-          // Just close modal
-          setShowCameraScanner(false);
         },
 
         (err) => {
-          // optional
+          // Ignore scan errors
         }
       );
 
@@ -2598,7 +2776,7 @@ useEffect(() => {
 
       alert(
         "Camera failed to start.\n\n" +
-        "Please allow permission & use HTTPS."
+        "Allow camera permission & use HTTPS."
       );
     }
   };
@@ -2606,7 +2784,7 @@ useEffect(() => {
   startScanner();
 
   // ==============================
-  // 🧹 CLEANUP — SAFE STOP HERE
+  // 🧹 CLEANUP
   // ==============================
   return () => {
     isMounted = false;
@@ -4195,14 +4373,15 @@ role: ROLE_KEYS.find(
   type="text"
   value={scannedBarcode}
   onChange={(e) => setScannedBarcode(e.target.value)}
-  autoFocus
+  autoFocus={isScanMode}
   style={{
     position: "absolute",
-    opacity: 0,
+    opacity: isScanMode ? 1 : 0,
     pointerEvents: "none",
     height: 0,
   }}
 />
+
 
             <div className="billing-container">
               <div className="product-selection-panel">
@@ -4273,10 +4452,37 @@ role: ROLE_KEYS.find(
   📷 Scan with Camera
 </button>
 <button
-  onClick={() => playSound("/sounds/scan-success.mp3")}
+  className="scan-mode-btn"
+  onClick={() => {
+    setIsScanMode(true);
+
+    setTimeout(() => {
+      barcodeInputRef.current?.focus();
+    }, 50);
+  }}
 >
-  🔊 Test playSound()
+  🔫 Start Scanner
 </button>
+
+<button
+  className="scan-mode-btn stop"
+  onClick={() => setIsScanMode(false)}
+>
+  ✋ Stop Scanner
+</button>
+
+<button
+  onClick={() => {
+    localStorage.removeItem(
+      "offlineProductsCache"
+    );
+
+    fetchAllProductsForScan();
+  }}
+>
+  🔄 Refresh Products
+</button>
+
 
 {Object.keys(allProductsMap).length === 0 && (
   <p style={{ fontSize: 12, color: "#888", marginBottom: "8px" }}>
@@ -4330,13 +4536,19 @@ role: ROLE_KEYS.find(
 
                             {/* Variation Selector */}
                             {product.variations && product.variations.length > 1 && (
-                              <select
-                                className="billing-variation-select"
-                                // Value must be stringified JSON object to hold the full variation data
-                                value={JSON.stringify(currentSelection || {})}
-                                // Handler uses JSON.parse to get the selected object back
-                                onChange={(e) => handleOfflineSelectionChange(product.id, JSON.parse(e.target.value))}
-                              >
+                             <select
+  className="billing-variation-select"
+  value={JSON.stringify(currentSelection || {})}
+  onChange={(e) => {
+    try {
+      const parsed = JSON.parse(e.target.value);
+      handleOfflineSelectionChange(product.id, parsed);
+    } catch (err) {
+      console.error("❌ Variant parse error:", err);
+    }
+  }}
+>
+
                                 {product.variations.map((v, index) => (
                                   <option
                                     key={index}
@@ -4651,6 +4863,25 @@ role: ROLE_KEYS.find(
           </div>
         </div>
       )}
+      {/* ===============================
+   LAST SCANNED PRODUCT POPUP
+=============================== */}
+{lastScannedProduct && (
+  <div className="scan-popup">
+    <div className="scan-popup-content">
+      <div className="scan-success">✅ Added</div>
+
+      <div className="scan-product-name">
+        {lastScannedProduct.name}
+      </div>
+
+      <div className="scan-product-code">
+        Code: {lastScannedProduct.code}
+      </div>
+    </div>
+  </div>
+)}
+
       {/* 📷 CAMERA SCANNER MODAL */}
 {showCameraScanner && (
   <div className="camera-scanner-modal">

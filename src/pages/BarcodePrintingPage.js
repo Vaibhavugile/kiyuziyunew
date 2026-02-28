@@ -15,12 +15,13 @@ const BarcodeLabel = ({ product, subcollectionName }) => {
     if (!svgRef.current) return;
 
     JsBarcode(svgRef.current, product.id, {
-      format: "CODE128",
-      width: 2,
-      height: 40,
-      displayValue: false,
-      margin: 0,
-    });
+  format: "CODE128",
+  width: 2.2,     // 🔥 thicker bars (better scan)
+  height: 50,    // 🔥 taller barcode
+  displayValue: false,
+  margin: 2,
+});
+
   }, [product.id]);
 
   return (

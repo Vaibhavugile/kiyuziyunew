@@ -809,3 +809,57 @@
 .scanner-overlay {
   z-index: 2;
 }
+/* ===============================
+   SCAN POPUP OVERLAY
+=============================== */
+.scan-popup {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 99999;
+  animation: slideIn 0.3s ease;
+}
+
+/* Popup Box */
+.scan-popup-content {
+  background: #111;
+  color: #fff;
+  padding: 14px 18px;
+  border-radius: 10px;
+  min-width: 220px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+  text-align: left;
+}
+
+/* Success text */
+.scan-success {
+  font-size: 13px;
+  color: #22c55e;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* Product name */
+.scan-product-name {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+/* Code */
+.scan-product-code {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* Slide animation */
+@keyframes slideIn {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

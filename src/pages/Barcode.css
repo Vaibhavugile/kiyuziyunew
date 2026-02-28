@@ -165,10 +165,11 @@
 ===================================================== */
 .print-area.a4 {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr); /* 🔥 smaller width */
+  gap: 8px;
   padding: 10mm;
 }
+
 
 /* =====================================================
    THERMAL (2-INCH) PDF LAYOUT
@@ -185,12 +186,13 @@
 ===================================================== */
 .barcode-label {
   border: 1px solid #000;
-  padding: 6px;
+  padding: 4px; /* 🔥 smaller box */
   text-align: center;
   font-family: Arial, Helvetica, sans-serif;
   background: #fff;
   break-inside: avoid;
 }
+
 
 /* =====================================================
    LABEL TEXT
