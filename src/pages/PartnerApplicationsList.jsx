@@ -8,21 +8,20 @@ import {
   doc,
 } from "firebase/firestore";
 import { db } from "../firebase";
-import "./BulkEnquiryList.css";
+import "./BulkEnquiryList.css"; // reuse same admin styling
 
-const BulkEnquiryList = () => {
-  const [enquiries, setEnquiries] = useState([]);
+const PartnerApplicationsList = () => {
+  const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [sortByQty, setSortByQty] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [sortByBudget, setSortByBudget] = useState("");
 
   useEffect(() => {
-    const fetchEnquiries = async () => {
+    const fetchApplications = async () => {
       try {
         const q = query(
-          collection(db, "bulkEnquiries"),
+          collection(db, "partnerApplications"),
           orderBy("createdAt", "desc")
         );
 
@@ -32,15 +31,15 @@ const BulkEnquiryList = () => {
           ...doc.data(),
         }));
 
-        setEnquiries(data);
+        setApplications(data);
       } catch (error) {
-        console.error("Error fetching bulk enquiries:", error);
+        console.error("Error fetching partner applications:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchEnquiries();
+    fetchApplications();
   }, []);
 
   /* ========================
@@ -49,14 +48,14 @@ const BulkEnquiryList = () => {
 
   const handleStatusChange = async (id, newStatus) => {
     try {
-      const ref = doc(db, "bulkEnquiries", id);
+      const ref = doc(db, "partnerApplications", id);
 
       await updateDoc(ref, {
         status: newStatus,
         updatedAt: new Date(),
       });
 
-      setEnquiries((prev) =>
+      setApplications((prev) =>
         prev.map((item) =>
           item.id === id ? { ...item, status: newStatus } : item
         )
@@ -67,38 +66,46 @@ const BulkEnquiryList = () => {
   };
 
   /* ========================
-     FILTERING LOGIC
+     FILTERING
   ======================== */
 
-  const filtered = enquiries
+  const filtered = applications
     .filter((item) =>
       item.name?.toLowerCase().includes(search.toLowerCase()) ||
       item.phone?.toLowerCase().includes(search.toLowerCase()) ||
-      item.productName?.toLowerCase().includes(search.toLowerCase())
+      item.businessType?.toLowerCase().includes(search.toLowerCase())
     )
     .filter((item) =>
       statusFilter ? item.status === statusFilter : true
     );
 
-  const sortedEnquiries = [...filtered].sort((a, b) => {
-    if (!sortByQty) return 0;
-    const qtyA = a.quantity || 0;
-    const qtyB = b.quantity || 0;
-    return sortByQty === "asc" ? qtyA - qtyB : qtyB - qtyA;
+  const sorted = [...filtered].sort((a, b) => {
+    if (!sortByBudget) return 0;
+
+    const budgetOrder = {
+      "below-50k": 1,
+      "50k-1l": 2,
+      "1l-5l": 3,
+      "5l-plus": 4,
+    };
+
+    const valA = budgetOrder[a.budget] || 0;
+    const valB = budgetOrder[b.budget] || 0;
+
+    return sortByBudget === "asc" ? valA - valB : valB - valA;
   });
 
   /* ========================
      KPI COUNTS
   ======================== */
 
-  const total = enquiries.length;
-  const newCount = enquiries.filter((e) => e.status === "new").length;
-  const contactedCount = enquiries.filter((e) => e.status === "contacted").length;
-  const closedCount = enquiries.filter((e) => e.status === "closed").length;
-  const highQty = enquiries.filter((e) => (e.quantity || 0) >= 1000).length;
+  const total = applications.length;
+  const newCount = applications.filter((e) => e.status === "new").length;
+  const contactedCount = applications.filter((e) => e.status === "contacted").length;
+  const closedCount = applications.filter((e) => e.status === "closed").length;
 
   if (loading) {
-    return <div className="bulk-loading">Loading bulk enquiries...</div>;
+    return <div className="bulk-loading">Loading partner applications...</div>;
   }
 
   return (
@@ -137,21 +144,16 @@ const BulkEnquiryList = () => {
           <h4>Closed</h4>
           <h2>{closedCount}</h2>
         </div>
-
-        <div className="stat-card">
-          <h4>High Qty (1000+)</h4>
-          <h2>{highQty}</h2>
-        </div>
       </div>
 
       {/* ================= HEADER ================= */}
       <div className="bulk-table-header">
-        <h2>Bulk Enquiries</h2>
+        <h2>Partner Applications</h2>
 
         <div className="bulk-controls">
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Search by name, phone, business..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -167,10 +169,10 @@ const BulkEnquiryList = () => {
           </select>
 
           <select
-            value={sortByQty}
-            onChange={(e) => setSortByQty(e.target.value)}
+            value={sortByBudget}
+            onChange={(e) => setSortByBudget(e.target.value)}
           >
-            <option value="">Sort by Qty</option>
+            <option value="">Sort by Budget</option>
             <option value="asc">Low → High</option>
             <option value="desc">High → Low</option>
           </select>
@@ -185,27 +187,27 @@ const BulkEnquiryList = () => {
               <th>#</th>
               <th>Name</th>
               <th>Phone</th>
-              <th>Product</th>
-              <th>Qty</th>
+              <th>Business Type</th>
+              <th>Budget</th>
               <th>Status</th>
             </tr>
           </thead>
 
           <tbody>
-            {sortedEnquiries.length === 0 ? (
+            {sorted.length === 0 ? (
               <tr>
                 <td colSpan="6" className="no-data">
-                  No enquiries found
+                  No partner applications found
                 </td>
               </tr>
             ) : (
-              sortedEnquiries.map((item, index) => (
+              sorted.map((item, index) => (
                 <tr key={item.id}>
                   <td>{index + 1}</td>
                   <td>{item.name || "—"}</td>
                   <td>{item.phone || "—"}</td>
-                  <td>{item.productName || "—"}</td>
-                  <td>{item.quantity || "—"}</td>
+                  <td>{item.businessType || "—"}</td>
+                  <td>{item.budget || "—"}</td>
 
                   <td>
                     <select
@@ -226,17 +228,8 @@ const BulkEnquiryList = () => {
           </tbody>
         </table>
       </div>
-
-      {selectedImage && (
-        <div
-          className="image-modal"
-          onClick={() => setSelectedImage(null)}
-        >
-          <img src={selectedImage} alt="Preview" />
-        </div>
-      )}
     </div>
   );
 };
 
-export default BulkEnquiryList;
+export default PartnerApplicationsList;

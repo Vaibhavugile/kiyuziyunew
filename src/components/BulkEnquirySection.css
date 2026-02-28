@@ -276,3 +276,47 @@
   display: block;
   width: 100%;
 }
+/* ================================
+   SLIDER TABS
+================================ */
+
+.wholesale-tabs {
+  position: relative;
+  width: fit-content;
+  margin: 0 auto 3rem auto;
+  display: flex;
+  background: rgba(231, 62, 53, 0.08);
+  padding: 6px;
+  border-radius: 999px;
+}
+
+.tab-indicator {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: calc(50% - 6px);
+  height: calc(100% - 12px);
+  background: linear-gradient(135deg, #e73e35, #ff8c82);
+  border-radius: 999px;
+  transition: transform 0.35s cubic-bezier(.2,.9,.2,1);
+  z-index: 0;
+}
+
+.tab-indicator.right {
+  transform: translateX(100%);
+}
+
+.wholesale-tabs button {
+  position: relative;
+  z-index: 1;
+  padding: 0.8rem 2.5rem;
+  border: none;
+  background: transparent;
+  font-weight: 700;
+  color: #e73e35;
+  cursor: pointer;
+}
+
+.wholesale-tabs button.active {
+  color: white;
+}

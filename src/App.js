@@ -24,6 +24,8 @@ import CouponAnalytics from './pages/CouponAnalytics';
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import BulkEnquiryList from "./pages/BulkEnquiryList";
 import BarcodePrintingPage from './pages/BarcodePrintingPage';
+import PartnerApplicationsList from './pages/PartnerApplicationsList';
+import AdminLeadsDashboard from './pages/AdminLeadsDashboard';
 function App() {
   return (
     <AuthProvider>
@@ -58,8 +60,11 @@ function App() {
   path="/admin/barcode-printing"
   element={<BarcodePrintingPage />}
 />
-
-
+<Route
+  path="/admin/partner"
+  element={<PartnerApplicationsList />}
+/>
+<Route path="/admin/leads" element={<AdminLeadsDashboard />} />
 
 
 
