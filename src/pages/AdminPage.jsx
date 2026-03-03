@@ -158,6 +158,8 @@ const AdminPage = () => {
   const [productReports, setProductReports] = useState([]);
   const [sendInvoiceOnWhatsApp, setSendInvoiceOnWhatsApp] = useState(false);
   const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
+  const SHIPPING_CHARGE = 199;
+const [isShippingApplied, setIsShippingApplied] = useState(false);
   useEffect(() => {
     const fetchUserRole = async () => {
       const user = auth.currentUser;
@@ -611,8 +613,12 @@ const AdminPage = () => {
     ? baseTotal * GST_RATE
     : 0;
 
-  const finalTotal = baseTotal + gstAmount;
+const shippingValue = isShippingApplied ? SHIPPING_CHARGE : 0;
 
+const finalTotal =
+  Number(offlineSubtotal) +
+  (isGSTApplied ? Number(gstAmount) : 0) +
+  shippingValue;
 
   const handleTierChange = (type, index, field, value) => {
     setSubcollectionTieredPricing((prevPricing) => {
@@ -655,7 +661,43 @@ const AdminPage = () => {
       console.error('Error deleting image from storage:', error);
     }
   };
+const [isCartInitialized, setIsCartInitialized] = useState(false);
 
+/* =========================
+   RESTORE CART ON LOAD
+========================= */
+useEffect(() => {
+  const savedCart = localStorage.getItem("offlineCartDraft");
+
+  if (savedCart) {
+    try {
+      const parsedCart = JSON.parse(savedCart);
+      setOfflineCart(parsedCart);
+      console.log("📦 Draft restored:", parsedCart);
+    } catch (error) {
+      console.error("❌ Failed to restore cart:", error);
+      localStorage.removeItem("offlineCartDraft");
+    }
+  }
+
+  // Mark initialization complete
+  setIsCartInitialized(true);
+}, []);
+
+
+/* =========================
+   SAVE CART AFTER CHANGES
+========================= */
+useEffect(() => {
+  if (!isCartInitialized) return; // 🚫 Prevent first render overwrite
+
+  localStorage.setItem(
+    "offlineCartDraft",
+    JSON.stringify(offlineCart)
+  );
+
+  console.log("💾 Draft saved:", offlineCart);
+}, [offlineCart, isCartInitialized]);
   // --- Fetch Main Collections ---
   const fetchMainCollections = async () => {
     setIsMainCollectionLoading(true);
@@ -2978,7 +3020,9 @@ const AdminPage = () => {
 
         const gstValue = isGSTApplied ? baseTotal * GST_RATE : 0;
 
-        const totalAmountToUse = baseTotal + gstValue;
+        const shippingValue = isShippingApplied ? SHIPPING_CHARGE : 0;
+
+       const totalAmountToUse = baseTotal + gstValue + shippingValue;
 
         // Billing Info (Unchanged)
 
@@ -3022,7 +3066,7 @@ const AdminPage = () => {
           gstRate: GST_RATE,
           gstAmount: gstValue,
           totalAmount: totalAmountToUse,
-          shippingFee: 0,
+          shippingFee: shippingValue,
           pricingKey: offlinePricingKey,
           role: ROLE_KEYS.find(
             r => ROLE_CONFIG[r].pricingKey === offlinePricingKey
@@ -3043,6 +3087,7 @@ const AdminPage = () => {
           items: orderItems,
           subtotal: baseTotal,
           gstRate: GST_RATE,
+          shippingFee: shippingValue,
           gstAmount: gstValue,
           total: totalAmountToUse,
           invoiceDate: new Date(),
@@ -3056,6 +3101,12 @@ const AdminPage = () => {
         // 5. Success and Cleanup
         alert('Offline sale finalized and stock updated successfully!');
         setOfflineCart({});
+
+// ✅ REMOVE DRAFT FROM LOCALSTORAGE
+localStorage.removeItem("offlineCartDraft");
+
+// Optional: if you later saved full billing draft
+localStorage.removeItem("offlineBillingDraft");
         setEditedTotal('');
         setSelectedOfflineCollectionId('');
         setSelectedOfflineSubcollectionId('');
@@ -3371,7 +3422,7 @@ const AdminPage = () => {
 
     sales: [
       "leads",
-       "users",
+      "users",
 
     ],
 
@@ -4257,602 +4308,618 @@ const AdminPage = () => {
         )}
         {/* --- User Management Tab --- */}
 
-        {activeTab === 'users' && 
+        {activeTab === 'users' &&
           ROLE_PERMISSIONS[currentUserRole]?.includes("users") && (
-          <section className="saas-users-section">
-            <h2 className="saas-users-title">User Management</h2>
+            <section className="saas-users-section">
+              <h2 className="saas-users-title">User Management</h2>
 
-            {/* ROLE COUNTS */}
-            <div className="saas-users-role-metrics">
-              <span className="saas-users-metric saas-users-metric--wholesaler">
-                🏷️ Wholesalers: {wholesalerCount}
-              </span>
-              <span className="saas-users-metric saas-users-metric--retailer">
-                🛍️ Retailers: {retailerCount}
-              </span>
-            </div>
+              {/* ROLE COUNTS */}
+              <div className="saas-users-role-metrics">
+                <span className="saas-users-metric saas-users-metric--wholesaler">
+                  🏷️ Wholesalers: {wholesalerCount}
+                </span>
+                <span className="saas-users-metric saas-users-metric--retailer">
+                  🛍️ Retailers: {retailerCount}
+                </span>
+              </div>
 
-            {/* SEARCH */}
-            <div className="saas-users-search-bar">
-              <select
-                value={userSearchColumn}
-                onChange={(e) => setUserSearchColumn(e.target.value)}
-                className="saas-users-search-select"
-              >
-                <option value="name">Name</option>
-                <option value="lastLogin">Last Login</option>
-                <option value="mobile">Mobile</option>
-                <option value="address">Address</option>
-                <option value="lastOrder">Last Order</option>
-                <option value="orders">Total Orders</option>
-                <option value="amount">Total Amount</option>
-                <option value="profit">Net Profit</option>
-                <option value="createdAt">Created At</option>
-                <option value="role">Role</option>
-              </select>
-
-              <input
-                type="text"
-                value={userSearchValue}
-                placeholder={`Search by ${userSearchColumn}`}
-                onChange={(e) => setUserSearchValue(e.target.value)}
-                className="saas-users-search-input"
-              />
-            </div>
-
-            {/* SORT */}
-            <div className="saas-users-sort-bar">
-              <select
-                value={userSortField}
-                onChange={(e) => setUserSortField(e.target.value)}
-                className="saas-users-sort-select"
-              >
-                <option value="createdAt">Created At</option>
-                <option value="lastLogin">Last Login</option>
-                <option value="lastOrder">Last Order</option>
-                <option value="orders">Total Orders</option>
-                <option value="amount">Total Amount</option>
-                <option value="profit">Net Profit</option>
-                <option value="name">Name</option>
-              </select>
-
-              <button
-                className="saas-users-sort-toggle"
-                onClick={() =>
-                  setUserSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
-                }
-              >
-                {userSortOrder === 'asc' ? '⬆ Ascending' : '⬇ Descending'}
-              </button>
-              <div className="saas-users-export-bar">
-                <button
-                  className="saas-btn saas-btn--secondary"
-                  onClick={handleExportUsers}
-                  disabled={filteredAndSortedUsers.length === 0}
+              {/* SEARCH */}
+              <div className="saas-users-search-bar">
+                <select
+                  value={userSearchColumn}
+                  onChange={(e) => setUserSearchColumn(e.target.value)}
+                  className="saas-users-search-select"
                 >
-                  ⬇ Export Users
-                </button>
-              </div>
+                  <option value="name">Name</option>
+                  <option value="lastLogin">Last Login</option>
+                  <option value="mobile">Mobile</option>
+                  <option value="address">Address</option>
+                  <option value="lastOrder">Last Order</option>
+                  <option value="orders">Total Orders</option>
+                  <option value="amount">Total Amount</option>
+                  <option value="profit">Net Profit</option>
+                  <option value="createdAt">Created At</option>
+                  <option value="role">Role</option>
+                </select>
 
-            </div>
-
-            {/* CONTENT */}
-            {isUserLoading ? (
-              <p className="saas-users-loading">Loading users…</p>
-            ) : filteredAndSortedUsers.length === 0 ? (
-              <p className="saas-users-empty">No users found.</p>
-            ) : (
-              <div className="saas-users-table-wrapper">
-
-                {/* HEADER */}
-                <div className="saas-users-table-header">
-                  <div>Name</div>
-                  <div>Last Login</div>
-                  <div>Mobile</div>
-                  <div>Address</div>
-                  <div>Last Order</div>
-                  <div>Orders</div>
-                  <div>Total Amount</div>
-                  <div>Created</div>
-                  <div>Role</div>
-                  <div>Actions</div>
-                </div>
-
-                {/* ROWS */}
-                <ul className="saas-users-table-body">
-                  {filteredAndSortedUsers.map((user) => {
-                    const stats = userOrderStats[user.id] || {};
-
-                    return (
-                      <li
-                        key={user.id}
-                        className="saas-users-row"
-                        onClick={() =>
-                          navigate(`/admin/users/${user.id}/orders`)
-                        }
-                      >
-                        <div className="saas-users-cell saas-users-name">
-                          {user.name || 'N/A'}
-                        </div>
-
-                        <div className="saas-users-cell saas-users-muted">
-                          {formatDate(user.lastLogin)}
-                        </div>
-
-                        <div className="saas-users-cell saas-users-muted">
-                          {user.mobile || '—'}
-                        </div>
-
-                        <div className="saas-users-cell saas-users-truncate">
-                          {user.address || '—'}
-                        </div>
-
-                        <div className="saas-users-cell saas-users-muted">
-                          {stats.lastOrderDate
-                            ? formatDate(stats.lastOrderDate)
-                            : '—'}
-                        </div>
-
-                        <div className="saas-users-cell saas-users-center">
-                          {stats.totalOrders || 0}
-                        </div>
-
-                        <div className="saas-users-cell saas-users-amount">
-                          ₹{(stats.lifetimeValue || 0).toLocaleString('en-IN')}
-                        </div>
-
-
-
-                        <div className="saas-users-cell saas-users-muted">
-                          {formatDate(user.createdAt)}
-                        </div>
-
-                        <div className="saas-users-cell">
-                          <span className={`saas-role saas-role--${user.role}`}>
-                            {user.role}
-                          </span>
-                        </div>
-
-                        <div
-                          className="saas-users-cell saas-users-actions"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {/* ROLE SELECT (CONFIG DRIVEN) */}
-                          <select
-                            value={user.role}
-                            onChange={(e) =>
-                              handleUpdateUserRole(user.id, e.target.value)
-                            }
-                            className="saas-users-role-select"
-                          >
-                            {ROLE_KEYS.map(role => (
-                              <option key={role} value={role}>
-                                {ROLE_CONFIG[role].label}
-                              </option>
-                            ))}
-                          </select>
-
-                          {/* DELETE USER */}
-                          <button
-                            className="saas-btn saas-btn--danger"
-                            onClick={() => handleDeleteUser(user.id)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-          </section>
-        )}
-
-
-
-        {activeTab === 'offline-billing' && 
-          ROLE_PERMISSIONS[currentUserRole]?.includes("offline-billing") && (
-          <div className="offline-billing-section">
-            <h2>Offline Billing</h2>
-
-            {/* 🔑 HIDDEN BARCODE INPUT (USB / Bluetooth Scanner) */}
-            <input
-              ref={barcodeInputRef}
-              type="text"
-              value={scannedBarcode}
-              onChange={(e) => setScannedBarcode(e.target.value)}
-              autoFocus={isScanMode}
-              style={{
-                position: "absolute",
-                opacity: isScanMode ? 1 : 0,
-                pointerEvents: "none",
-                height: 0,
-              }}
-            />
-
-
-            <div className="billing-container">
-              <div className="product-selection-panel">
-                <h4>Select Products</h4>
-                <div className="dropdown-group">
-                  <select
-                    className="billing-select"
-                    value={offlinePricingKey}
-                    onChange={(e) => setOfflinePricingKey(e.target.value)}
-                  >
-                    {ROLE_KEYS.map(role => (
-                      <option
-                        key={role}
-                        value={ROLE_CONFIG[role].pricingKey}
-                      >
-                        {ROLE_CONFIG[role].label} Pricing
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    className="billing-select"
-                    value={selectedOfflineCollectionId}
-                    onChange={(e) => setSelectedOfflineCollectionId(e.target.value)}
-                  >
-                    <option value="">Select Collection</option>
-                    {mainCollections.map((collection) => (
-                      <option key={collection.id} value={collection.id}>
-                        {collection.title}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="billing-select"
-                    value={selectedOfflineSubcollectionId}
-                    onChange={(e) => setSelectedOfflineSubcollectionId(e.target.value)}
-                    disabled={!selectedOfflineCollectionId}
-                  >
-                    <option value="">All Subcollection</option>
-                    {offlineSubcollections.map((subcollection) => (
-                      <option key={subcollection.id} value={subcollection.id}>
-                        {subcollection.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Search Input */}
                 <input
                   type="text"
-                  placeholder="Search products by name or code..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="product-search-bar"
+                  value={userSearchValue}
+                  placeholder={`Search by ${userSearchColumn}`}
+                  onChange={(e) => setUserSearchValue(e.target.value)}
+                  className="saas-users-search-input"
                 />
-                {/* 📷 CAMERA SCAN BUTTON */}
-                <button
-                  className="scan-camera-btn"
-                  onClick={() => setShowCameraScanner(true)}
-                  style={{
-                    marginBottom: "12px",
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid #ccc",
-                    cursor: "pointer",
-                  }}
-                >
-                  📷 Scan with Camera
-                </button>
-                <button
-                  className="scan-mode-btn"
-                  onClick={() => {
-                    setIsScanMode(true);
+              </div>
 
-                    setTimeout(() => {
-                      barcodeInputRef.current?.focus();
-                    }, 50);
-                  }}
+              {/* SORT */}
+              <div className="saas-users-sort-bar">
+                <select
+                  value={userSortField}
+                  onChange={(e) => setUserSortField(e.target.value)}
+                  className="saas-users-sort-select"
                 >
-                  🔫 Start Scanner
-                </button>
+                  <option value="createdAt">Created At</option>
+                  <option value="lastLogin">Last Login</option>
+                  <option value="lastOrder">Last Order</option>
+                  <option value="orders">Total Orders</option>
+                  <option value="amount">Total Amount</option>
+                  <option value="profit">Net Profit</option>
+                  <option value="name">Name</option>
+                </select>
 
                 <button
-                  className="scan-mode-btn stop"
-                  onClick={() => setIsScanMode(false)}
+                  className="saas-users-sort-toggle"
+                  onClick={() =>
+                    setUserSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+                  }
                 >
-                  ✋ Stop Scanner
+                  {userSortOrder === 'asc' ? '⬆ Ascending' : '⬇ Descending'}
                 </button>
+                <div className="saas-users-export-bar">
+                  <button
+                    className="saas-btn saas-btn--secondary"
+                    onClick={handleExportUsers}
+                    disabled={filteredAndSortedUsers.length === 0}
+                  >
+                    ⬇ Export Users
+                  </button>
+                </div>
 
-                <button
-                  onClick={() => {
-                    localStorage.removeItem(
-                      "offlineProductsCache"
-                    );
+              </div>
 
-                    fetchAllProductsForScan();
-                  }}
-                >
-                  🔄 Refresh Products
-                </button>
+              {/* CONTENT */}
+              {isUserLoading ? (
+                <p className="saas-users-loading">Loading users…</p>
+              ) : filteredAndSortedUsers.length === 0 ? (
+                <p className="saas-users-empty">No users found.</p>
+              ) : (
+                <div className="saas-users-table-wrapper">
 
+                  {/* HEADER */}
+                  <div className="saas-users-table-header">
+                    <div>Name</div>
+                    <div>Last Login</div>
+                    <div>Mobile</div>
+                    <div>Address</div>
+                    <div>Last Order</div>
+                    <div>Orders</div>
+                    <div>Total Amount</div>
+                    <div>Created</div>
+                    <div>Role</div>
+                    <div>Actions</div>
+                  </div>
 
-                {Object.keys(allProductsMap).length === 0 && (
-                  <p style={{ fontSize: 12, color: "#888", marginBottom: "8px" }}>
-                    ⏳ Loading barcode data…
-                  </p>
-                )}
-
-
-                {isOfflineProductsLoading ? (
-                  <p className="loading-message">Loading products...</p>
-                ) : filteredOfflineProducts.length > 0 ? (
-                  <div className="billing-product-list">
-                    {filteredOfflineProducts.map(product => {
-                      // --- STOCK/VARIATION LOGIC SETUP (Requires offlineSelections state) ---
-                      // 1. Get the current selection (or default to the first variant)
-                      const currentSelection = offlineSelections[product.id] ||
-                        (product.variations && product.variations.length > 0 ? product.variations[0] : null);
-
-                      // 2. Get the stock for the currently selected item/variant
-                      const availableStock = currentSelection ? Number(currentSelection.quantity) : Number(product.quantity || 0);
-
-                      // 3. Calculate quantity in cart for this specific variant
-                      // NOTE: getCartItemId must be available in this component's scope (imported from CartContext)
-                      const cartItemId = getCartItemId({ ...product, variation: currentSelection });
-                      const currentQuantityInCart = offlineCart[cartItemId]?.quantity || 0;
-
-                      // 4. Check for stock limit
-                      const isMaxStockReached = currentQuantityInCart >= availableStock;
-
-                      const imagesToDisplay = product.images && product.images.length > 0 ? product.images : (product.image ? [product.image] : []);
-                      const currentImage = imagesToDisplay.length > 0 ? (imagesToDisplay[0].url || imagesToDisplay[0].url || imagesToDisplay[0]) : '';
-                      // ----------------------------------------------------------------------
+                  {/* ROWS */}
+                  <ul className="saas-users-table-body">
+                    {filteredAndSortedUsers.map((user) => {
+                      const stats = userOrderStats[user.id] || {};
 
                       return (
-                        <div
-                          key={product.id}
-                          className={`billing-product-item ${isMaxStockReached ? 'stock-limit' : ''}`}
+                        <li
+                          key={user.id}
+                          className="saas-users-row"
+                          onClick={() =>
+                            navigate(`/admin/users/${user.id}/orders`)
+                          }
                         >
-                          {/* Product Details */}
-                          <img
-                            alt={product.productName}
-                            src={currentImage}
-                            className="product-image"
-                            // 🛑 ADDED: onClick handler to open the full image modal 🛑
-                            onClick={() => openImageModal(currentImage)}
-                            style={{ cursor: 'pointer' }} // Visual hint that it's clickable
-                          />
-                          <div className="product-details">
-                            <span className="product-name">{product.productName}</span>
-                            <span className="product-code">{product.productCode}</span>
+                          <div className="saas-users-cell saas-users-name">
+                            {user.name || 'N/A'}
+                          </div>
 
-                            {/* Variation Selector */}
-                            {product.variations && product.variations.length > 1 && (
-                              <select
-                                className="billing-variation-select"
-                                value={JSON.stringify(currentSelection || {})}
-                                onChange={(e) => {
-                                  try {
-                                    const parsed = JSON.parse(e.target.value);
-                                    handleOfflineSelectionChange(product.id, parsed);
-                                  } catch (err) {
-                                    console.error("❌ Variant parse error:", err);
-                                  }
-                                }}
-                              >
+                          <div className="saas-users-cell saas-users-muted">
+                            {formatDate(user.lastLogin)}
+                          </div>
 
-                                {product.variations.map((v, index) => (
-                                  <option
-                                    key={index}
-                                    value={JSON.stringify(v)}
-                                    disabled={Number(v.quantity) <= 0}
-                                  >
-                                    {v.color} {v.size} (Stock: {v.quantity})
-                                  </option>
-                                ))}
-                              </select>
-                            )}
+                          <div className="saas-users-cell saas-users-muted">
+                            {user.mobile || '—'}
+                          </div>
 
-                            <span className={`product-quantity ${availableStock === 0 ? 'out-of-stock-text' : ''}`}>
-                              In Stock: {availableStock}
+                          <div className="saas-users-cell saas-users-truncate">
+                            {user.address || '—'}
+                          </div>
+
+                          <div className="saas-users-cell saas-users-muted">
+                            {stats.lastOrderDate
+                              ? formatDate(stats.lastOrderDate)
+                              : '—'}
+                          </div>
+
+                          <div className="saas-users-cell saas-users-center">
+                            {stats.totalOrders || 0}
+                          </div>
+
+                          <div className="saas-users-cell saas-users-amount">
+                            ₹{(stats.lifetimeValue || 0).toLocaleString('en-IN')}
+                          </div>
+
+
+
+                          <div className="saas-users-cell saas-users-muted">
+                            {formatDate(user.createdAt)}
+                          </div>
+
+                          <div className="saas-users-cell">
+                            <span className={`saas-role saas-role--${user.role}`}>
+                              {user.role}
                             </span>
                           </div>
 
-                          {/* Add to Cart Control */}
-                          <div className="product-actions-offline">
-                            <span className="cart-item-quantity">In Cart: {currentQuantityInCart}</span>
-                            <button
-                              // Pass the product and the currently selected variation to the handler
-                              onClick={() => handleOfflineAddToCart(product, currentSelection)}
-                              className={`add-to-cart-btn ${isMaxStockReached ? 'disabled' : ''}`}
-                              disabled={isMaxStockReached}
+                          <div
+                            className="saas-users-cell saas-users-actions"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {/* ROLE SELECT (CONFIG DRIVEN) */}
+                            <select
+                              value={user.role}
+                              onChange={(e) =>
+                                handleUpdateUserRole(user.id, e.target.value)
+                              }
+                              className="saas-users-role-select"
                             >
-                              {isMaxStockReached ? (availableStock === 0 ? 'Out of Stock' : 'Max Stock Reached') : 'Add 1'}
+                              {ROLE_KEYS.map(role => (
+                                <option key={role} value={role}>
+                                  {ROLE_CONFIG[role].label}
+                                </option>
+                              ))}
+                            </select>
+
+                            {/* DELETE USER */}
+                            <button
+                              className="saas-btn saas-btn--danger"
+                              onClick={() => handleDeleteUser(user.id)}
+                            >
+                              Delete
                             </button>
                           </div>
-                        </div>
+
+                        </li>
                       );
                     })}
-                  </div>
-                ) : (
-                  <p className="no-products-found">
-                    {selectedOfflineSubcollectionId
-                      ? 'No products found for your search.'
-                      : 'Please select a collection and subcollection to view products.'}
-                  </p>
-                )}
-              </div>
+                  </ul>
+                </div>
+              )}
+            </section>
+          )}
 
-              <div className="billing-cart-panel">
-                <h4>Billing Cart</h4>
-                {Object.keys(offlineCart).length > 0 ? (
-                  <>
-                    <ul className="cart-list">
-                      {/* CRITICAL: Iterate over pricedOfflineCart, not offlineCart */}
-                      {Object.values(pricedOfflineCart).map((item) => {
-                        // Calculate the final unit price and line total for display
-                        const unitPrice = typeof item.calculatedPrice === 'number'
-                          ? item.calculatedPrice
-                          : (item.price !== undefined && item.price !== null ? parseFloat(item.price) : 0);
-                        const lineTotal = unitPrice * item.quantity;
+
+
+        {activeTab === 'offline-billing' &&
+          ROLE_PERMISSIONS[currentUserRole]?.includes("offline-billing") && (
+            <div className="offline-billing-section">
+              <h2>Offline Billing</h2>
+
+              {/* 🔑 HIDDEN BARCODE INPUT (USB / Bluetooth Scanner) */}
+              <input
+                ref={barcodeInputRef}
+                type="text"
+                value={scannedBarcode}
+                onChange={(e) => setScannedBarcode(e.target.value)}
+                autoFocus={isScanMode}
+                style={{
+                  position: "absolute",
+                  opacity: isScanMode ? 1 : 0,
+                  pointerEvents: "none",
+                  height: 0,
+                }}
+              />
+
+
+              <div className="billing-container">
+                <div className="product-selection-panel">
+                  <h4>Select Products</h4>
+                  <div className="dropdown-group">
+                    <select
+                      className="billing-select"
+                      value={offlinePricingKey}
+                      onChange={(e) => setOfflinePricingKey(e.target.value)}
+                    >
+                      {ROLE_KEYS.map(role => (
+                        <option
+                          key={role}
+                          value={ROLE_CONFIG[role].pricingKey}
+                        >
+                          {ROLE_CONFIG[role].label} Pricing
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      className="billing-select"
+                      value={selectedOfflineCollectionId}
+                      onChange={(e) => setSelectedOfflineCollectionId(e.target.value)}
+                    >
+                      <option value="">Select Collection</option>
+                      {mainCollections.map((collection) => (
+                        <option key={collection.id} value={collection.id}>
+                          {collection.title}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="billing-select"
+                      value={selectedOfflineSubcollectionId}
+                      onChange={(e) => setSelectedOfflineSubcollectionId(e.target.value)}
+                      disabled={!selectedOfflineCollectionId}
+                    >
+                      <option value="">All Subcollection</option>
+                      {offlineSubcollections.map((subcollection) => (
+                        <option key={subcollection.id} value={subcollection.id}>
+                          {subcollection.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Search Input */}
+                  <input
+                    type="text"
+                    placeholder="Search products by name or code..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="product-search-bar"
+                  />
+                  {/* 📷 CAMERA SCAN BUTTON */}
+                  <button
+                    className="scan-camera-btn"
+                    onClick={() => setShowCameraScanner(true)}
+                    style={{
+                      marginBottom: "12px",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: "1px solid #ccc",
+                      cursor: "pointer",
+                    }}
+                  >
+                    📷 Scan with Camera
+                  </button>
+                  <button
+                    className="scan-mode-btn"
+                    onClick={() => {
+                      setIsScanMode(true);
+
+                      setTimeout(() => {
+                        barcodeInputRef.current?.focus();
+                      }, 50);
+                    }}
+                  >
+                    🔫 Start Scanner
+                  </button>
+
+                  <button
+                    className="scan-mode-btn stop"
+                    onClick={() => setIsScanMode(false)}
+                  >
+                    ✋ Stop Scanner
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem(
+                        "offlineProductsCache"
+                      );
+
+                      fetchAllProductsForScan();
+                    }}
+                  >
+                    🔄 Refresh Products
+                  </button>
+
+
+                  {Object.keys(allProductsMap).length === 0 && (
+                    <p style={{ fontSize: 12, color: "#888", marginBottom: "8px" }}>
+                      ⏳ Loading barcode data…
+                    </p>
+                  )}
+
+
+                  {isOfflineProductsLoading ? (
+                    <p className="loading-message">Loading products...</p>
+                  ) : filteredOfflineProducts.length > 0 ? (
+                    <div className="billing-product-list">
+                      {filteredOfflineProducts.map(product => {
+                        // --- STOCK/VARIATION LOGIC SETUP (Requires offlineSelections state) ---
+                        // 1. Get the current selection (or default to the first variant)
+                        const currentSelection = offlineSelections[product.id] ||
+                          (product.variations && product.variations.length > 0 ? product.variations[0] : null);
+
+                        // 2. Get the stock for the currently selected item/variant
+                        const availableStock = currentSelection ? Number(currentSelection.quantity) : Number(product.quantity || 0);
+
+                        // 3. Calculate quantity in cart for this specific variant
+                        // NOTE: getCartItemId must be available in this component's scope (imported from CartContext)
+                        const cartItemId = getCartItemId({ ...product, variation: currentSelection });
+                        const currentQuantityInCart = offlineCart[cartItemId]?.quantity || 0;
+
+                        // 4. Check for stock limit
+                        const isMaxStockReached = currentQuantityInCart >= availableStock;
+
+                        const imagesToDisplay = product.images && product.images.length > 0 ? product.images : (product.image ? [product.image] : []);
+                        const currentImage = imagesToDisplay.length > 0 ? (imagesToDisplay[0].url || imagesToDisplay[0].url || imagesToDisplay[0]) : '';
+                        // ----------------------------------------------------------------------
 
                         return (
-                          <li key={item.id} className="cart-item">
-                            <div className="cart-item-details">
-                              <span className="cart-item-name">{item.productName}</span>
-                              <span className="cart-item-code">{item.productCode}</span>
-                              {/* Display Variation */}
-                              {item.variation && (item.variation.color || item.variation.size) && (
-                                <span className="cart-item-info variation-detail">
-                                  {item.variation.color} {item.variation.size}
-                                </span>
+                          <div
+                            key={product.id}
+                            className={`billing-product-item ${isMaxStockReached ? 'stock-limit' : ''}`}
+                          >
+                            {/* Product Details */}
+                            <img
+                              alt={product.productName}
+                              src={currentImage}
+                              className="product-image"
+                              // 🛑 ADDED: onClick handler to open the full image modal 🛑
+                              onClick={() => openImageModal(currentImage)}
+                              style={{ cursor: 'pointer' }} // Visual hint that it's clickable
+                            />
+                            <div className="product-details">
+                              <span className="product-name">{product.productName}</span>
+                              <span className="product-code">{product.productCode}</span>
+
+                              {/* Variation Selector */}
+                              {product.variations && product.variations.length > 1 && (
+                                <select
+                                  className="billing-variation-select"
+                                  value={JSON.stringify(currentSelection || {})}
+                                  onChange={(e) => {
+                                    try {
+                                      const parsed = JSON.parse(e.target.value);
+                                      handleOfflineSelectionChange(product.id, parsed);
+                                    } catch (err) {
+                                      console.error("❌ Variant parse error:", err);
+                                    }
+                                  }}
+                                >
+
+                                  {product.variations.map((v, index) => (
+                                    <option
+                                      key={index}
+                                      value={JSON.stringify(v)}
+                                      disabled={Number(v.quantity) <= 0}
+                                    >
+                                      {v.color} {v.size} (Stock: {v.quantity})
+                                    </option>
+                                  ))}
+                                </select>
                               )}
 
-                              {/* UPDATED: Display calculated unit price */}
-                              <span className="cart-item-info unit-price">
-                                ₹{unitPrice.toFixed(2)} / unit
+                              <span className={`product-quantity ${availableStock === 0 ? 'out-of-stock-text' : ''}`}>
+                                In Stock: {availableStock}
                               </span>
                             </div>
-                            <div className="cart-item-controls">
-                              {/* NEW: Display line total */}
-                              <span className="cart-item-info line-total">
-                                <strong className="line-total-amount">₹{lineTotal.toFixed(2)}</strong>
-                              </span>
 
-                              <button onClick={() => handleOfflineRemoveFromCart(item.id)} className="quantity-btn">-</button>
-                              <span className="cart-quantity">{item.quantity}</span>
+                            {/* Add to Cart Control */}
+                            <div className="product-actions-offline">
+                              <span className="cart-item-quantity">In Cart: {currentQuantityInCart}</span>
                               <button
-                                onClick={() => handleOfflineAddToCart(item, item.variation)}
-                                className="quantity-btn"
-                                disabled={item.quantity >= (item.availableStock || Infinity)}
+                                // Pass the product and the currently selected variation to the handler
+                                onClick={() => handleOfflineAddToCart(product, currentSelection)}
+                                className={`add-to-cart-btn ${isMaxStockReached ? 'disabled' : ''}`}
+                                disabled={isMaxStockReached}
                               >
-                                +
+                                {isMaxStockReached ? (availableStock === 0 ? 'Out of Stock' : 'Max Stock Reached') : 'Add 1'}
                               </button>
                             </div>
-                          </li>
+                          </div>
                         );
                       })}
-                    </ul>
-
-                    {/* NEW: Editable Total Input */}
-                    <div className="cart-total-info">
-                      {/* FIX: Removed the extra ₹ symbol (₹₹ -> ₹) */}
-                      <p className="calculated-total">
-                        Calculated Total: ₹{finalTotal.toFixed(2)}
-                      </p>
-                      <label htmlFor="edited-total-input">Final Total:</label>
-                      <input
-                        id="edited-total-input"
-                        type="number"
-                        value={editedTotal}
-                        onChange={(e) => setEditedTotal(e.target.value)}
-                        placeholder="Enter final total"
-                        className="editable-total-input"
-                      />
                     </div>
-                    <div className="gst-section">
-                      <label className="gst-checkbox">
+                  ) : (
+                    <p className="no-products-found">
+                      {selectedOfflineSubcollectionId
+                        ? 'No products found for your search.'
+                        : 'Please select a collection and subcollection to view products.'}
+                    </p>
+                  )}
+                </div>
+
+                <div className="billing-cart-panel">
+                  <h4>Billing Cart</h4>
+                  {Object.keys(offlineCart).length > 0 ? (
+                    <>
+                      <ul className="cart-list">
+                        {/* CRITICAL: Iterate over pricedOfflineCart, not offlineCart */}
+                        {Object.values(pricedOfflineCart).map((item) => {
+                          // Calculate the final unit price and line total for display
+                          const unitPrice = typeof item.calculatedPrice === 'number'
+                            ? item.calculatedPrice
+                            : (item.price !== undefined && item.price !== null ? parseFloat(item.price) : 0);
+                          const lineTotal = unitPrice * item.quantity;
+
+                          return (
+                            <li key={item.id} className="cart-item">
+                              <div className="cart-item-details">
+                                <span className="cart-item-name">{item.productName}</span>
+                                <span className="cart-item-code">{item.productCode}</span>
+                                {/* Display Variation */}
+                                {item.variation && (item.variation.color || item.variation.size) && (
+                                  <span className="cart-item-info variation-detail">
+                                    {item.variation.color} {item.variation.size}
+                                  </span>
+                                )}
+
+                                {/* UPDATED: Display calculated unit price */}
+                                <span className="cart-item-info unit-price">
+                                  ₹{unitPrice.toFixed(2)} / unit
+                                </span>
+                              </div>
+                              <div className="cart-item-controls">
+                                {/* NEW: Display line total */}
+                                <span className="cart-item-info line-total">
+                                  <strong className="line-total-amount">₹{lineTotal.toFixed(2)}</strong>
+                                </span>
+
+                                <button onClick={() => handleOfflineRemoveFromCart(item.id)} className="quantity-btn">-</button>
+                                <span className="cart-quantity">{item.quantity}</span>
+                                <button
+                                  onClick={() => handleOfflineAddToCart(item, item.variation)}
+                                  className="quantity-btn"
+                                  disabled={item.quantity >= (item.availableStock || Infinity)}
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+
+                      {/* NEW: Editable Total Input */}
+                      <div className="cart-total-info">
+                        {/* FIX: Removed the extra ₹ symbol (₹₹ -> ₹) */}
+                        <p className="calculated-total">
+                          Calculated Total: ₹{finalTotal.toFixed(2)}
+                        </p>
+                        <label htmlFor="edited-total-input">Final Total:</label>
+                        <input
+                          id="edited-total-input"
+                          type="number"
+                          value={editedTotal}
+                          onChange={(e) => setEditedTotal(e.target.value)}
+                          placeholder="Enter final total"
+                          className="editable-total-input"
+                        />
+                      </div>
+                      <div className="gst-section">
+                        <label className="gst-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={isGSTApplied}
+                            onChange={(e) => setIsGSTApplied(e.target.checked)}
+                          />
+                          Apply GST ({GST_RATE * 100}%)
+                        </label>
+
+                        {isGSTApplied && (
+                          <p className="gst-amount">
+                            GST Amount: ₹{gstAmount.toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+                      <div className="shipping-section">
+  <label className="shipping-checkbox">
+    <input
+      type="checkbox"
+      checked={isShippingApplied}
+      onChange={(e) => setIsShippingApplied(e.target.checked)}
+    />
+    Apply Shipping (₹{SHIPPING_CHARGE})
+  </label>
+
+  {isShippingApplied && (
+    <p className="shipping-amount">
+      Shipping: ₹{SHIPPING_CHARGE}
+    </p>
+  )}
+</div>
+                      <div className="offline-customer-form">
+                        <h4>Customer Details</h4>
+
+                        <input
+                          type="text"
+                          placeholder="Customer Name"
+                          value={offlineCustomer.fullName}
+                          onChange={(e) => handleOfflineCustomerChange('fullName', e.target.value)}
+                        />
+
+                        <input
+                          type="email"
+                          placeholder="Email (optional)"
+                          value={offlineCustomer.email}
+                          onChange={(e) => handleOfflineCustomerChange('email', e.target.value)}
+                        />
+
+                        <input
+                          type="tel"
+                          placeholder="Phone Number"
+                          value={offlineCustomer.phoneNumber}
+                          onChange={(e) => handleOfflineCustomerChange('phoneNumber', e.target.value)}
+                        />
+
+                        <input
+                          type="text"
+                          placeholder="Address Line 1"
+                          value={offlineCustomer.addressLine1}
+                          onChange={(e) => handleOfflineCustomerChange('addressLine1', e.target.value)}
+                        />
+
+                        <input
+                          type="text"
+                          placeholder="Address Line 2 (optional)"
+                          value={offlineCustomer.addressLine2}
+                          onChange={(e) => handleOfflineCustomerChange('addressLine2', e.target.value)}
+                        />
+
+                        <input
+                          type="text"
+                          placeholder="City"
+                          value={offlineCustomer.city}
+                          onChange={(e) => handleOfflineCustomerChange('city', e.target.value)}
+                        />
+
+                        <input
+                          type="text"
+                          placeholder="State"
+                          value={offlineCustomer.state}
+                          onChange={(e) => handleOfflineCustomerChange('state', e.target.value)}
+                        />
+
+                        <input
+                          type="text"
+                          placeholder="Pincode"
+                          value={offlineCustomer.pincode}
+                          onChange={(e) => handleOfflineCustomerChange('pincode', e.target.value)}
+                        />
+                      </div>
+
+                      <label className="whatsapp-checkbox">
                         <input
                           type="checkbox"
-                          checked={isGSTApplied}
-                          onChange={(e) => setIsGSTApplied(e.target.checked)}
+                          checked={sendInvoiceOnWhatsApp}
+                          onChange={(e) => setSendInvoiceOnWhatsApp(e.target.checked)}
                         />
-                        Apply GST ({GST_RATE * 100}%)
+                        Send invoice on WhatsApp
                       </label>
 
-                      {isGSTApplied && (
-                        <p className="gst-amount">
-                          GST Amount: ₹{gstAmount.toFixed(2)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="offline-customer-form">
-                      <h4>Customer Details</h4>
 
-                      <input
-                        type="text"
-                        placeholder="Customer Name"
-                        value={offlineCustomer.fullName}
-                        onChange={(e) => handleOfflineCustomerChange('fullName', e.target.value)}
-                      />
-
-                      <input
-                        type="email"
-                        placeholder="Email (optional)"
-                        value={offlineCustomer.email}
-                        onChange={(e) => handleOfflineCustomerChange('email', e.target.value)}
-                      />
-
-                      <input
-                        type="tel"
-                        placeholder="Phone Number"
-                        value={offlineCustomer.phoneNumber}
-                        onChange={(e) => handleOfflineCustomerChange('phoneNumber', e.target.value)}
-                      />
-
-                      <input
-                        type="text"
-                        placeholder="Address Line 1"
-                        value={offlineCustomer.addressLine1}
-                        onChange={(e) => handleOfflineCustomerChange('addressLine1', e.target.value)}
-                      />
-
-                      <input
-                        type="text"
-                        placeholder="Address Line 2 (optional)"
-                        value={offlineCustomer.addressLine2}
-                        onChange={(e) => handleOfflineCustomerChange('addressLine2', e.target.value)}
-                      />
-
-                      <input
-                        type="text"
-                        placeholder="City"
-                        value={offlineCustomer.city}
-                        onChange={(e) => handleOfflineCustomerChange('city', e.target.value)}
-                      />
-
-                      <input
-                        type="text"
-                        placeholder="State"
-                        value={offlineCustomer.state}
-                        onChange={(e) => handleOfflineCustomerChange('state', e.target.value)}
-                      />
-
-                      <input
-                        type="text"
-                        placeholder="Pincode"
-                        value={offlineCustomer.pincode}
-                        onChange={(e) => handleOfflineCustomerChange('pincode', e.target.value)}
-                      />
-                    </div>
-
-                    <label className="whatsapp-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={sendInvoiceOnWhatsApp}
-                        onChange={(e) => setSendInvoiceOnWhatsApp(e.target.checked)}
-                      />
-                      Send invoice on WhatsApp
-                    </label>
+                      <button onClick={handleFinalizeSale} className="finalize-sale-btn">
+                        Finalize Sale
+                      </button>
+                      <button
+                        className="print-invoice-btn"
+                        onClick={() => setShowInvoice(true)}
+                      >
+                        🖨 Reprint Invoice
+                      </button>
 
 
-                    <button onClick={handleFinalizeSale} className="finalize-sale-btn">
-                      Finalize Sale
-                    </button>
-                    <button
-                      className="print-invoice-btn"
-                      onClick={() => setShowInvoice(true)}
-                    >
-                      🖨 Reprint Invoice
-                    </button>
-
-
-                  </>
-                ) : (
-                  <p>Cart is empty. Add products to start billing.</p>
-                )}
+                    </>
+                  ) : (
+                    <p>Cart is empty. Add products to start billing.</p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
         {modalImage && (
           <div className="image-modal-backdrop" onClick={closeImageModal}>
             <div
@@ -4926,6 +4993,12 @@ const AdminPage = () => {
                 <span>IGST @ {(invoiceData.gstRate * 100).toFixed(0)}% :</span>
                 <span>₹{invoiceData.gstAmount.toFixed(2)}</span>
               </div>
+              {invoiceData.shippingFee > 0 && (
+  <div>
+    <span>Shipping :</span>
+    <span>₹{invoiceData.shippingFee.toFixed(2)}</span>
+  </div>
+)}
               <div className="net-total">
                 <span>Net Total :</span>
                 <span>₹{invoiceData.total.toFixed(2)}</span>
