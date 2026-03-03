@@ -33,7 +33,7 @@ export const ROLE_CONFIG = {
 
   distributor: {
     label: 'Distributor',
-    minOrderValue: 20000,
+    minOrderValue: 70000,
     canSeeBulkPricing: true,
     pricingKey: 'distributor',
 

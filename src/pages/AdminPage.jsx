@@ -39,6 +39,7 @@ import {
 } from "html5-qrcode";
 
 import { Html5Qrcode } from "html5-qrcode";
+import { auth } from "../firebase"; // adjust path
 
 
 // Low stock threshold constant
@@ -61,10 +62,10 @@ const AdminPage = () => {
 
 
   const ROLE_KEYS = Object.keys(ROLE_CONFIG);
-const PRICING_KEYS = ROLE_KEYS.map(
-  role => ROLE_CONFIG[role].pricingKey
-);
-const [subcollectionsMap, setSubcollectionsMap] = useState({});
+  const PRICING_KEYS = ROLE_KEYS.map(
+    role => ROLE_CONFIG[role].pricingKey
+  );
+  const [subcollectionsMap, setSubcollectionsMap] = useState({});
 
 
   // State for Subcollections
@@ -79,22 +80,24 @@ const [subcollectionsMap, setSubcollectionsMap] = useState({});
   const [isSubcollectionUploading, setIsSubcollectionUploading] = useState(false);
   const [editingSubcollection, setEditingSubcollection] = useState(null);
   // 🔥 Barcode scan input
-const barcodeInputRef = useRef(null);
-const [scannedBarcode, setScannedBarcode] = useState("");
-const [lastScannedProduct, setLastScannedProduct] = useState(null);
+  const barcodeInputRef = useRef(null);
+  const [scannedBarcode, setScannedBarcode] = useState("");
+  const [lastScannedProduct, setLastScannedProduct] = useState(null);
 
-const [showCameraScanner, setShowCameraScanner] = useState(false);
-const html5QrCodeRef = useRef(null);
-const [isScanMode, setIsScanMode] = useState(false);
+  const [showCameraScanner, setShowCameraScanner] = useState(false);
+  const html5QrCodeRef = useRef(null);
+  const [isScanMode, setIsScanMode] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [roleLoading, setRoleLoading] = useState(true);
 
 
-const emptyPricing = PRICING_KEYS.reduce((acc, key) => {
-  acc[key] = [];
-  return acc;
-}, {});
+  const emptyPricing = PRICING_KEYS.reduce((acc, key) => {
+    acc[key] = [];
+    return acc;
+  }, {});
 
-const [subcollectionTieredPricing, setSubcollectionTieredPricing] =
-  useState(emptyPricing);
+  const [subcollectionTieredPricing, setSubcollectionTieredPricing] =
+    useState(emptyPricing);
 
   const navigate = useNavigate();
 
@@ -155,53 +158,75 @@ const [subcollectionTieredPricing, setSubcollectionTieredPricing] =
   const [productReports, setProductReports] = useState([]);
   const [sendInvoiceOnWhatsApp, setSendInvoiceOnWhatsApp] = useState(false);
   const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      const user = auth.currentUser;
 
-// 🔊 Scanner Sounds
-const readySound = new Audio("/sounds/scanner-ready.mp3");
-const successSound = new Audio("/sounds/scan-success.mp3");
-const errorSound = new Audio("/sounds/scan-error.mp3");
-readySound.volume = 0.5;   // softer
-successSound.volume = 1;   // loud beep
-errorSound.volume = 0.8;   // medium
-useEffect(() => {
-  const unlockAudio = () => {
-    if (isAudioUnlocked) return;
+      if (!user) return;
 
-    const temp = new Audio("/sounds/scan-success.mp3");
-    temp.volume = 0;
-    temp.play().catch(() => {});
+      try {
+        const userRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userRef);
 
-    setIsAudioUnlocked(true);
-    console.log("🔓 Audio unlocked");
+        if (userSnap.exists()) {
+          setCurrentUserRole(userSnap.data().role);
+        }
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+      }
+
+      setRoleLoading(false);
+    };
+
+    fetchUserRole();
+  }, []);
+  // 🔊 Scanner Sounds
+  const readySound = new Audio("/sounds/scanner-ready.mp3");
+  const successSound = new Audio("/sounds/scan-success.mp3");
+  const errorSound = new Audio("/sounds/scan-error.mp3");
+  readySound.volume = 0.5;   // softer
+  successSound.volume = 1;   // loud beep
+  errorSound.volume = 0.8;
+  // medium
+  useEffect(() => {
+    const unlockAudio = () => {
+      if (isAudioUnlocked) return;
+
+      const temp = new Audio("/sounds/scan-success.mp3");
+      temp.volume = 0;
+      temp.play().catch(() => { });
+
+      setIsAudioUnlocked(true);
+      console.log("🔓 Audio unlocked");
+    };
+
+    window.addEventListener("click", unlockAudio);
+    window.addEventListener("keydown", unlockAudio);
+
+    return () => {
+      window.removeEventListener("click", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+    };
+  }, [isAudioUnlocked]);
+
+
+  const playSound = (file) => {
+    if (!isAudioUnlocked) return;
+
+    try {
+      const sound = new Audio(file);
+      sound.volume = 1;
+
+      sound.play().catch((err) => {
+        console.log("Play blocked:", err);
+      });
+    } catch (err) {
+      console.log("Sound error:", err);
+    }
   };
 
-  window.addEventListener("click", unlockAudio);
-  window.addEventListener("keydown", unlockAudio);
 
-  return () => {
-    window.removeEventListener("click", unlockAudio);
-    window.removeEventListener("keydown", unlockAudio);
-  };
-}, [isAudioUnlocked]);
-
-
-const playSound = (file) => {
-  if (!isAudioUnlocked) return;
-
-  try {
-    const sound = new Audio(file);
-    sound.volume = 1;
-
-    sound.play().catch((err) => {
-      console.log("Play blocked:", err);
-    });
-  } catch (err) {
-    console.log("Sound error:", err);
-  }
-};
-
-
-const [isScannerReadyPlayed, setIsScannerReadyPlayed] = useState(false);
+  const [isScannerReadyPlayed, setIsScannerReadyPlayed] = useState(false);
 
 
   const [userFilters, setUserFilters] = useState({
@@ -232,7 +257,7 @@ const [isScannerReadyPlayed, setIsScannerReadyPlayed] = useState(false);
   const [selectedOfflineSubcollectionId, setSelectedOfflineSubcollectionId] = useState('');
   const [offlineProducts, setOfflineProducts] = useState([]);
   const [offlineCart, setOfflineCart] = useState({});
-const [offlinePricingKey, setOfflinePricingKey] = useState('retail');
+  const [offlinePricingKey, setOfflinePricingKey] = useState('retail');
 
   const [isOfflineProductsLoading, setIsOfflineProductsLoading] = useState(false);
   const [offlineSubtotal, setOfflineSubtotal] = useState(0);
@@ -349,21 +374,21 @@ const [offlinePricingKey, setOfflinePricingKey] = useState('retail');
 
 
   // Handlers for Tiered Pricing (now for Subcollections)
- const handleAddTier = (type) => {
-  setSubcollectionTieredPricing((prevPricing) => {
-    const existingTiers = Array.isArray(prevPricing[type])
-      ? prevPricing[type]
-      : [];
+  const handleAddTier = (type) => {
+    setSubcollectionTieredPricing((prevPricing) => {
+      const existingTiers = Array.isArray(prevPricing[type])
+        ? prevPricing[type]
+        : [];
 
-    return {
-      ...prevPricing,
-      [type]: [
-        ...existingTiers,
-        { min_quantity: "", max_quantity: "", price: "" }
-      ],
-    };
-  });
-};
+      return {
+        ...prevPricing,
+        [type]: [
+          ...existingTiers,
+          { min_quantity: "", max_quantity: "", price: "" }
+        ],
+      };
+    });
+  };
 
   const onCropComplete = (crop) => {
     setCompletedCrop(crop);
@@ -739,65 +764,65 @@ const [offlinePricingKey, setOfflinePricingKey] = useState('retail');
   }, [activeTab]);
   // NEW: Filtered orders based on search and date range
   // Updated: Filtered orders based on search, date, and now status
-const filteredOrders = useMemo(() => {
-  return orders.filter((order) => {
-    // Search filter logic
-    const searchTerm = orderSearchTerm.toLowerCase();
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      // Search filter logic
+      const searchTerm = orderSearchTerm.toLowerCase();
 
-    const matchesSearch =
-      order.id.toLowerCase().includes(searchTerm) ||
-      (order.billingInfo?.fullName || '').toLowerCase().includes(searchTerm) ||
-      (order.billingInfo?.email || '').toLowerCase().includes(searchTerm) ||
-      (order.billingInfo?.phoneNumber || '').toLowerCase().includes(searchTerm);
+      const matchesSearch =
+        order.id.toLowerCase().includes(searchTerm) ||
+        (order.billingInfo?.fullName || '').toLowerCase().includes(searchTerm) ||
+        (order.billingInfo?.email || '').toLowerCase().includes(searchTerm) ||
+        (order.billingInfo?.phoneNumber || '').toLowerCase().includes(searchTerm);
 
-    // Date filter logic
-    const orderDate = getSafeDate(order.createdAt);
+      // Date filter logic
+      const orderDate = getSafeDate(order.createdAt);
 
-    const isAfterStartDate = startDate
-      ? orderDate >= new Date(startDate)
-      : true;
+      const isAfterStartDate = startDate
+        ? orderDate >= new Date(startDate)
+        : true;
 
-    const isBeforeEndDate = endDate
-      ? orderDate <= new Date(endDate)
-      : true;
+      const isBeforeEndDate = endDate
+        ? orderDate <= new Date(endDate)
+        : true;
 
-    // Status filter logic
-    const matchesStatus =
-      statusFilter === 'All' || order.status === statusFilter;
+      // Status filter logic
+      const matchesStatus =
+        statusFilter === 'All' || order.status === statusFilter;
 
-    return (
-      matchesSearch &&
-      isAfterStartDate &&
-      isBeforeEndDate &&
-      matchesStatus
-    );
-  });
-}, [orders, orderSearchTerm, startDate, endDate, statusFilter]);
-const groupedOrdersFromFiltered = useMemo(() => {
-  return filteredOrders.reduce((acc, order) => {
-    const dateKey = formatOrderDate(order.createdAt);
+      return (
+        matchesSearch &&
+        isAfterStartDate &&
+        isBeforeEndDate &&
+        matchesStatus
+      );
+    });
+  }, [orders, orderSearchTerm, startDate, endDate, statusFilter]);
+  const groupedOrdersFromFiltered = useMemo(() => {
+    return filteredOrders.reduce((acc, order) => {
+      const dateKey = formatOrderDate(order.createdAt);
 
-    if (!acc[dateKey]) {
-      acc[dateKey] = [];
-    }
+      if (!acc[dateKey]) {
+        acc[dateKey] = [];
+      }
 
-    acc[dateKey].push(order);
-    return acc;
-  }, {});
-}, [filteredOrders]);
-const sortedDateKeys = useMemo(() => {
-  const keys = Object.keys(groupedOrdersFromFiltered);
+      acc[dateKey].push(order);
+      return acc;
+    }, {});
+  }, [filteredOrders]);
+  const sortedDateKeys = useMemo(() => {
+    const keys = Object.keys(groupedOrdersFromFiltered);
 
-  return keys.sort((a, b) => {
-    if (a === 'Today') return -1;
-    if (b === 'Today') return 1;
-    if (a === 'Yesterday') return -1;
-    if (b === 'Yesterday') return 1;
+    return keys.sort((a, b) => {
+      if (a === 'Today') return -1;
+      if (b === 'Today') return 1;
+      if (a === 'Yesterday') return -1;
+      if (b === 'Yesterday') return 1;
 
-    // Other dates: newest first
-    return new Date(b) - new Date(a);
-  });
-}, [groupedOrdersFromFiltered]);
+      // Other dates: newest first
+      return new Date(b) - new Date(a);
+    });
+  }, [groupedOrdersFromFiltered]);
 
 
   // New: Fetches low stock products
@@ -958,149 +983,149 @@ const sortedDateKeys = useMemo(() => {
       }
     }
   };
-const handleMainCollectionAdditionalImagesChange = (e) => {
-  const files = Array.from(e.target.files || []);
+  const handleMainCollectionAdditionalImagesChange = (e) => {
+    const files = Array.from(e.target.files || []);
 
-  setMainCollectionAdditionalImages(
-    files.map(file => ({
-      file,
-      previewUrl: URL.createObjectURL(file),
-    }))
-  );
-};
+    setMainCollectionAdditionalImages(
+      files.map(file => ({
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }))
+    );
+  };
 
   // --- Main Collection Handlers ---
-const handleAddMainCollection = async (e) => {
-  e.preventDefault();
+  const handleAddMainCollection = async (e) => {
+    e.preventDefault();
 
-  if (!mainCollectionName || !mainCollectionImageFile || !mainCollectionShowNumber) {
-    alert('Please fill out all fields.');
-    return;
-  }
-
-  setIsMainCollectionUploading(true);
-
-  try {
-    /* ---------- UPLOAD MAIN IMAGE ---------- */
-    const mainImageUrl = await uploadImageAndGetURL(mainCollectionImageFile);
-
-    /* ---------- UPLOAD ADDITIONAL IMAGES ---------- */
-    const uploadedAdditionalImages = [];
-
-    for (const img of mainCollectionAdditionalImages) {
-      if (img.file) {
-        const url = await uploadImageAndGetURL(img.file);
-        uploadedAdditionalImages.push(url);
-      }
+    if (!mainCollectionName || !mainCollectionImageFile || !mainCollectionShowNumber) {
+      alert('Please fill out all fields.');
+      return;
     }
 
-    await addDoc(collection(db, 'collections'), {
-      title: mainCollectionName,
-      image: mainImageUrl,
-      additionalImages: uploadedAdditionalImages,
-      showNumber: parseInt(mainCollectionShowNumber, 10),
-      createdAt: serverTimestamp(),
-    });
+    setIsMainCollectionUploading(true);
 
-    fetchMainCollections();
-    resetMainCollectionForm();
-  } catch (error) {
-    console.error('Error adding main collection:', error);
-    alert('Failed to add main collection.');
-  } finally {
-    setIsMainCollectionUploading(false);
-  }
-};
+    try {
+      /* ---------- UPLOAD MAIN IMAGE ---------- */
+      const mainImageUrl = await uploadImageAndGetURL(mainCollectionImageFile);
+
+      /* ---------- UPLOAD ADDITIONAL IMAGES ---------- */
+      const uploadedAdditionalImages = [];
+
+      for (const img of mainCollectionAdditionalImages) {
+        if (img.file) {
+          const url = await uploadImageAndGetURL(img.file);
+          uploadedAdditionalImages.push(url);
+        }
+      }
+
+      await addDoc(collection(db, 'collections'), {
+        title: mainCollectionName,
+        image: mainImageUrl,
+        additionalImages: uploadedAdditionalImages,
+        showNumber: parseInt(mainCollectionShowNumber, 10),
+        createdAt: serverTimestamp(),
+      });
+
+      fetchMainCollections();
+      resetMainCollectionForm();
+    } catch (error) {
+      console.error('Error adding main collection:', error);
+      alert('Failed to add main collection.');
+    } finally {
+      setIsMainCollectionUploading(false);
+    }
+  };
 
 
- const startEditMainCollection = (item) => {
-  setEditingMainCollection(item);
-  setMainCollectionName(item.title);
-  setMainCollectionShowNumber(item.showNumber);
+  const startEditMainCollection = (item) => {
+    setEditingMainCollection(item);
+    setMainCollectionName(item.title);
+    setMainCollectionShowNumber(item.showNumber);
 
-  setMainCollectionAdditionalImages(
-    (item.additionalImages || []).map(url => ({
-      previewUrl: url,
-    }))
-  );
-};
+    setMainCollectionAdditionalImages(
+      (item.additionalImages || []).map(url => ({
+        previewUrl: url,
+      }))
+    );
+  };
 
 
   const handleUpdateMainCollection = async (e) => {
-  e.preventDefault();
-  if (!editingMainCollection) return;
+    e.preventDefault();
+    if (!editingMainCollection) return;
 
-  setIsMainCollectionUploading(true);
+    setIsMainCollectionUploading(true);
 
-  try {
-    let mainImageUrl = editingMainCollection.image;
+    try {
+      let mainImageUrl = editingMainCollection.image;
 
-    /* ---------- REPLACE MAIN IMAGE IF CHANGED ---------- */
-    if (mainCollectionImageFile) {
-      await deleteImageFromStorage(editingMainCollection.image);
-      mainImageUrl = await uploadImageAndGetURL(mainCollectionImageFile);
-    }
-
-    /* ---------- HANDLE ADDITIONAL IMAGES ---------- */
-    const existingAdditional = mainCollectionAdditionalImages
-      .filter(img => !img.file)
-      .map(img => img.previewUrl);
-
-    const newUploads = [];
-
-    for (const img of mainCollectionAdditionalImages) {
-      if (img.file) {
-        const url = await uploadImageAndGetURL(img.file);
-        newUploads.push(url);
+      /* ---------- REPLACE MAIN IMAGE IF CHANGED ---------- */
+      if (mainCollectionImageFile) {
+        await deleteImageFromStorage(editingMainCollection.image);
+        mainImageUrl = await uploadImageAndGetURL(mainCollectionImageFile);
       }
-    }
 
-    const allAdditionalImages = [...existingAdditional, ...newUploads];
+      /* ---------- HANDLE ADDITIONAL IMAGES ---------- */
+      const existingAdditional = mainCollectionAdditionalImages
+        .filter(img => !img.file)
+        .map(img => img.previewUrl);
 
-    await updateDoc(
-      doc(db, 'collections', editingMainCollection.id),
-      {
-        title: mainCollectionName,
-        image: mainImageUrl,
-        additionalImages: allAdditionalImages,
-        showNumber: parseInt(mainCollectionShowNumber, 10),
-        updatedAt: serverTimestamp(),
+      const newUploads = [];
+
+      for (const img of mainCollectionAdditionalImages) {
+        if (img.file) {
+          const url = await uploadImageAndGetURL(img.file);
+          newUploads.push(url);
+        }
       }
-    );
 
-    fetchMainCollections();
-    resetMainCollectionForm();
-  } catch (error) {
-    console.error('Error updating main collection:', error);
-    alert('Failed to update main collection.');
-  } finally {
-    setIsMainCollectionUploading(false);
-  }
-};
+      const allAdditionalImages = [...existingAdditional, ...newUploads];
+
+      await updateDoc(
+        doc(db, 'collections', editingMainCollection.id),
+        {
+          title: mainCollectionName,
+          image: mainImageUrl,
+          additionalImages: allAdditionalImages,
+          showNumber: parseInt(mainCollectionShowNumber, 10),
+          updatedAt: serverTimestamp(),
+        }
+      );
+
+      fetchMainCollections();
+      resetMainCollectionForm();
+    } catch (error) {
+      console.error('Error updating main collection:', error);
+      alert('Failed to update main collection.');
+    } finally {
+      setIsMainCollectionUploading(false);
+    }
+  };
 
 
   const handleDeleteMainCollection = async (item) => {
-  if (!window.confirm('Delete this collection and all its data?')) return;
+    if (!window.confirm('Delete this collection and all its data?')) return;
 
-  try {
-    const urlsToDelete = [
-      item.image,
-      ...(item.additionalImages || []),
-    ];
+    try {
+      const urlsToDelete = [
+        item.image,
+        ...(item.additionalImages || []),
+      ];
 
-    for (const url of urlsToDelete) {
-      if (url) {
-        await deleteObject(ref(storage, url));
+      for (const url of urlsToDelete) {
+        if (url) {
+          await deleteObject(ref(storage, url));
+        }
       }
-    }
 
-    await deleteDoc(doc(db, 'collections', item.id));
-    fetchMainCollections();
-  } catch (err) {
-    console.error('Error deleting main collection:', err);
-    alert('Failed to delete collection.');
-  }
-};
+      await deleteDoc(doc(db, 'collections', item.id));
+      fetchMainCollections();
+    } catch (err) {
+      console.error('Error deleting main collection:', err);
+      alert('Failed to delete collection.');
+    }
+  };
 
   const generateInvoicePDFBlob = async () => {
     const element = document.getElementById("invoice-pdf");
@@ -1143,159 +1168,159 @@ const handleAddMainCollection = async (e) => {
 
   // --- Subcollection Handlers ---
 
-const handleAddSubcollection = async (e) => {
-  e.preventDefault();
+  const handleAddSubcollection = async (e) => {
+    e.preventDefault();
 
-  // ✅ BASIC REQUIRED FIELDS CHECK
-  if (
-    !selectedMainCollectionId ||
-    !subcollectionName ||
-    !subcollectionPurchaseRate ||
-    !subcollectionImageFile ||
-    !subcollectionShowNumber
-  ) {
-    alert('Please fill out all required fields.');
-    return;
-  }
-
-  // ✅ ROLE-AGNOSTIC PRICING VALIDATION (IMPORTANT FIX)
-  const hasPricing = Object.values(subcollectionTieredPricing)
-    .some(tiers => Array.isArray(tiers) && tiers.length > 0);
-
-  if (!hasPricing) {
-    alert('Add at least one pricing tier.');
-    return;
-  }
-
-  setIsSubcollectionUploading(true);
-
-  try {
-    const imageUrl = await uploadImageAndGetURL(subcollectionImageFile);
-
-    const subcollectionRef = collection(
-      db,
-      'collections',
-      selectedMainCollectionId,
-      'subcollections'
-    );
-
-    const newDoc = await addDoc(subcollectionRef, {
-      name: subcollectionName,
-      description: subcollectionDescription,
-      image: imageUrl,
-      showNumber: parseInt(subcollectionShowNumber, 10),
-      purchaseRate: parseFloat(subcollectionPurchaseRate),
-      tieredPricing: subcollectionTieredPricing,
-      createdAt: serverTimestamp(),
-    });
-
-    console.log('Subcollection added with ID:', newDoc.id);
-    fetchSubcollections();
-  } catch (error) {
-    console.error('Error adding subcollection:', error);
-    alert('Failed to add subcollection.');
-  } finally {
-    setIsSubcollectionUploading(false);
-    resetSubcollectionForm();
-  }
-};
-
-const startEditSubcollection = (item) => {
-  setEditingSubcollection(item);
-  setSubcollectionName(item.name || '');
-  setSubcollectionDescription(item.description || '');
-  setSubcollectionShowNumber(item.showNumber || '');
-  setSubcollectionPurchaseRate(item.purchaseRate || '');
-
-  // ✅ SAFE DEFAULT FOR MULTI-ROLE PRICING
-  setSubcollectionTieredPricing(item.tieredPricing || {});
-};
-
-const handleUpdateSubcollection = async (e) => {
-  e.preventDefault();
-  if (!editingSubcollection) return;
-
-  // ✅ ROLE-AGNOSTIC PRICING VALIDATION (SAME AS ADD)
-  const hasPricing = Object.values(subcollectionTieredPricing)
-    .some(tiers => Array.isArray(tiers) && tiers.length > 0);
-
-  if (!hasPricing) {
-    alert('Add at least one pricing tier.');
-    return;
-  }
-
-  setIsSubcollectionUploading(true);
-
-  let imageUrl = editingSubcollection.image;
-
-  try {
-    if (subcollectionImageFile) {
-      await deleteImageFromStorage(editingSubcollection.image);
-      imageUrl = await uploadImageAndGetURL(subcollectionImageFile);
+    // ✅ BASIC REQUIRED FIELDS CHECK
+    if (
+      !selectedMainCollectionId ||
+      !subcollectionName ||
+      !subcollectionPurchaseRate ||
+      !subcollectionImageFile ||
+      !subcollectionShowNumber
+    ) {
+      alert('Please fill out all required fields.');
+      return;
     }
 
-    const docRef = doc(
-      db,
-      'collections',
-      selectedMainCollectionId,
-      'subcollections',
-      editingSubcollection.id
-    );
+    // ✅ ROLE-AGNOSTIC PRICING VALIDATION (IMPORTANT FIX)
+    const hasPricing = Object.values(subcollectionTieredPricing)
+      .some(tiers => Array.isArray(tiers) && tiers.length > 0);
 
-    await updateDoc(docRef, {
-      name: subcollectionName,
-      description: subcollectionDescription,
-      image: imageUrl,
-      showNumber: parseInt(subcollectionShowNumber, 10),
-      purchaseRate: parseFloat(subcollectionPurchaseRate),
-      tieredPricing: subcollectionTieredPricing,
-      updatedAt: serverTimestamp(),
-    });
+    if (!hasPricing) {
+      alert('Add at least one pricing tier.');
+      return;
+    }
 
-    console.log('Subcollection updated successfully');
-    fetchSubcollections();
-  } catch (error) {
-    console.error('Error updating subcollection:', error);
-    alert('Failed to update subcollection.');
-  } finally {
-    setIsSubcollectionUploading(false);
-    resetSubcollectionForm();
-  }
-};
+    setIsSubcollectionUploading(true);
 
-const handleDeleteSubcollection = async (id, imageUrl) => {
-  if (!window.confirm('Are you sure you want to delete this subcollection and all its products?')) {
-    return;
-  }
+    try {
+      const imageUrl = await uploadImageAndGetURL(subcollectionImageFile);
 
-  try {
-    await deleteImageFromStorage(imageUrl);
+      const subcollectionRef = collection(
+        db,
+        'collections',
+        selectedMainCollectionId,
+        'subcollections'
+      );
 
-    const docRef = doc(
-      db,
-      'collections',
-      selectedMainCollectionId,
-      'subcollections',
-      id
-    );
+      const newDoc = await addDoc(subcollectionRef, {
+        name: subcollectionName,
+        description: subcollectionDescription,
+        image: imageUrl,
+        showNumber: parseInt(subcollectionShowNumber, 10),
+        purchaseRate: parseFloat(subcollectionPurchaseRate),
+        tieredPricing: subcollectionTieredPricing,
+        createdAt: serverTimestamp(),
+      });
 
-    await deleteDoc(docRef);
-    fetchSubcollections();
-  } catch (error) {
-    console.error('Error deleting subcollection:', error);
-    alert('Failed to delete subcollection.');
-  }
-};
+      console.log('Subcollection added with ID:', newDoc.id);
+      fetchSubcollections();
+    } catch (error) {
+      console.error('Error adding subcollection:', error);
+      alert('Failed to add subcollection.');
+    } finally {
+      setIsSubcollectionUploading(false);
+      resetSubcollectionForm();
+    }
+  };
 
-const resetSubcollectionForm = () => {
-  setSubcollectionName('');
-  setSubcollectionDescription('');
-  setSubcollectionImageFile(null);
-  setSubcollectionShowNumber('');
-  setSubcollectionPurchaseRate('');
-  setSubcollectionTieredPricing({});
-  setEditingSubcollection(null);
-};
+  const startEditSubcollection = (item) => {
+    setEditingSubcollection(item);
+    setSubcollectionName(item.name || '');
+    setSubcollectionDescription(item.description || '');
+    setSubcollectionShowNumber(item.showNumber || '');
+    setSubcollectionPurchaseRate(item.purchaseRate || '');
+
+    // ✅ SAFE DEFAULT FOR MULTI-ROLE PRICING
+    setSubcollectionTieredPricing(item.tieredPricing || {});
+  };
+
+  const handleUpdateSubcollection = async (e) => {
+    e.preventDefault();
+    if (!editingSubcollection) return;
+
+    // ✅ ROLE-AGNOSTIC PRICING VALIDATION (SAME AS ADD)
+    const hasPricing = Object.values(subcollectionTieredPricing)
+      .some(tiers => Array.isArray(tiers) && tiers.length > 0);
+
+    if (!hasPricing) {
+      alert('Add at least one pricing tier.');
+      return;
+    }
+
+    setIsSubcollectionUploading(true);
+
+    let imageUrl = editingSubcollection.image;
+
+    try {
+      if (subcollectionImageFile) {
+        await deleteImageFromStorage(editingSubcollection.image);
+        imageUrl = await uploadImageAndGetURL(subcollectionImageFile);
+      }
+
+      const docRef = doc(
+        db,
+        'collections',
+        selectedMainCollectionId,
+        'subcollections',
+        editingSubcollection.id
+      );
+
+      await updateDoc(docRef, {
+        name: subcollectionName,
+        description: subcollectionDescription,
+        image: imageUrl,
+        showNumber: parseInt(subcollectionShowNumber, 10),
+        purchaseRate: parseFloat(subcollectionPurchaseRate),
+        tieredPricing: subcollectionTieredPricing,
+        updatedAt: serverTimestamp(),
+      });
+
+      console.log('Subcollection updated successfully');
+      fetchSubcollections();
+    } catch (error) {
+      console.error('Error updating subcollection:', error);
+      alert('Failed to update subcollection.');
+    } finally {
+      setIsSubcollectionUploading(false);
+      resetSubcollectionForm();
+    }
+  };
+
+  const handleDeleteSubcollection = async (id, imageUrl) => {
+    if (!window.confirm('Are you sure you want to delete this subcollection and all its products?')) {
+      return;
+    }
+
+    try {
+      await deleteImageFromStorage(imageUrl);
+
+      const docRef = doc(
+        db,
+        'collections',
+        selectedMainCollectionId,
+        'subcollections',
+        id
+      );
+
+      await deleteDoc(docRef);
+      fetchSubcollections();
+    } catch (error) {
+      console.error('Error deleting subcollection:', error);
+      alert('Failed to delete subcollection.');
+    }
+  };
+
+  const resetSubcollectionForm = () => {
+    setSubcollectionName('');
+    setSubcollectionDescription('');
+    setSubcollectionImageFile(null);
+    setSubcollectionShowNumber('');
+    setSubcollectionPurchaseRate('');
+    setSubcollectionTieredPricing({});
+    setEditingSubcollection(null);
+  };
 
   // --- Product Handlers ---
   const handleProductImageChange = (e) => {
@@ -1464,308 +1489,308 @@ const resetSubcollectionForm = () => {
 
     setCurrentImageIndex(currentImageIndex + 1);
   };
- const handleAddAllProducts = async (e) => {
-  e.preventDefault();
-  setIsProductUploading(true);
+  const handleAddAllProducts = async (e) => {
+    e.preventDefault();
+    setIsProductUploading(true);
 
-  try {
-    const productCollectionRef = collection(
-      db,
-      "collections",
-      selectedMainCollectionId,
-      "subcollections",
-      selectedSubcollectionId,
-      "products"
-    );
+    try {
+      const productCollectionRef = collection(
+        db,
+        "collections",
+        selectedMainCollectionId,
+        "subcollections",
+        selectedSubcollectionId,
+        "products"
+      );
 
-    const batch = writeBatch(db);
+      const batch = writeBatch(db);
 
-    for (const product of newProducts) {
-      // Safety check
-      if (!product.productName || !product.productCode) {
-        console.error("Skipping product with missing name/code:", product);
-        continue;
+      for (const product of newProducts) {
+        // Safety check
+        if (!product.productName || !product.productCode) {
+          console.error("Skipping product with missing name/code:", product);
+          continue;
+        }
+
+        /* -----------------------------------------
+           STEP 1: UPLOAD ALL IMAGES (MAIN + EXTRA)
+        ------------------------------------------ */
+        const uploadedImageUrls = [];
+
+        for (const img of product.images || []) {
+          if (img.file) {
+            const url = await uploadImageAndGetURL(img.file);
+            uploadedImageUrls.push(url);
+          }
+        }
+
+        // Split images
+        const mainImageUrl = uploadedImageUrls[0] || "";
+        const additionalImageUrls = uploadedImageUrls.slice(1);
+
+        /* -----------------------------------------
+           STEP 2: HANDLE VARIATIONS / QUANTITY
+        ------------------------------------------ */
+        let finalVariations = [];
+        let totalQuantity = 0;
+
+        if (product.variations && product.variations.length > 0) {
+          finalVariations = product.variations.map(v => ({
+            color: v.color || "",
+            size: v.size || "",
+            quantity: Number(v.quantity) || 0,
+          }));
+
+          totalQuantity = finalVariations.reduce(
+            (sum, v) => sum + v.quantity,
+            0
+          );
+        } else {
+          totalQuantity = Number(product.quantity) || 0;
+          finalVariations = [];
+        }
+
+        /* -----------------------------------------
+           STEP 3: PREPARE PRODUCT DATA (🔥 IMPORTANT)
+        ------------------------------------------ */
+        const productData = {
+          productName: product.productName,
+          productCode: product.productCode,
+
+          image: mainImageUrl,                      // ✅ main image
+          additionalImages: additionalImageUrls,    // ✅ REQUIRED BY ProductCard
+
+          quantity: totalQuantity,
+          variations: finalVariations,
+
+          mainCollection: selectedMainCollectionId,
+          createdAt: serverTimestamp(),
+        };
+
+        console.log("Saving product:", productData);
+
+        const newDocRef = doc(productCollectionRef);
+        batch.set(newDocRef, productData);
       }
 
-      /* -----------------------------------------
-         STEP 1: UPLOAD ALL IMAGES (MAIN + EXTRA)
-      ------------------------------------------ */
-      const uploadedImageUrls = [];
+      await batch.commit();
 
-      for (const img of product.images || []) {
+      alert("All products added successfully!");
+      fetchProducts();
+      resetProductForm();
+
+      // Cleanup
+      setNewProducts([]);
+      setProductVariations([]);
+      setNewVariation({ color: "", size: "", quantity: "" });
+
+    } catch (err) {
+      console.error("Error adding products:", err);
+      alert("Failed to save products.");
+    } finally {
+      setIsProductUploading(false);
+    }
+  };
+
+
+  const startEditProduct = (product) => {
+    console.log("Starting edit for product:", product);
+
+    setEditingProduct(product);
+
+    // Basic info
+    setProductName(product.productName || "");
+    setProductCode(product.productCode || "");
+
+    /* -----------------------------------------
+       STEP 1: LOAD VARIATIONS OR SINGLE QUANTITY
+    ------------------------------------------ */
+    if (product.variations && product.variations.length > 0) {
+      setProductVariations(
+        product.variations.map(v => ({
+          color: v.color || "",
+          size: v.size || "",
+          quantity: v.quantity || "",
+        }))
+      );
+      setProductQuantity("");
+    } else {
+      setProductVariations([]);
+      setProductQuantity(product.quantity || "");
+    }
+
+    setNewVariation({ color: "", size: "", quantity: "" });
+
+    /* -----------------------------------------
+       STEP 2: LOAD ADDITIONAL IMAGES (🔥 IMPORTANT)
+    ------------------------------------------ */
+    setAdditionalImages(
+      (product.additionalImages || []).map(url => ({
+        previewUrl: url
+      }))
+    );
+
+    /* -----------------------------------------
+       STEP 3: SHOW FORM
+    ------------------------------------------ */
+    setShowProductForm(true);
+  };
+
+  const handleUpdateProduct = async (e) => {
+    e.preventDefault();
+    setIsProductUploading(true);
+
+    try {
+      const productDocRef = doc(
+        db,
+        "collections",
+        selectedMainCollectionId,
+        "subcollections",
+        selectedSubcollectionId,
+        "products",
+        editingProduct.id
+      );
+
+      /* -----------------------------------------
+         STEP 1: UPLOAD ONLY NEW IMAGES
+      ------------------------------------------ */
+      const uploadedNewImageUrls = [];
+
+      for (const img of additionalImages) {
+        // img.file exists ONLY for newly added images
         if (img.file) {
           const url = await uploadImageAndGetURL(img.file);
-          uploadedImageUrls.push(url);
+          uploadedNewImageUrls.push(url);
         }
       }
 
-      // Split images
-      const mainImageUrl = uploadedImageUrls[0] || "";
-      const additionalImageUrls = uploadedImageUrls.slice(1);
+      /* -----------------------------------------
+         STEP 2: KEEP EXISTING IMAGE URLS
+      ------------------------------------------ */
+      const existingImageUrls = additionalImages
+        .filter(img => !img.file && img.previewUrl)
+        .map(img => img.previewUrl);
+
+      const allImageUrls = [
+        ...(editingProduct.image ? [editingProduct.image] : []),
+        ...existingImageUrls,
+        ...uploadedNewImageUrls,
+      ];
+
+      const mainImageUrl = allImageUrls[0] || "";
+      const additionalImageUrls = allImageUrls.slice(1);
 
       /* -----------------------------------------
-         STEP 2: HANDLE VARIATIONS / QUANTITY
+         STEP 3: HANDLE VARIATIONS / QUANTITY
       ------------------------------------------ */
       let finalVariations = [];
-      let totalQuantity = 0;
+      let finalQuantity = 0;
 
-      if (product.variations && product.variations.length > 0) {
-        finalVariations = product.variations.map(v => ({
+      if (productVariations.length > 0) {
+        finalVariations = productVariations.map(v => ({
           color: v.color || "",
           size: v.size || "",
           quantity: Number(v.quantity) || 0,
         }));
 
-        totalQuantity = finalVariations.reduce(
+        finalQuantity = finalVariations.reduce(
           (sum, v) => sum + v.quantity,
           0
         );
       } else {
-        totalQuantity = Number(product.quantity) || 0;
+        finalQuantity = Number(productQuantity) || 0;
         finalVariations = [];
       }
 
       /* -----------------------------------------
-         STEP 3: PREPARE PRODUCT DATA (🔥 IMPORTANT)
+         STEP 4: UPDATE FIRESTORE (🔥 IMPORTANT)
       ------------------------------------------ */
       const productData = {
-        productName: product.productName,
-        productCode: product.productCode,
+        productName,
+        productCode,
 
         image: mainImageUrl,                      // ✅ main image
-        additionalImages: additionalImageUrls,    // ✅ REQUIRED BY ProductCard
+        additionalImages: additionalImageUrls,    // ✅ what ProductCard expects
 
-        quantity: totalQuantity,
+        quantity: finalQuantity,
         variations: finalVariations,
 
-        mainCollection: selectedMainCollectionId,
-        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       };
 
-      console.log("Saving product:", productData);
+      await updateDoc(productDocRef, productData);
 
-      const newDocRef = doc(productCollectionRef);
-      batch.set(newDocRef, productData);
+      alert("Product updated successfully!");
+      fetchProducts();
+      resetProductForm();
+
+      // Cleanup
+      setEditingProduct(null);
+      setAdditionalImages([]);
+      setProductVariations([]);
+      setNewVariation({ color: "", size: "", quantity: "" });
+
+    } catch (err) {
+      console.error("Error updating product:", err);
+      alert("Failed to update product.");
+    } finally {
+      setIsProductUploading(false);
     }
-
-    await batch.commit();
-
-    alert("All products added successfully!");
-    fetchProducts();
-    resetProductForm();
-
-    // Cleanup
-    setNewProducts([]);
-    setProductVariations([]);
-    setNewVariation({ color: "", size: "", quantity: "" });
-
-  } catch (err) {
-    console.error("Error adding products:", err);
-    alert("Failed to save products.");
-  } finally {
-    setIsProductUploading(false);
-  }
-};
-
-
-  const startEditProduct = (product) => {
-  console.log("Starting edit for product:", product);
-
-  setEditingProduct(product);
-
-  // Basic info
-  setProductName(product.productName || "");
-  setProductCode(product.productCode || "");
-
-  /* -----------------------------------------
-     STEP 1: LOAD VARIATIONS OR SINGLE QUANTITY
-  ------------------------------------------ */
-  if (product.variations && product.variations.length > 0) {
-    setProductVariations(
-      product.variations.map(v => ({
-        color: v.color || "",
-        size: v.size || "",
-        quantity: v.quantity || "",
-      }))
-    );
-    setProductQuantity("");
-  } else {
-    setProductVariations([]);
-    setProductQuantity(product.quantity || "");
-  }
-
-  setNewVariation({ color: "", size: "", quantity: "" });
-
-  /* -----------------------------------------
-     STEP 2: LOAD ADDITIONAL IMAGES (🔥 IMPORTANT)
-  ------------------------------------------ */
-  setAdditionalImages(
-    (product.additionalImages || []).map(url => ({
-      previewUrl: url
-    }))
-  );
-
-  /* -----------------------------------------
-     STEP 3: SHOW FORM
-  ------------------------------------------ */
-  setShowProductForm(true);
-};
-
-  const handleUpdateProduct = async (e) => {
-  e.preventDefault();
-  setIsProductUploading(true);
-
-  try {
-    const productDocRef = doc(
-      db,
-      "collections",
-      selectedMainCollectionId,
-      "subcollections",
-      selectedSubcollectionId,
-      "products",
-      editingProduct.id
-    );
-
-    /* -----------------------------------------
-       STEP 1: UPLOAD ONLY NEW IMAGES
-    ------------------------------------------ */
-    const uploadedNewImageUrls = [];
-
-    for (const img of additionalImages) {
-      // img.file exists ONLY for newly added images
-      if (img.file) {
-        const url = await uploadImageAndGetURL(img.file);
-        uploadedNewImageUrls.push(url);
-      }
-    }
-
-    /* -----------------------------------------
-       STEP 2: KEEP EXISTING IMAGE URLS
-    ------------------------------------------ */
-    const existingImageUrls = additionalImages
-      .filter(img => !img.file && img.previewUrl)
-      .map(img => img.previewUrl);
-
-    const allImageUrls = [
-      ...(editingProduct.image ? [editingProduct.image] : []),
-      ...existingImageUrls,
-      ...uploadedNewImageUrls,
-    ];
-
-    const mainImageUrl = allImageUrls[0] || "";
-    const additionalImageUrls = allImageUrls.slice(1);
-
-    /* -----------------------------------------
-       STEP 3: HANDLE VARIATIONS / QUANTITY
-    ------------------------------------------ */
-    let finalVariations = [];
-    let finalQuantity = 0;
-
-    if (productVariations.length > 0) {
-      finalVariations = productVariations.map(v => ({
-        color: v.color || "",
-        size: v.size || "",
-        quantity: Number(v.quantity) || 0,
-      }));
-
-      finalQuantity = finalVariations.reduce(
-        (sum, v) => sum + v.quantity,
-        0
-      );
-    } else {
-      finalQuantity = Number(productQuantity) || 0;
-      finalVariations = [];
-    }
-
-    /* -----------------------------------------
-       STEP 4: UPDATE FIRESTORE (🔥 IMPORTANT)
-    ------------------------------------------ */
-    const productData = {
-      productName,
-      productCode,
-
-      image: mainImageUrl,                      // ✅ main image
-      additionalImages: additionalImageUrls,    // ✅ what ProductCard expects
-
-      quantity: finalQuantity,
-      variations: finalVariations,
-
-      updatedAt: serverTimestamp(),
-    };
-
-    await updateDoc(productDocRef, productData);
-
-    alert("Product updated successfully!");
-    fetchProducts();
-    resetProductForm();
-
-    // Cleanup
-    setEditingProduct(null);
-    setAdditionalImages([]);
-    setProductVariations([]);
-    setNewVariation({ color: "", size: "", quantity: "" });
-
-  } catch (err) {
-    console.error("Error updating product:", err);
-    alert("Failed to update product.");
-  } finally {
-    setIsProductUploading(false);
-  }
-};
+  };
 
 
   const handleDeleteProduct = async (product) => {
-  if (!window.confirm("Are you sure you want to delete this product?")) {
-    return;
-  }
-
-  try {
-    /* -----------------------------------------
-       STEP 1: COLLECT ALL IMAGE URLS
-    ------------------------------------------ */
-    const imageUrls = [
-      product.image,
-      ...(product.additionalImages || []),
-    ];
-
-    /* -----------------------------------------
-       STEP 2: DELETE ALL IMAGES FROM STORAGE
-    ------------------------------------------ */
-    for (const url of imageUrls) {
-      if (url) {
-        try {
-          const imageRef = ref(storage, url);
-          await deleteObject(imageRef);
-        } catch (err) {
-          console.warn("Failed to delete image:", url, err);
-          // Continue deleting others even if one fails
-        }
-      }
+    if (!window.confirm("Are you sure you want to delete this product?")) {
+      return;
     }
 
-    /* -----------------------------------------
-       STEP 3: DELETE PRODUCT DOCUMENT
-    ------------------------------------------ */
-    const productDocRef = doc(
-      db,
-      "collections",
-      selectedMainCollectionId,
-      "subcollections",
-      selectedSubcollectionId,
-      "products",
-      product.id
-    );
+    try {
+      /* -----------------------------------------
+         STEP 1: COLLECT ALL IMAGE URLS
+      ------------------------------------------ */
+      const imageUrls = [
+        product.image,
+        ...(product.additionalImages || []),
+      ];
 
-    await deleteDoc(productDocRef);
+      /* -----------------------------------------
+         STEP 2: DELETE ALL IMAGES FROM STORAGE
+      ------------------------------------------ */
+      for (const url of imageUrls) {
+        if (url) {
+          try {
+            const imageRef = ref(storage, url);
+            await deleteObject(imageRef);
+          } catch (err) {
+            console.warn("Failed to delete image:", url, err);
+            // Continue deleting others even if one fails
+          }
+        }
+      }
 
-    fetchProducts();
-    alert("Product deleted successfully!");
+      /* -----------------------------------------
+         STEP 3: DELETE PRODUCT DOCUMENT
+      ------------------------------------------ */
+      const productDocRef = doc(
+        db,
+        "collections",
+        selectedMainCollectionId,
+        "subcollections",
+        selectedSubcollectionId,
+        "products",
+        product.id
+      );
 
-  } catch (err) {
-    console.error("Error deleting product:", err);
-    alert("Failed to delete product.");
-  }
-};
+      await deleteDoc(productDocRef);
+
+      fetchProducts();
+      alert("Product deleted successfully!");
+
+    } catch (err) {
+      console.error("Error deleting product:", err);
+      alert("Failed to delete product.");
+    }
+  };
 
   const filteredAndSortedUsers = [...users]
 
@@ -2185,62 +2210,62 @@ const resetSubcollectionForm = () => {
     }
   };
 
-const handleExportUsers = () => {
-  if (!filteredAndSortedUsers.length) return;
+  const handleExportUsers = () => {
+    if (!filteredAndSortedUsers.length) return;
 
-  const headers = [
-    "Name",
-    "Role",
-    "Mobile",
-    "Address",
-    "Last Login",
-    "Last Order",
-    "Total Orders",
-    "Total Amount",
-    "Created At",
-  ];
-
-  const rows = filteredAndSortedUsers.map((user) => {
-    const stats = userOrderStats[user.id] || {};
-
-    return [
-      user.name || "",
-      user.role || "",
-      user.mobile || "",
-      user.address || "",
-      formatDate(user.lastLogin),
-      stats.lastOrderDate ? formatDate(stats.lastOrderDate) : "",
-      stats.totalOrders || 0,
-      stats.lifetimeValue || 0,
-      formatDate(user.createdAt),
+    const headers = [
+      "Name",
+      "Role",
+      "Mobile",
+      "Address",
+      "Last Login",
+      "Last Order",
+      "Total Orders",
+      "Total Amount",
+      "Created At",
     ];
-  });
 
-  const csvContent = [
-    headers.join(","),
-    ...rows.map((row) =>
-      row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
-    ),
-  ].join("\n");
+    const rows = filteredAndSortedUsers.map((user) => {
+      const stats = userOrderStats[user.id] || {};
 
-  const blob = new Blob([csvContent], {
-    type: "text/csv;charset=utf-8;",
-  });
+      return [
+        user.name || "",
+        user.role || "",
+        user.mobile || "",
+        user.address || "",
+        formatDate(user.lastLogin),
+        stats.lastOrderDate ? formatDate(stats.lastOrderDate) : "",
+        stats.totalOrders || 0,
+        stats.lifetimeValue || 0,
+        formatDate(user.createdAt),
+      ];
+    });
 
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) =>
+        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+      ),
+    ].join("\n");
 
-  link.href = url;
-  link.setAttribute(
-    "download",
-    `users_export_${new Date().toISOString().slice(0, 10)}.csv`
-  );
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
 
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.setAttribute(
+      "download",
+      `users_export_${new Date().toISOString().slice(0, 10)}.csv`
+    );
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
 
   const handleOfflineRemoveFromCart = (cartItemId) => {
@@ -2260,353 +2285,292 @@ const handleExportUsers = () => {
   // If this function is in a component, you may need to import those Firestore functions.
   // --- Function to calculate the final price per item and the total ---
   // NOTE: This logic replaces or is integrated into your existing getOfflineCartTotal logic
-const calculatePricedCart = async () => {
-  const cartItems = Object.values(offlineCart);
-  if (cartItems.length === 0) {
-    return { updatedCartMap: {}, total: 0 };
-  }
+  const calculatePricedCart = async () => {
+    const cartItems = Object.values(offlineCart);
+    if (cartItems.length === 0) {
+      return { updatedCartMap: {}, total: 0 };
+    }
 
-  const subcollectionPricingMap = {};
-  const updatedCartMap = { ...offlineCart };
+    const subcollectionPricingMap = {};
+    const updatedCartMap = { ...offlineCart };
 
-  // ✅ pricing key comes from role-based system
-  const pricingTypeKey = offlinePricingKey;
+    // ✅ pricing key comes from role-based system
+    const pricingTypeKey = offlinePricingKey;
 
-  /* -----------------------------------
-     PHASE 1: GROUP ITEMS + FETCH PRICING
-  ----------------------------------- */
-  for (const item of cartItems) {
-    const subcollectionId = item.subcollectionId;
-    const collectionId = item.collectionId;
-    const quantitySold = Number(item.quantity) || 0;
+    /* -----------------------------------
+       PHASE 1: GROUP ITEMS + FETCH PRICING
+    ----------------------------------- */
+    for (const item of cartItems) {
+      const subcollectionId = item.subcollectionId;
+      const collectionId = item.collectionId;
+      const quantitySold = Number(item.quantity) || 0;
 
-    if (!subcollectionPricingMap[subcollectionId]) {
-      const subcollectionRef = doc(
-        db,
-        'collections',
-        collectionId,
-        'subcollections',
-        subcollectionId
-      );
+      if (!subcollectionPricingMap[subcollectionId]) {
+        const subcollectionRef = doc(
+          db,
+          'collections',
+          collectionId,
+          'subcollections',
+          subcollectionId
+        );
 
-      const subcollectionDoc = await getDoc(subcollectionRef);
+        const subcollectionDoc = await getDoc(subcollectionRef);
 
-      if (!subcollectionDoc.exists()) {
-        console.error(`Subcollection pricing not found: ${subcollectionId}`);
-        continue;
+        if (!subcollectionDoc.exists()) {
+          console.error(`Subcollection pricing not found: ${subcollectionId}`);
+          continue;
+        }
+
+        subcollectionPricingMap[subcollectionId] = {
+          pricingData: subcollectionDoc.data().tieredPricing || {},
+          totalQuantity: 0,
+          items: [],
+        };
       }
 
-      subcollectionPricingMap[subcollectionId] = {
-        pricingData: subcollectionDoc.data().tieredPricing || {},
-        totalQuantity: 0,
-        items: [],
-      };
+      subcollectionPricingMap[subcollectionId].totalQuantity += quantitySold;
+      subcollectionPricingMap[subcollectionId].items.push(item);
     }
 
-    subcollectionPricingMap[subcollectionId].totalQuantity += quantitySold;
-    subcollectionPricingMap[subcollectionId].items.push(item);
-  }
+    let runningTotal = 0;
 
-  let runningTotal = 0;
+    /* -----------------------------------
+       PHASE 2: APPLY TIERED PRICING
+    ----------------------------------- */
+    for (const entry of Object.values(subcollectionPricingMap)) {
+      const tiers = entry.pricingData?.[pricingTypeKey];
+      const totalGroupQuantity = entry.totalQuantity;
 
-  /* -----------------------------------
-     PHASE 2: APPLY TIERED PRICING
-  ----------------------------------- */
-  for (const entry of Object.values(subcollectionPricingMap)) {
-    const tiers = entry.pricingData?.[pricingTypeKey];
-    const totalGroupQuantity = entry.totalQuantity;
+      let finalPricePerUnit = null;
 
-    let finalPricePerUnit = null;
+      if (Array.isArray(tiers) && tiers.length > 0) {
+        const numericTiers = tiers.map(tier => ({
+          min_quantity: Number(tier.min_quantity) || 0,
+          max_quantity:
+            tier.max_quantity !== undefined && tier.max_quantity !== null
+              ? Number(tier.max_quantity)
+              : Infinity,
+          price: Number(tier.price) || 0,
+        }));
 
-    if (Array.isArray(tiers) && tiers.length > 0) {
-      const numericTiers = tiers.map(tier => ({
-        min_quantity: Number(tier.min_quantity) || 0,
-        max_quantity:
-          tier.max_quantity !== undefined && tier.max_quantity !== null
-            ? Number(tier.max_quantity)
-            : Infinity,
-        price: Number(tier.price) || 0,
-      }));
+        finalPricePerUnit = getPriceForQuantity(
+          numericTiers,
+          totalGroupQuantity
+        );
+      }
 
-      finalPricePerUnit = getPriceForQuantity(
-        numericTiers,
-        totalGroupQuantity
-      );
+      // Apply calculated price to each item
+      for (const item of entry.items) {
+        const effectivePrice =
+          typeof finalPricePerUnit === 'number'
+            ? finalPricePerUnit
+            : Number(item.price) || 0;
+
+        updatedCartMap[item.id] = {
+          ...updatedCartMap[item.id],
+          calculatedPrice: effectivePrice,
+        };
+
+        runningTotal += effectivePrice * (Number(item.quantity) || 0);
+      }
     }
 
-    // Apply calculated price to each item
-    for (const item of entry.items) {
-      const effectivePrice =
-        typeof finalPricePerUnit === 'number'
-          ? finalPricePerUnit
-          : Number(item.price) || 0;
-
-      updatedCartMap[item.id] = {
-        ...updatedCartMap[item.id],
-        calculatedPrice: effectivePrice,
-      };
-
-      runningTotal += effectivePrice * (Number(item.quantity) || 0);
-    }
-  }
-
-  return {
-    updatedCartMap,
-    total: runningTotal,
+    return {
+      updatedCartMap,
+      total: runningTotal,
+    };
   };
-};
-const fetchAllProductsForScan = async () => {
-  console.log("📦 Loading ALL products for barcode scan...");
+  const fetchAllProductsForScan = async () => {
+    console.log("📦 Loading ALL products for barcode scan...");
 
-  try {
-    const collectionsSnap = await getDocs(
-      collection(db, "collections")
-    );
+    try {
+      const collectionsSnap = await getDocs(
+        collection(db, "collections")
+      );
 
-    const allProductPromises = [];
+      const allProductPromises = [];
 
-    /* ===============================
-       FETCH ALL COLLECTION PRODUCTS
-    =============================== */
-    collectionsSnap.docs.forEach(col => {
-      allProductPromises.push(
-        getDocs(
-          collection(
-            db,
-            "collections",
-            col.id,
-            "subcollections"
-          )
-        ).then(subSnap =>
-          Promise.all(
-            subSnap.docs.map(sub =>
-              getDocs(
-                collection(
-                  db,
-                  "collections",
-                  col.id,
-                  "subcollections",
-                  sub.id,
-                  "products"
-                )
-              ).then(prodSnap => ({
-                colId: col.id,
-                subId: sub.id,
-                prodSnap
-              }))
+      /* ===============================
+         FETCH ALL COLLECTION PRODUCTS
+      =============================== */
+      collectionsSnap.docs.forEach(col => {
+        allProductPromises.push(
+          getDocs(
+            collection(
+              db,
+              "collections",
+              col.id,
+              "subcollections"
+            )
+          ).then(subSnap =>
+            Promise.all(
+              subSnap.docs.map(sub =>
+                getDocs(
+                  collection(
+                    db,
+                    "collections",
+                    col.id,
+                    "subcollections",
+                    sub.id,
+                    "products"
+                  )
+                ).then(prodSnap => ({
+                  colId: col.id,
+                  subId: sub.id,
+                  prodSnap
+                }))
+              )
             )
           )
-        )
+        );
+      });
+
+      const results = await Promise.all(allProductPromises);
+
+      const map = {};
+
+      /* ===============================
+         BUILD SCAN MAP (UPDATED)
+      =============================== */
+      results.flat(2).forEach(
+        ({ colId, subId, prodSnap }) => {
+          prodSnap.forEach(docSnap => {
+
+            const data = docSnap.data();
+
+            /* 🔥 KEY CHANGE: LOWERCASE MAP KEY */
+            const normalizedId =
+              docSnap.id.toLowerCase();
+
+            map[normalizedId] = {
+              id: docSnap.id, // original ID
+              ...data,
+              collectionId: colId,
+              subcollectionId: subId,
+            };
+
+          });
+        }
       );
-    });
 
-    const results = await Promise.all(allProductPromises);
+      console.log(
+        "✅ Products loaded:",
+        Object.keys(map).length
+      );
 
-    const map = {};
+      setAllProductsMap(map);
 
-    /* ===============================
-       BUILD SCAN MAP (UPDATED)
-    =============================== */
-    results.flat(2).forEach(
-      ({ colId, subId, prodSnap }) => {
-        prodSnap.forEach(docSnap => {
+      /* ===============================
+         CACHE SAVE
+      =============================== */
+      localStorage.setItem(
+        "offlineProductsCache",
+        JSON.stringify(map)
+      );
 
-          const data = docSnap.data();
+    } catch (error) {
+      console.error(
+        "❌ Error loading products for scan:",
+        error
+      );
+    }
+  };
 
-          /* 🔥 KEY CHANGE: LOWERCASE MAP KEY */
-          const normalizedId =
-            docSnap.id.toLowerCase();
+  useEffect(() => {
+    if (activeTab !== "offline-billing") return;
 
-          map[normalizedId] = {
-            id: docSnap.id, // original ID
-            ...data,
-            collectionId: colId,
-            subcollectionId: subId,
-          };
-
-        });
-      }
+    const cached = localStorage.getItem(
+      "offlineProductsCache"
     );
+
+    if (cached) {
+      console.log("⚡ Loaded products from cache");
+
+      setAllProductsMap(JSON.parse(cached));
+    }
+
+    // 🔄 ALWAYS refresh in background
+    fetchAllProductsForScan();
+
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== "offline-billing") return;
+
+    // Already loaded? Skip
+    if (Object.keys(allProductsMap).length > 0) return;
+
+    fetchAllProductsForScan();
+  }, [activeTab]);
+  useEffect(() => {
+    if (
+      Object.keys(allProductsMap).length > 0 &&
+      !isScannerReadyPlayed
+    ) {
+      console.log("🔊 Scanner Ready");
+
+      playSound(readySound);
+      setIsScannerReadyPlayed(true);
+    }
+  }, [allProductsMap, isScannerReadyPlayed]);
+
+
+  const handleBarcodeScan = (barcodeValue) => {
+
+    /* ==============================
+       🧹 SANITIZE BARCODE INPUT
+    ============================== */
+    const rawCode = String(barcodeValue);
+
+    const code = rawCode
+      .replace(/[\n\r\t]/g, "")     // Remove hidden chars
+      .replace(/\s+/g, "")         // Remove spaces
+      .replace(/[^a-zA-Z0-9]/g, "")// Remove noise
+      .trim();
+
+    const normalizedCode = code.toLowerCase();
 
     console.log(
-      "✅ Products loaded:",
-      Object.keys(map).length
+      "📦 Barcode scanned:",
+      code,
+      "Length:",
+      code.length
     );
 
-    setAllProductsMap(map);
-
-    /* ===============================
-       CACHE SAVE
-    =============================== */
-    localStorage.setItem(
-      "offlineProductsCache",
-      JSON.stringify(map)
-    );
-
-  } catch (error) {
-    console.error(
-      "❌ Error loading products for scan:",
-      error
-    );
-  }
-};
-
-useEffect(() => {
-  if (activeTab !== "offline-billing") return;
-
-  const cached = localStorage.getItem(
-    "offlineProductsCache"
-  );
-
-  if (cached) {
-    console.log("⚡ Loaded products from cache");
-
-    setAllProductsMap(JSON.parse(cached));
-  }
-
-  // 🔄 ALWAYS refresh in background
-  fetchAllProductsForScan();
-
-}, [activeTab]);
-
-useEffect(() => {
-  if (activeTab !== "offline-billing") return;
-
-  // Already loaded? Skip
-  if (Object.keys(allProductsMap).length > 0) return;
-
-  fetchAllProductsForScan();
-}, [activeTab]);
-useEffect(() => {
-  if (
-    Object.keys(allProductsMap).length > 0 &&
-    !isScannerReadyPlayed
-  ) {
-    console.log("🔊 Scanner Ready");
-
-    playSound(readySound);
-    setIsScannerReadyPlayed(true);
-  }
-}, [allProductsMap, isScannerReadyPlayed]);
-
-
-const handleBarcodeScan = (barcodeValue) => {
-
-  /* ==============================
-     🧹 SANITIZE BARCODE INPUT
-  ============================== */
-  const rawCode = String(barcodeValue);
-
-  const code = rawCode
-    .replace(/[\n\r\t]/g, "")     // Remove hidden chars
-    .replace(/\s+/g, "")         // Remove spaces
-    .replace(/[^a-zA-Z0-9]/g, "")// Remove noise
-    .trim();
-
-  const normalizedCode = code.toLowerCase();
-
-  console.log(
-    "📦 Barcode scanned:",
-    code,
-    "Length:",
-    code.length
-  );
-
-  /* ==============================
-     ⏳ PRODUCTS STILL LOADING
-  ============================== */
-  if (Object.keys(allProductsMap).length === 0) {
-
-    playSound("/sounds/scan-error.mp3");
-
-    alert(
-      "⏳ Products are still loading. Please scan again."
-    );
-
-    return;
-  }
-
-  /* ==============================
-     🔎 FIND PRODUCT (UPDATED)
-  ============================== */
-  const product =
-    allProductsMap[code] ||                 // exact
-    allProductsMap[normalizedCode];         // lowercase
-
-  /* ==============================
-     ❌ PRODUCT NOT FOUND
-  ============================== */
-  if (!product) {
-
-    playSound("/sounds/scan-error.mp3");
-
-    console.warn(
-      "❌ Product not found for barcode:",
-      code
-    );
-
-    alert(`❌ Product not found:\n${code}`);
-
-    setTimeout(() => {
-      barcodeInputRef.current?.focus();
-    }, 50);
-
-    return;
-  }
-
-  /* ==============================
-     ✅ SUCCESS SOUND
-  ============================== */
-  playSound("/sounds/scan-success.mp3");
-
-  console.log(
-    "✅ Product found:",
-    product.productName
-  );
-
-  /* ==============================
-     🔥 LAST SCANNED POPUP
-  ============================== */
-  setLastScannedProduct({
-    name: product.productName,
-    code: product.productCode || product.id,
-  });
-
-  setTimeout(() => {
-    setLastScannedProduct(null);
-  }, 1500);
-
-  /* ==============================
-     📂 AUTO-SELECT FILTERS
-  ============================== */
-  setSelectedOfflineCollectionId(
-    product.collectionId
-  );
-
-  setSelectedOfflineSubcollectionId(
-    product.subcollectionId
-  );
-
-  /* ==============================
-     🔀 VARIANT HANDLING
-  ============================== */
-  if (
-    product.variations &&
-    product.variations.length > 0
-  ) {
-
-    const selectedVariant =
-      offlineSelections[product.id] ||
-      product.variations.find(
-        v => Number(v.quantity) > 0
-      );
-
-    /* ❌ OUT OF STOCK */
-    if (!selectedVariant) {
+    /* ==============================
+       ⏳ PRODUCTS STILL LOADING
+    ============================== */
+    if (Object.keys(allProductsMap).length === 0) {
 
       playSound("/sounds/scan-error.mp3");
 
-      alert("All variants are out of stock.");
+      alert(
+        "⏳ Products are still loading. Please scan again."
+      );
+
+      return;
+    }
+
+    /* ==============================
+       🔎 FIND PRODUCT (UPDATED)
+    ============================== */
+    const product =
+      allProductsMap[code] ||                 // exact
+      allProductsMap[normalizedCode];         // lowercase
+
+    /* ==============================
+       ❌ PRODUCT NOT FOUND
+    ============================== */
+    if (!product) {
+
+      playSound("/sounds/scan-error.mp3");
+
+      console.warn(
+        "❌ Product not found for barcode:",
+        code
+      );
+
+      alert(`❌ Product not found:\n${code}`);
 
       setTimeout(() => {
         barcodeInputRef.current?.focus();
@@ -2615,27 +2579,88 @@ const handleBarcodeScan = (barcodeValue) => {
       return;
     }
 
-    /* ✅ ADD VARIANT */
-    handleOfflineAddToCart(
-      product,
-      selectedVariant
+    /* ==============================
+       ✅ SUCCESS SOUND
+    ============================== */
+    playSound("/sounds/scan-success.mp3");
+
+    console.log(
+      "✅ Product found:",
+      product.productName
     );
 
-  } else {
+    /* ==============================
+       🔥 LAST SCANNED POPUP
+    ============================== */
+    setLastScannedProduct({
+      name: product.productName,
+      code: product.productCode || product.id,
+    });
+
+    setTimeout(() => {
+      setLastScannedProduct(null);
+    }, 1500);
 
     /* ==============================
-       ✅ SIMPLE PRODUCT
+       📂 AUTO-SELECT FILTERS
     ============================== */
-    handleOfflineAddToCart(product, null);
-  }
+    setSelectedOfflineCollectionId(
+      product.collectionId
+    );
 
-  /* ==============================
-     🔁 REFOCUS FOR NEXT SCAN
-  ============================== */
-  setTimeout(() => {
-    barcodeInputRef.current?.focus();
-  }, 50);
-};
+    setSelectedOfflineSubcollectionId(
+      product.subcollectionId
+    );
+
+    /* ==============================
+       🔀 VARIANT HANDLING
+    ============================== */
+    if (
+      product.variations &&
+      product.variations.length > 0
+    ) {
+
+      const selectedVariant =
+        offlineSelections[product.id] ||
+        product.variations.find(
+          v => Number(v.quantity) > 0
+        );
+
+      /* ❌ OUT OF STOCK */
+      if (!selectedVariant) {
+
+        playSound("/sounds/scan-error.mp3");
+
+        alert("All variants are out of stock.");
+
+        setTimeout(() => {
+          barcodeInputRef.current?.focus();
+        }, 50);
+
+        return;
+      }
+
+      /* ✅ ADD VARIANT */
+      handleOfflineAddToCart(
+        product,
+        selectedVariant
+      );
+
+    } else {
+
+      /* ==============================
+         ✅ SIMPLE PRODUCT
+      ============================== */
+      handleOfflineAddToCart(product, null);
+    }
+
+    /* ==============================
+       🔁 REFOCUS FOR NEXT SCAN
+    ============================== */
+    setTimeout(() => {
+      barcodeInputRef.current?.focus();
+    }, 50);
+  };
 
 
 
@@ -2643,7 +2668,7 @@ const handleBarcodeScan = (barcodeValue) => {
 
 
   useEffect(() => {
-    
+
     let isMounted = true;
     const updatePricedCart = async () => {
       if (Object.keys(offlineCart).length === 0) {
@@ -2671,132 +2696,132 @@ const handleBarcodeScan = (barcodeValue) => {
     return () => { isMounted = false; };
     // Re-run whenever the cart contents or the pricing type changes
   }, [offlineCart, offlinePricingKey]);
-  
-  useEffect(() => {
-  if (activeTab === "offline-billing") {
-    barcodeInputRef.current?.focus();
-  }
-}, [activeTab]);
-
-
 
   useEffect(() => {
-  if (!isScanMode) return;
-
-  const handleKeyPress = (e) => {
-    if (activeTab !== "offline-billing") return;
-
-    if (e.key === "Enter") {
-      e.preventDefault();
-
-      const code = scannedBarcode
-        .replace(/[\n\r\t]/g, "")
-        .replace(/\s+/g, "")
-        .trim();
-
-      if (!code) return;
-
-      handleBarcodeScan(code);
-      setScannedBarcode("");
+    if (activeTab === "offline-billing") {
+      barcodeInputRef.current?.focus();
     }
-  };
-
-  window.addEventListener("keydown", handleKeyPress);
-
-  return () => {
-    window.removeEventListener("keydown", handleKeyPress);
-  };
-}, [scannedBarcode, activeTab, isScanMode]);
+  }, [activeTab]);
 
 
 
+  useEffect(() => {
+    if (!isScanMode) return;
 
-useEffect(() => {
-  if (!showCameraScanner) return;
+    const handleKeyPress = (e) => {
+      if (activeTab !== "offline-billing") return;
 
-  let html5QrCode;
-  let isMounted = true;
+      if (e.key === "Enter") {
+        e.preventDefault();
 
-  // ⚡ Laser-mode scan control
-  let lastScanTime = 0;
-  let lastScannedCode = null;
+        const code = scannedBarcode
+          .replace(/[\n\r\t]/g, "")
+          .replace(/\s+/g, "")
+          .trim();
 
-  const SCAN_DELAY = 300; // 🔥 Laser speed (ms)
+        if (!code) return;
 
-  const startScanner = async () => {
-    try {
-      html5QrCode = new Html5Qrcode("camera-scanner");
+        handleBarcodeScan(code);
+        setScannedBarcode("");
+      }
+    };
 
-      await html5QrCode.start(
-        { facingMode: "environment" },
-        {
-          fps: 15, // 🔥 Faster frame rate
-          qrbox: { width: 300, height: 120 },
-          aspectRatio: 1.8,
-        },
+    window.addEventListener("keydown", handleKeyPress);
 
-        // ==============================
-        // ⚡ LASER SPEED SCAN
-        // ==============================
-        (decodedText) => {
-          if (!isMounted) return;
+    return () => {
+      window.removeEventListener("keydown", handleKeyPress);
+    };
+  }, [scannedBarcode, activeTab, isScanMode]);
 
-          const now = Date.now();
 
-          // 🚫 Prevent duplicate rapid scans
-          if (
-            decodedText === lastScannedCode &&
-            now - lastScanTime < SCAN_DELAY
-          ) {
-            return;
+
+
+  useEffect(() => {
+    if (!showCameraScanner) return;
+
+    let html5QrCode;
+    let isMounted = true;
+
+    // ⚡ Laser-mode scan control
+    let lastScanTime = 0;
+    let lastScannedCode = null;
+
+    const SCAN_DELAY = 300; // 🔥 Laser speed (ms)
+
+    const startScanner = async () => {
+      try {
+        html5QrCode = new Html5Qrcode("camera-scanner");
+
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          {
+            fps: 15, // 🔥 Faster frame rate
+            qrbox: { width: 300, height: 120 },
+            aspectRatio: 1.8,
+          },
+
+          // ==============================
+          // ⚡ LASER SPEED SCAN
+          // ==============================
+          (decodedText) => {
+            if (!isMounted) return;
+
+            const now = Date.now();
+
+            // 🚫 Prevent duplicate rapid scans
+            if (
+              decodedText === lastScannedCode &&
+              now - lastScanTime < SCAN_DELAY
+            ) {
+              return;
+            }
+
+            lastScanTime = now;
+            lastScannedCode = decodedText;
+
+            console.log("⚡ Laser scan:", decodedText);
+
+            // 🔊 Fast beep
+            playSound("/sounds/scan-success.mp3");
+
+            // Add to cart
+            handleBarcodeScan(decodedText);
+
+            // Stay on billing tab
+            setActiveTab("offline-billing");
+          },
+
+          (err) => {
+            // Ignore scan errors
           }
+        );
 
-          lastScanTime = now;
-          lastScannedCode = decodedText;
+      } catch (err) {
+        console.error("Camera start error:", err);
 
-          console.log("⚡ Laser scan:", decodedText);
+        alert(
+          "Camera failed to start.\n\n" +
+          "Allow camera permission & use HTTPS."
+        );
+      }
+    };
 
-          // 🔊 Fast beep
-          playSound("/sounds/scan-success.mp3");
+    startScanner();
 
-          // Add to cart
-          handleBarcodeScan(decodedText);
+    // ==============================
+    // 🧹 CLEANUP
+    // ==============================
+    return () => {
+      isMounted = false;
 
-          // Stay on billing tab
-          setActiveTab("offline-billing");
-        },
-
-        (err) => {
-          // Ignore scan errors
-        }
-      );
-
-    } catch (err) {
-      console.error("Camera start error:", err);
-
-      alert(
-        "Camera failed to start.\n\n" +
-        "Allow camera permission & use HTTPS."
-      );
-    }
-  };
-
-  startScanner();
-
-  // ==============================
-  // 🧹 CLEANUP
-  // ==============================
-  return () => {
-    isMounted = false;
-
-    if (html5QrCode) {
-      html5QrCode
-        .stop()
-        .then(() => html5QrCode.clear())
-        .catch(() => {});
-    }
-  };
-}, [showCameraScanner]);
+      if (html5QrCode) {
+        html5QrCode
+          .stop()
+          .then(() => html5QrCode.clear())
+          .catch(() => { });
+      }
+    };
+  }, [showCameraScanner]);
 
 
 
@@ -2999,9 +3024,9 @@ useEffect(() => {
           totalAmount: totalAmountToUse,
           shippingFee: 0,
           pricingKey: offlinePricingKey,
-role: ROLE_KEYS.find(
-  r => ROLE_CONFIG[r].pricingKey === offlinePricingKey
-),
+          role: ROLE_KEYS.find(
+            r => ROLE_CONFIG[r].pricingKey === offlinePricingKey
+          ),
 
         };
 
@@ -3062,38 +3087,38 @@ role: ROLE_KEYS.find(
     }
   };
   useEffect(() => {
-  if (!showInvoice || !invoiceData) return;
+    if (!showInvoice || !invoiceData) return;
 
-  const processInvoicePDF = async () => {
-    try {
-      // ⏳ wait for DOM paint
-      await new Promise(res => setTimeout(res, 500));
+    const processInvoicePDF = async () => {
+      try {
+        // ⏳ wait for DOM paint
+        await new Promise(res => setTimeout(res, 500));
 
-      const pdfUrl = await uploadInvoicePDF(invoiceData.invoiceNumber);
+        const pdfUrl = await uploadInvoicePDF(invoiceData.invoiceNumber);
 
-      if (!pdfUrl) return;
+        if (!pdfUrl) return;
 
-      // save pdf url to order
-      const orderRef = doc(db, "orders", invoiceData.invoiceNumber);
-      await updateDoc(orderRef, { invoicePdfUrl: pdfUrl });
+        // save pdf url to order
+        const orderRef = doc(db, "orders", invoiceData.invoiceNumber);
+        await updateDoc(orderRef, { invoicePdfUrl: pdfUrl });
 
-      // optional WhatsApp
-      if (sendInvoiceOnWhatsApp) {
-        const phone = invoiceData.customer.phoneNumber.replace(/\D/g, "");
-        const message = encodeURIComponent(
-          `Thank you for your purchase.\n\nInvoice PDF:\n${pdfUrl}`
-        );
-        window.open(`https://wa.me/91${phone}?text=${message}`, "_blank");
+        // optional WhatsApp
+        if (sendInvoiceOnWhatsApp) {
+          const phone = invoiceData.customer.phoneNumber.replace(/\D/g, "");
+          const message = encodeURIComponent(
+            `Thank you for your purchase.\n\nInvoice PDF:\n${pdfUrl}`
+          );
+          window.open(`https://wa.me/91${phone}?text=${message}`, "_blank");
+        }
+
+      } catch (err) {
+        console.error("Invoice PDF generation failed:", err);
       }
+    };
 
-    } catch (err) {
-      console.error("Invoice PDF generation failed:", err);
-    }
-  };
+    processInvoicePDF();
 
-  processInvoicePDF();
-  
-}, [showInvoice, invoiceData]);
+  }, [showInvoice, invoiceData]);
 
   useEffect(() => {
     const afterPrint = () => setShowInvoice(false);
@@ -3324,708 +3349,771 @@ role: ROLE_KEYS.find(
     }
   };
 
+  const ROLE_PERMISSIONS = {
+    superadmin: [
+      "collections",
+      "orders",
+      "lowStock",
+      "reports",
+      "users",
+      "offline-billing",
+      "leads",
+      "coupons",
+      "editOrders"
+    ],
+
+    manager: [
+      "orders",
+      "reports",
+      "leads"
+
+    ],
+
+    sales: [
+      "leads",
+       "users",
+
+    ],
+
+    inventory: [
+      "collections",
+      "lowStock"
+    ],
+  };
+  // ✅ ADD IT HERE
+  if (roleLoading) {
+    return <div>Loading Admin Panel...</div>;
+  }
   return (
+
     <div className="admin-page">
+
       <h1>Admin Dashboard</h1>
-    <div className="admin-tabs">
-  <button
-    className={activeTab === "collections" ? "active" : ""}
-    onClick={() => setActiveTab("collections")}
-  >
-    Collections
-  </button>
+      <div className="admin-tabs">
 
-  <button
-    className={activeTab === "orders" ? "active" : ""}
-    onClick={() => setActiveTab("orders")}
-  >
-    Orders
-  </button>
+        {ROLE_PERMISSIONS[currentUserRole]?.includes("collections") && (
+          <button
+            className={activeTab === "collections" ? "active" : ""}
+            onClick={() => setActiveTab("collections")}
+          >
+            Collections
+          </button>
+        )}
 
-  <button
-    className={activeTab === "lowStock" ? "active" : ""}
-    onClick={() => setActiveTab("lowStock")}
-  >
-    Low Stock Alerts ({lowStockProducts.length})
-  </button>
+        {ROLE_PERMISSIONS[currentUserRole]?.includes("orders") && (
+          <button
+            className={activeTab === "orders" ? "active" : ""}
+            onClick={() => setActiveTab("orders")}
+          >
+            Orders
+          </button>
+        )}
 
-  <button
-    className={activeTab === "reports" ? "active" : ""}
-    onClick={() => setActiveTab("reports")}
-  >
-    Reports
-  </button>
+        {ROLE_PERMISSIONS[currentUserRole]?.includes("lowStock") && (
+          <button
+            className={activeTab === "lowStock" ? "active" : ""}
+            onClick={() => setActiveTab("lowStock")}
+          >
+            Low Stock Alerts ({lowStockProducts.length})
+          </button>
+        )}
 
-  <button
-    className={activeTab === "users" ? "active" : ""}
-    onClick={() => setActiveTab("users")}
-  >
-    User Management
-  </button>
+        {ROLE_PERMISSIONS[currentUserRole]?.includes("reports") && (
+          <button
+            className={activeTab === "reports" ? "active" : ""}
+            onClick={() => setActiveTab("reports")}
+          >
+            Reports
+          </button>
+        )}
 
-  <button
-    className={`admin-menu-item ${activeTab === "offline-billing" ? "active" : ""}`}
-    onClick={() => setActiveTab("offline-billing")}
-  >
-    Offline Billing
-  </button>
+        {ROLE_PERMISSIONS[currentUserRole]?.includes("users") && (
+          <button
+            className={activeTab === "users" ? "active" : ""}
+            onClick={() => setActiveTab("users")}
+          >
+            User Management
+          </button>
+        )}
 
-  {/* 🔥 NEW: COUPONS */}
-  <button
-    className="admin-menu-item"
-    onClick={() => (window.location.href = "/admin/coupons")}
-  >
-    Coupons
-  </button>
+        {ROLE_PERMISSIONS[currentUserRole]?.includes("offline-billing") && (
+          <button
+            className={`admin-menu-item ${activeTab === "offline-billing" ? "active" : ""}`}
+            onClick={() => setActiveTab("offline-billing")}
+          >
+            Offline Billing
+          </button>
+        )}
 
-  {/* 🔥 NEW: ORDER EDIT */}
-  <button
-    className="admin-menu-item"
-    onClick={() => (window.location.href = "/admin/orders/edit")}
-  >
-    Edit Orders
-  </button>
-</div>
+        {ROLE_PERMISSIONS[currentUserRole]?.includes("coupons") && (
+          <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/coupons")}
+          >
+            Coupons
+          </button>
+        )}
+
+        {ROLE_PERMISSIONS[currentUserRole]?.includes("editOrders") && (
+          <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/orders/edit")}
+          >
+            Edit Orders
+          </button>
+        )}
+        {ROLE_PERMISSIONS[currentUserRole]?.includes("leads") && (
+          <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/leads")}
+          >
+            leads
+          </button>
+        )}
+
+      </div>
 
 
       <div className="tab-content">
         {/* --- Collections, Subcollections, and Products Tabs --- */}
-        {activeTab === 'collections' && (
-          <div className="collection-management-container">
-            <div className="sub-tabs">
-              <button
-                className={activeSubTab === 'collections' ? 'active' : ''}
-                onClick={() => setActiveSubTab('collections')}
-              >
-                Collections
-              </button>
-              <button
-                className={activeSubTab === 'subcollections' ? 'active' : ''}
-                onClick={() => setActiveSubTab('subcollections')}
-              >
-                Subcollections
-              </button>
-              <button
-                className={activeSubTab === 'products' ? 'active' : ''}
-                onClick={() => setActiveSubTab('products')}
-              >
-                Products
-              </button>
-              <button
-                onClick={handleMoveOutOfStockToTrash}
-                disabled={trashRunning}
-                style={{
-                  background: trashRunning ? "#9ca3af" : "#f97316",
-                  color: "#fff",
-                  padding: "10px 16px",
-                  borderRadius: "8px",
-                  border: "none",
-                  fontWeight: "700",
-                  cursor: trashRunning ? "not-allowed" : "pointer",
-                  marginTop: "12px",
-                }}
-              >
-                {trashRunning ? "Moving to Trash…" : "🗑 Move Out-of-Stock to Trash"}
-              </button>
+        {activeTab === 'collections' &&
+          ROLE_PERMISSIONS[currentUserRole]?.includes("collections") && (
+            <div className="collection-management-container">
+              <div className="sub-tabs">
+                <button
+                  className={activeSubTab === 'collections' ? 'active' : ''}
+                  onClick={() => setActiveSubTab('collections')}
+                >
+                  Collections
+                </button>
+                <button
+                  className={activeSubTab === 'subcollections' ? 'active' : ''}
+                  onClick={() => setActiveSubTab('subcollections')}
+                >
+                  Subcollections
+                </button>
+                <button
+                  className={activeSubTab === 'products' ? 'active' : ''}
+                  onClick={() => setActiveSubTab('products')}
+                >
+                  Products
+                </button>
+                <button
+                  onClick={handleMoveOutOfStockToTrash}
+                  disabled={trashRunning}
+                  style={{
+                    background: trashRunning ? "#9ca3af" : "#f97316",
+                    color: "#fff",
+                    padding: "10px 16px",
+                    borderRadius: "8px",
+                    border: "none",
+                    fontWeight: "700",
+                    cursor: trashRunning ? "not-allowed" : "pointer",
+                    marginTop: "12px",
+                  }}
+                >
+                  {trashRunning ? "Moving to Trash…" : "🗑 Move Out-of-Stock to Trash"}
+                </button>
 
-              {trashRunning && (
-                <div style={{ marginTop: "10px", maxWidth: "420px" }}>
-                  <div
-                    style={{
-                      height: "8px",
-                      background: "#e5e7eb",
-                      borderRadius: "999px",
-                      overflow: "hidden",
-                    }}
-                  >
+                {trashRunning && (
+                  <div style={{ marginTop: "10px", maxWidth: "420px" }}>
                     <div
                       style={{
-                        width: `${trashProgress}%`,
-                        height: "100%",
-                        background: "linear-gradient(90deg, #f97316, #ef4444)",
-                        transition: "width 200ms ease",
+                        height: "8px",
+                        background: "#e5e7eb",
+                        borderRadius: "999px",
+                        overflow: "hidden",
                       }}
-                    />
-                  </div>
-                  <div style={{ fontSize: "13px", marginTop: "6px", color: "#555" }}>
-                    {trashProgress}% completed
-                  </div>
-                </div>
-              )}
-
-            </div>
-
-            {/* --- Collections Sub-tab Content --- */}
-            {activeSubTab === 'collections' && (
-              <div className="forms-container">
-                <div className="admin-section">
-                  <h2>Main Collections</h2>
-                  <form onSubmit={editingMainCollection ? handleUpdateMainCollection : handleAddMainCollection} className="add-collection-form">
-                    <h3>{editingMainCollection ? 'Edit' : 'Add'} Main Collection</h3>
-                    <div className="form-group">
-                      <label>Name:</label>
-                      <input type="text" value={mainCollectionName} onChange={(e) => setMainCollectionName(e.target.value)} placeholder="Main Collection Name" required />
+                    >
+                      <div
+                        style={{
+                          width: `${trashProgress}%`,
+                          height: "100%",
+                          background: "linear-gradient(90deg, #f97316, #ef4444)",
+                          transition: "width 200ms ease",
+                        }}
+                      />
                     </div>
-                    <div className="form-group">
-                      <label>Image:</label>
-                      <input type="file" onChange={(e) => handleImageChange(e, setMainCollectionImageFile)} required={!editingMainCollection} />
+                    <div style={{ fontSize: "13px", marginTop: "6px", color: "#555" }}>
+                      {trashProgress}% completed
                     </div>
-                    <div className="form-group">
-  <label>Additional Images:</label>
-  <input
-    type="file"
-    multiple
-    accept="image/*"
-    onChange={handleMainCollectionAdditionalImagesChange}
-  />
-</div>
-
-                    <div className="form-group">
-                      <label>Show Number:</label>
-                      <input type="number" value={mainCollectionShowNumber} onChange={(e) => setMainCollectionShowNumber(e.target.value)} placeholder="Order (e.g., 1, 2)" required />
-                    </div>
-                    <button type="submit" disabled={isMainCollectionUploading}>
-                      {isMainCollectionUploading ? 'Processing...' : editingMainCollection ? 'Update Collection' : 'Add Collection'}
-                    </button>
-                    {editingMainCollection && (
-                      <button type="button" onClick={resetMainCollectionForm} className="cancel-button">
-                        Cancel Edit
-                      </button>
-                    )}
-                  </form>
-                </div>
-
-                <div className="admin-section">
-                  <div className="current-collections">
-                    <h3>Current Main Collections</h3>
-                    {isMainCollectionLoading ? (
-                      <p>Loading collections...</p>
-                    ) : (
-                      <div className="collections-grid">
-                        {mainCollections.map((item) => (
-                          <CollectionCard key={item.id} title={item.title} image={item.image} showNumber={item.showNumber}>
-                            <div className="admin-actions">
-                              <button onClick={() => startEditMainCollection(item)}>Edit</button>
-<button onClick={() => handleDeleteMainCollection(item)}>Delete</button>
-                            </div>
-                          </CollectionCard>
-                        ))}
-                      </div>
-                    )}
                   </div>
-                </div>
+                )}
+
               </div>
-            )}
 
-            {/* --- Subcollections Sub-tab Content --- */}
-            {activeSubTab === 'subcollections' && (
-              <div className="forms-container">
-                <div className="admin-section">
-                  <h2>Subcollections</h2>
-                  <div className="form-group">
-                    <label>Select Main Collection:</label>
-                    <select onChange={(e) => setSelectedMainCollectionId(e.target.value)} value={selectedMainCollectionId}>
-                      <option value="">-- Select a Collection --</option>
-                      {mainCollections.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {selectedMainCollectionId && (
-                    <form onSubmit={editingSubcollection ? handleUpdateSubcollection : handleAddSubcollection} className="add-collection-form">
-                      <h3>{editingSubcollection ? 'Edit' : 'Add'} Subcollection</h3>
+              {/* --- Collections Sub-tab Content --- */}
+              {activeSubTab === 'collections' && (
+                <div className="forms-container">
+                  <div className="admin-section">
+                    <h2>Main Collections</h2>
+                    <form onSubmit={editingMainCollection ? handleUpdateMainCollection : handleAddMainCollection} className="add-collection-form">
+                      <h3>{editingMainCollection ? 'Edit' : 'Add'} Main Collection</h3>
                       <div className="form-group">
                         <label>Name:</label>
-                        <input type="text" value={subcollectionName} onChange={(e) => setSubcollectionName(e.target.value)} placeholder="Subcollection Name" required />
-                      </div>
-                      <div className="form-group">
-                        <label>Code:</label>
-                        <textarea value={subcollectionDescription} onChange={(e) => setSubcollectionDescription(e.target.value)} placeholder="Subcollection productcode"></textarea>
+                        <input type="text" value={mainCollectionName} onChange={(e) => setMainCollectionName(e.target.value)} placeholder="Main Collection Name" required />
                       </div>
                       <div className="form-group">
                         <label>Image:</label>
-                        <input type="file" onChange={(e) => handleImageChange(e, setSubcollectionImageFile)} required={!editingSubcollection} />
+                        <input type="file" onChange={(e) => handleImageChange(e, setMainCollectionImageFile)} required={!editingMainCollection} />
                       </div>
+                      <div className="form-group">
+                        <label>Additional Images:</label>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={handleMainCollectionAdditionalImagesChange}
+                        />
+                      </div>
+
                       <div className="form-group">
                         <label>Show Number:</label>
-                        <input type="number" value={subcollectionShowNumber} onChange={(e) => setSubcollectionShowNumber(e.target.value)} placeholder="Order (e.g., 1, 2)" required />
+                        <input type="number" value={mainCollectionShowNumber} onChange={(e) => setMainCollectionShowNumber(e.target.value)} placeholder="Order (e.g., 1, 2)" required />
                       </div>
-                      <div className="form-group">
-                        <label>Purchase Rate:</label>
-                        <input type="number" step="0.01" value={subcollectionPurchaseRate} onChange={(e) => setSubcollectionPurchaseRate(e.target.value)} placeholder="Purchase Rate (e.g., 0.50)" required />
-                      </div>
-                      <div className="tiered-pricing-container1">
-  {PRICING_KEYS.map(pricingKey => (
-    <div key={pricingKey} className="pricing-section">
-      <h4>{pricingKey.toUpperCase()} Pricing</h4>
-
-      {(subcollectionTieredPricing[pricingKey] || []).map((tier, index) => (
-        <div key={index} className="price-tier">
-          <input
-            type="number"
-            placeholder="Min Qty"
-            value={tier.min_quantity}
-            onChange={(e) =>
-              handleTierChange(pricingKey, index, 'min_quantity', e.target.value)
-            }
-            required
-          />
-
-          <input
-            type="number"
-            placeholder="Max Qty"
-            value={tier.max_quantity}
-            onChange={(e) =>
-              handleTierChange(pricingKey, index, 'max_quantity', e.target.value)
-            }
-            required
-          />
-
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Price"
-            value={tier.price}
-            onChange={(e) =>
-              handleTierChange(pricingKey, index, 'price', e.target.value)
-            }
-            required
-          />
-
-          <button
-            type="button"
-            onClick={() => handleRemoveTier(pricingKey, index)}
-            className="remove-tier-button"
-          >
-            &times;
-          </button>
-        </div>
-      ))}
-
-      <button
-        type="button"
-        onClick={() => handleAddTier(pricingKey)}
-        className="add-tier-button"
-      >
-        Add {pricingKey} Tier
-      </button>
-    </div>
-  ))}
-</div>
-
-                      <button type="submit" disabled={isSubcollectionUploading}>
-                        {isSubcollectionUploading ? 'Processing...' : editingSubcollection ? 'Update Subcollection' : 'Add Subcollection'}
+                      <button type="submit" disabled={isMainCollectionUploading}>
+                        {isMainCollectionUploading ? 'Processing...' : editingMainCollection ? 'Update Collection' : 'Add Collection'}
                       </button>
-                      {editingSubcollection && (
-                        <button type="button" onClick={resetSubcollectionForm} className="cancel-button">
+                      {editingMainCollection && (
+                        <button type="button" onClick={resetMainCollectionForm} className="cancel-button">
                           Cancel Edit
                         </button>
                       )}
                     </form>
-                  )}
-                </div>
-
-                <div className="admin-section">
-                  <h3>Current Subcollections</h3>
-                  {selectedMainCollectionId ? (
-                    isSubcollectionLoading ? (
-                      <p>Loading subcollections...</p>
-                    ) : (
-                      <div className="collections-grid">
-                        {subcollections.map((item) => (
-                          <CollectionCard key={item.id} title={item.name} description={item.description} image={item.image} tieredPricing={item.tieredPricing}>
-                            <div className="admin-actions">
-                              <button onClick={() => startEditSubcollection(item)}>Edit</button>
-                              <button onClick={() => handleDeleteSubcollection(item.id, item.image)}>Delete</button>
-                            </div>
-                          </CollectionCard>
-                        ))}
-                      </div>
-                    )
-                  ) : (
-                    <p className="select-prompt">Please select a main collection to view its subcollections.</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* --- Products Sub-tab Content --- */}
-            {activeSubTab === 'products' && (
-              <div className="forms-container">
-                <div className="admin-section">
-                  <h2>Products</h2>
-                  <div className="form-group">
-                    <label>Select Main Collection:</label>
-                    <select onChange={(e) => setSelectedMainCollectionId(e.target.value)} value={selectedMainCollectionId}>
-                      <option value="">-- Select a Collection --</option>
-                      {mainCollections.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.title}
-                        </option>
-                      ))}
-                    </select>
                   </div>
 
-                  <div className="form-group">
-                    <label>Select Subcollection:</label>
-                    <select onChange={(e) => setSelectedSubcollectionId(e.target.value)} value={selectedSubcollectionId}>
-                      <option value="">-- Select a Subcollection --</option>
-                      {subcollections.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-
-                  {selectedSubcollectionId && (
-                    <div className="add-collection-form">
-
-                      <h3>Add/Edit Products</h3>
-
-                      {isCropping ? (
-                        // This block shows the cropper
-                        <div className="cropper-container">
-                          <ReactCrop
-                            crop={crop}
-                            onChange={c => setCrop(c)}
-                            onComplete={c => setCompletedCrop(c)}
-                          >
-                            <img src={imageToCrop} ref={imgRef} alt="Product" />
-                          </ReactCrop>
-                          <div className="cropper-buttons">
-                            <button type="button" onClick={getCroppedImage}>Crop Image</button>
-                            <button type="button" onClick={() => setIsCropping(false)}>Cancel</button>
-                          </div>
-                        </div>
+                  <div className="admin-section">
+                    <div className="current-collections">
+                      <h3>Current Main Collections</h3>
+                      {isMainCollectionLoading ? (
+                        <p>Loading collections...</p>
                       ) : (
-                        // This block shows either the product form or the file input
-                        <>
-                          {showProductForm ? (
-                            <form onSubmit={editingProduct ? handleUpdateProduct : (currentImageIndex < newProducts.length ? handleNextProduct : handleAddAllProducts)} className="bulk-upload-form">
-                              {editingProduct ? (
-                                <>
-                                  <div className="product-form-item">
-                                    <img src={editingProduct.image} alt="Product Preview" className="product-preview-image" />
-                                    <button type="button" onClick={() => startCropping(editingProduct.image)} className="crop-button">
-                                      <span role="img" aria-label="crop icon">✂️</span> Crop
-                                    </button>
-                                    <div className="product-details-inputs">
-                                      <div className="form-group">
-                                        <label>Product Name:</label>
-                                        <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
-                                      </div>
-                                      <div className="form-group">
-                                        <label>Product Code:</label>
-                                        <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
-                                      </div>
-
-                                      {/* Conditional Rendering: Show Quantity OR Variations (FIXED) */}
-                                      {productVariations.length === 0 ? (
-                                        // Show the single Quantity input if no variations are added
-                                        <div className="form-group">
-                                          <label>Quantity:</label>
-                                          <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} onWheel={(e) => e.preventDefault()} required />
-                                        </div>
-                                      ) : (
-                                        // Show the variations list if variations are present
-                                        <div className="variation-input-container">
-                                          <h4>Current Variations</h4>
-                                          <ul className="variations-list">
-                                            {productVariations.map((v, index) => (
-                                              <li key={index} className="variation-item">
-                                                <span>{v.color}, {v.size}, Qty: {v.quantity}</span>
-                                                <button type="button" onClick={() => handleRemoveVariation(index)} className="remove-variation-btn">
-                                                  &times;
-                                                </button>
-                                              </li>
-                                            ))}
-                                          </ul>
-                                        </div>
-                                      )}
-
-                                      {/* NEW: Always show the variation input fields for adding more variations (same as bulk upload) */}
-                                      <div className="variation-input">
-                                        <input
-                                          type="text"
-                                          name="color"
-                                          value={newVariation.color}
-                                          onChange={handleNewVariationChange}
-                                          placeholder="Color (e.g., Red)"
-                                        />
-                                        <input
-                                          type="text"
-                                          name="size"
-                                          value={newVariation.size}
-                                          onChange={handleNewVariationChange}
-                                          placeholder="Size (e.g., L)"
-                                        />
-                                        <input
-                                          type="number"
-                                          name="quantity"
-                                          value={newVariation.quantity}
-                                          onChange={handleNewVariationChange}
-                                          placeholder="Quantity"
-                                        />
-                                        <button type="button" onClick={handleAddVariation} className="add-variation-btn">
-                                          Add Variation
-                                        </button>
-                                      </div>
-
-                                      {/* The Upload Additional Product Photos section remains here */}
-                                      <div className="form-group">
-                                        <label>Upload Additional Product Photos:</label>
-                                        <input
-                                          type="file"
-                                          onChange={handleAdditionalImageChange}
-                                          multiple
-                                          accept="image/*"
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-                                </>
-                              ) : (
-                                // ... bulk upload JSX remains here
-                                <>
-                                  {newProducts.length > 0 && currentImageIndex < newProducts.length ? (
-                                    <>
-                                      <div className="product-form-item">
-                                        <img src={newProducts[currentImageIndex].previewUrl} alt="Product Preview" className="product-preview-image" />
-                                        <button type="button" onClick={() => startCropping(newProducts[currentImageIndex].previewUrl)} className="crop-button">
-                                          <span role="img" aria-label="crop icon">✂️</span> Crop
-                                        </button>
-                                        <button type="button" onClick={() => handleDeleteNewImage(currentImageIndex)} className="delete-button">
-                                          <span role="img" aria-label="delete icon">🗑️</span> Delete
-                                        </button>
-                                        <div className="product-details-inputs">
-                                          {/* Product Name and Code remain here */}
-                                          <div className="form-group">
-                                            <label>Product Name:</label>
-                                            <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
-                                          </div>
-                                          <div className="form-group">
-                                            <label>Product Code:</label>
-                                            <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
-                                          </div>
-
-                                          {/* Conditional Rendering: Show Quantity OR Variations */}
-                                          {productVariations.length === 0 ? (
-                                            // Show the single Quantity input if no variations are added
-                                            <div className="form-group">
-                                              <label>Quantity:</label>
-                                              <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} required />
-                                            </div>
-                                          ) : (
-                                            // Show the variations list if variations are present
-                                            <div className="variation-input-container">
-                                              <h4>Add More Variations</h4>
-                                              <ul className="variations-list">
-                                                {productVariations.map((v, index) => (
-                                                  <li key={index} className="variation-item">
-                                                    <span>{v.color}, {v.size}, Qty: {v.quantity}</span>
-                                                    <button type="button" onClick={() => handleRemoveVariation(index)} className="remove-variation-btn">
-                                                      &times;
-                                                    </button>
-                                                  </li>
-                                                ))}
-                                              </ul>
-                                            </div>
-                                          )}
-
-                                          {/* NEW: Always show the variation input fields regardless of whether variations exist or not */}
-                                          <div className="variation-input">
-                                            <input
-                                              type="text"
-                                              name="color"
-                                              value={newVariation.color}
-                                              onChange={handleNewVariationChange}
-                                              placeholder="Color (e.g., Red)"
-                                            />
-                                            <input
-                                              type="text"
-                                              name="size"
-                                              value={newVariation.size}
-                                              onChange={handleNewVariationChange}
-                                              placeholder="Size (e.g., L)"
-                                            />
-                                            <input
-                                              type="number"
-                                              name="quantity"
-                                              value={newVariation.quantity}
-                                              onChange={handleNewVariationChange}
-                                              placeholder="Quantity"
-                                            />
-                                            <button type="button" onClick={handleAddVariation} className="add-variation-btn">
-                                              Add Variation
-                                            </button>
-                                          </div>
-
-                                          {/* The Upload Additional Product Photos section remains here */}
-                                          <div className="form-group">
-                                            <label>Upload Additional Product Photos:</label>
-                                            <input
-                                              type="file"
-                                              onChange={handleAdditionalImageChange}
-                                              multiple
-                                              accept="image/*"
-                                            />
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div className="file-info">
-                                        Image {currentImageIndex + 1} of {newProducts.length}
-                                      </div>
-
-                                    </>
-                                  ) : (
-                                    <p>All product details filled. Click 'Add All Products' to save.</p>
-                                  )}
-                                </>
-                              )}
-                              <button type="submit" disabled={isProductUploading} className="submit-all-button">
-                                {isProductUploading ? 'Uploading...' : editingProduct ? 'Update Product' : currentImageIndex < newProducts.length - 1 ? 'Next' : 'Add All Products'}
-                              </button>
-                              <button type="button" onClick={resetProductForm} className="cancel-button">
-                                Cancel
-                              </button>
-                            </form>
-                          ) : (
-                            <div className="form-group">
-                              <label>Upload Product Photos:</label>
-                              <input type="file" onChange={handleProductImageChange} multiple />
-                            </div>
-                          )}
-                        </>
+                        <div className="collections-grid">
+                          {mainCollections.map((item) => (
+                            <CollectionCard key={item.id} title={item.title} image={item.image} showNumber={item.showNumber}>
+                              <div className="admin-actions">
+                                <button onClick={() => startEditMainCollection(item)}>Edit</button>
+                                <button onClick={() => handleDeleteMainCollection(item)}>Delete</button>
+                              </div>
+                            </CollectionCard>
+                          ))}
+                        </div>
                       )}
                     </div>
-                  )}
+                  </div>
                 </div>
-                <div className="admin-section">
-                  <h3>Current Products</h3>
-                  {selectedSubcollectionId ? (
-                    isProductLoading ? (
-                      <p>Loading products...</p>
-                    ) : (
-                      <>
-                        <div className="search-container">
-                          <input
-                            type="text"
-                            placeholder="Search by name or code..."
-                            value={productSearchTerm}
-                            onChange={(e) => setProductSearchTerm(e.target.value)}
-                            className="search-input"
-                          />
-                        </div>
-                        <div className="collections-grid">
-                          {filteredProducts.length > 0 ? (
-                            filteredProducts.map((product) => (
-                              <ProductCard
-                                key={product.id}
-                                product={product} // This passes the entire product object
-                                onEdit={() => startEditProduct(product)}
-                                onDelete={() => handleDeleteProduct(product)}
+              )}
 
-                                // 🔥 NEW PROP ADDED 🔥
-                                onToggleHighlight={handleToggleHighlight}
-                              />
-                            ))
-                          ) : (
-                            <p>No products found matching your search criteria.</p>
-                          )}
+              {/* --- Subcollections Sub-tab Content --- */}
+              {activeSubTab === 'subcollections' && (
+                <div className="forms-container">
+                  <div className="admin-section">
+                    <h2>Subcollections</h2>
+                    <div className="form-group">
+                      <label>Select Main Collection:</label>
+                      <select onChange={(e) => setSelectedMainCollectionId(e.target.value)} value={selectedMainCollectionId}>
+                        <option value="">-- Select a Collection --</option>
+                        {mainCollections.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {selectedMainCollectionId && (
+                      <form onSubmit={editingSubcollection ? handleUpdateSubcollection : handleAddSubcollection} className="add-collection-form">
+                        <h3>{editingSubcollection ? 'Edit' : 'Add'} Subcollection</h3>
+                        <div className="form-group">
+                          <label>Name:</label>
+                          <input type="text" value={subcollectionName} onChange={(e) => setSubcollectionName(e.target.value)} placeholder="Subcollection Name" required />
                         </div>
-                      </>
-                    )
-                  ) : (
-                    <p className="select-prompt">Please select a main collection and a subcollection to view its products.</p>
-                  )}
+                        <div className="form-group">
+                          <label>Code:</label>
+                          <textarea value={subcollectionDescription} onChange={(e) => setSubcollectionDescription(e.target.value)} placeholder="Subcollection productcode"></textarea>
+                        </div>
+                        <div className="form-group">
+                          <label>Image:</label>
+                          <input type="file" onChange={(e) => handleImageChange(e, setSubcollectionImageFile)} required={!editingSubcollection} />
+                        </div>
+                        <div className="form-group">
+                          <label>Show Number:</label>
+                          <input type="number" value={subcollectionShowNumber} onChange={(e) => setSubcollectionShowNumber(e.target.value)} placeholder="Order (e.g., 1, 2)" required />
+                        </div>
+                        <div className="form-group">
+                          <label>Purchase Rate:</label>
+                          <input type="number" step="0.01" value={subcollectionPurchaseRate} onChange={(e) => setSubcollectionPurchaseRate(e.target.value)} placeholder="Purchase Rate (e.g., 0.50)" required />
+                        </div>
+                        <div className="tiered-pricing-container1">
+                          {PRICING_KEYS.map(pricingKey => (
+                            <div key={pricingKey} className="pricing-section">
+                              <h4>{pricingKey.toUpperCase()} Pricing</h4>
+
+                              {(subcollectionTieredPricing[pricingKey] || []).map((tier, index) => (
+                                <div key={index} className="price-tier">
+                                  <input
+                                    type="number"
+                                    placeholder="Min Qty"
+                                    value={tier.min_quantity}
+                                    onChange={(e) =>
+                                      handleTierChange(pricingKey, index, 'min_quantity', e.target.value)
+                                    }
+                                    required
+                                  />
+
+                                  <input
+                                    type="number"
+                                    placeholder="Max Qty"
+                                    value={tier.max_quantity}
+                                    onChange={(e) =>
+                                      handleTierChange(pricingKey, index, 'max_quantity', e.target.value)
+                                    }
+                                    required
+                                  />
+
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="Price"
+                                    value={tier.price}
+                                    onChange={(e) =>
+                                      handleTierChange(pricingKey, index, 'price', e.target.value)
+                                    }
+                                    required
+                                  />
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveTier(pricingKey, index)}
+                                    className="remove-tier-button"
+                                  >
+                                    &times;
+                                  </button>
+                                </div>
+                              ))}
+
+                              <button
+                                type="button"
+                                onClick={() => handleAddTier(pricingKey)}
+                                className="add-tier-button"
+                              >
+                                Add {pricingKey} Tier
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        <button type="submit" disabled={isSubcollectionUploading}>
+                          {isSubcollectionUploading ? 'Processing...' : editingSubcollection ? 'Update Subcollection' : 'Add Subcollection'}
+                        </button>
+                        {editingSubcollection && (
+                          <button type="button" onClick={resetSubcollectionForm} className="cancel-button">
+                            Cancel Edit
+                          </button>
+                        )}
+                      </form>
+                    )}
+                  </div>
+
+                  <div className="admin-section">
+                    <h3>Current Subcollections</h3>
+                    {selectedMainCollectionId ? (
+                      isSubcollectionLoading ? (
+                        <p>Loading subcollections...</p>
+                      ) : (
+                        <div className="collections-grid">
+                          {subcollections.map((item) => (
+                            <CollectionCard key={item.id} title={item.name} description={item.description} image={item.image} tieredPricing={item.tieredPricing}>
+                              <div className="admin-actions">
+                                <button onClick={() => startEditSubcollection(item)}>Edit</button>
+                                <button onClick={() => handleDeleteSubcollection(item.id, item.image)}>Delete</button>
+                              </div>
+                            </CollectionCard>
+                          ))}
+                        </div>
+                      )
+                    ) : (
+                      <p className="select-prompt">Please select a main collection to view its subcollections.</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+
+              {/* --- Products Sub-tab Content --- */}
+              {activeSubTab === 'products' && (
+                <div className="forms-container">
+                  <div className="admin-section">
+                    <h2>Products</h2>
+                    <div className="form-group">
+                      <label>Select Main Collection:</label>
+                      <select onChange={(e) => setSelectedMainCollectionId(e.target.value)} value={selectedMainCollectionId}>
+                        <option value="">-- Select a Collection --</option>
+                        {mainCollections.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Select Subcollection:</label>
+                      <select onChange={(e) => setSelectedSubcollectionId(e.target.value)} value={selectedSubcollectionId}>
+                        <option value="">-- Select a Subcollection --</option>
+                        {subcollections.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+
+                    {selectedSubcollectionId && (
+                      <div className="add-collection-form">
+
+                        <h3>Add/Edit Products</h3>
+
+                        {isCropping ? (
+                          // This block shows the cropper
+                          <div className="cropper-container">
+                            <ReactCrop
+                              crop={crop}
+                              onChange={c => setCrop(c)}
+                              onComplete={c => setCompletedCrop(c)}
+                            >
+                              <img src={imageToCrop} ref={imgRef} alt="Product" />
+                            </ReactCrop>
+                            <div className="cropper-buttons">
+                              <button type="button" onClick={getCroppedImage}>Crop Image</button>
+                              <button type="button" onClick={() => setIsCropping(false)}>Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          // This block shows either the product form or the file input
+                          <>
+                            {showProductForm ? (
+                              <form onSubmit={editingProduct ? handleUpdateProduct : (currentImageIndex < newProducts.length ? handleNextProduct : handleAddAllProducts)} className="bulk-upload-form">
+                                {editingProduct ? (
+                                  <>
+                                    <div className="product-form-item">
+                                      <img src={editingProduct.image} alt="Product Preview" className="product-preview-image" />
+                                      <button type="button" onClick={() => startCropping(editingProduct.image)} className="crop-button">
+                                        <span role="img" aria-label="crop icon">✂️</span> Crop
+                                      </button>
+                                      <div className="product-details-inputs">
+                                        <div className="form-group">
+                                          <label>Product Name:</label>
+                                          <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
+                                        </div>
+                                        <div className="form-group">
+                                          <label>Product Code:</label>
+                                          <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
+                                        </div>
+
+                                        {/* Conditional Rendering: Show Quantity OR Variations (FIXED) */}
+                                        {productVariations.length === 0 ? (
+                                          // Show the single Quantity input if no variations are added
+                                          <div className="form-group">
+                                            <label>Quantity:</label>
+                                            <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} onWheel={(e) => e.preventDefault()} required />
+                                          </div>
+                                        ) : (
+                                          // Show the variations list if variations are present
+                                          <div className="variation-input-container">
+                                            <h4>Current Variations</h4>
+                                            <ul className="variations-list">
+                                              {productVariations.map((v, index) => (
+                                                <li key={index} className="variation-item">
+                                                  <span>{v.color}, {v.size}, Qty: {v.quantity}</span>
+                                                  <button type="button" onClick={() => handleRemoveVariation(index)} className="remove-variation-btn">
+                                                    &times;
+                                                  </button>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        )}
+
+                                        {/* NEW: Always show the variation input fields for adding more variations (same as bulk upload) */}
+                                        <div className="variation-input">
+                                          <input
+                                            type="text"
+                                            name="color"
+                                            value={newVariation.color}
+                                            onChange={handleNewVariationChange}
+                                            placeholder="Color (e.g., Red)"
+                                          />
+                                          <input
+                                            type="text"
+                                            name="size"
+                                            value={newVariation.size}
+                                            onChange={handleNewVariationChange}
+                                            placeholder="Size (e.g., L)"
+                                          />
+                                          <input
+                                            type="number"
+                                            name="quantity"
+                                            value={newVariation.quantity}
+                                            onChange={handleNewVariationChange}
+                                            placeholder="Quantity"
+                                          />
+                                          <button type="button" onClick={handleAddVariation} className="add-variation-btn">
+                                            Add Variation
+                                          </button>
+                                        </div>
+
+                                        {/* The Upload Additional Product Photos section remains here */}
+                                        <div className="form-group">
+                                          <label>Upload Additional Product Photos:</label>
+                                          <input
+                                            type="file"
+                                            onChange={handleAdditionalImageChange}
+                                            multiple
+                                            accept="image/*"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </>
+                                ) : (
+                                  // ... bulk upload JSX remains here
+                                  <>
+                                    {newProducts.length > 0 && currentImageIndex < newProducts.length ? (
+                                      <>
+                                        <div className="product-form-item">
+                                          <img src={newProducts[currentImageIndex].previewUrl} alt="Product Preview" className="product-preview-image" />
+                                          <button type="button" onClick={() => startCropping(newProducts[currentImageIndex].previewUrl)} className="crop-button">
+                                            <span role="img" aria-label="crop icon">✂️</span> Crop
+                                          </button>
+                                          <button type="button" onClick={() => handleDeleteNewImage(currentImageIndex)} className="delete-button">
+                                            <span role="img" aria-label="delete icon">🗑️</span> Delete
+                                          </button>
+                                          <div className="product-details-inputs">
+                                            {/* Product Name and Code remain here */}
+                                            <div className="form-group">
+                                              <label>Product Name:</label>
+                                              <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
+                                            </div>
+                                            <div className="form-group">
+                                              <label>Product Code:</label>
+                                              <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
+                                            </div>
+
+                                            {/* Conditional Rendering: Show Quantity OR Variations */}
+                                            {productVariations.length === 0 ? (
+                                              // Show the single Quantity input if no variations are added
+                                              <div className="form-group">
+                                                <label>Quantity:</label>
+                                                <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} required />
+                                              </div>
+                                            ) : (
+                                              // Show the variations list if variations are present
+                                              <div className="variation-input-container">
+                                                <h4>Add More Variations</h4>
+                                                <ul className="variations-list">
+                                                  {productVariations.map((v, index) => (
+                                                    <li key={index} className="variation-item">
+                                                      <span>{v.color}, {v.size}, Qty: {v.quantity}</span>
+                                                      <button type="button" onClick={() => handleRemoveVariation(index)} className="remove-variation-btn">
+                                                        &times;
+                                                      </button>
+                                                    </li>
+                                                  ))}
+                                                </ul>
+                                              </div>
+                                            )}
+
+                                            {/* NEW: Always show the variation input fields regardless of whether variations exist or not */}
+                                            <div className="variation-input">
+                                              <input
+                                                type="text"
+                                                name="color"
+                                                value={newVariation.color}
+                                                onChange={handleNewVariationChange}
+                                                placeholder="Color (e.g., Red)"
+                                              />
+                                              <input
+                                                type="text"
+                                                name="size"
+                                                value={newVariation.size}
+                                                onChange={handleNewVariationChange}
+                                                placeholder="Size (e.g., L)"
+                                              />
+                                              <input
+                                                type="number"
+                                                name="quantity"
+                                                value={newVariation.quantity}
+                                                onChange={handleNewVariationChange}
+                                                placeholder="Quantity"
+                                              />
+                                              <button type="button" onClick={handleAddVariation} className="add-variation-btn">
+                                                Add Variation
+                                              </button>
+                                            </div>
+
+                                            {/* The Upload Additional Product Photos section remains here */}
+                                            <div className="form-group">
+                                              <label>Upload Additional Product Photos:</label>
+                                              <input
+                                                type="file"
+                                                onChange={handleAdditionalImageChange}
+                                                multiple
+                                                accept="image/*"
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="file-info">
+                                          Image {currentImageIndex + 1} of {newProducts.length}
+                                        </div>
+
+                                      </>
+                                    ) : (
+                                      <p>All product details filled. Click 'Add All Products' to save.</p>
+                                    )}
+                                  </>
+                                )}
+                                <button type="submit" disabled={isProductUploading} className="submit-all-button">
+                                  {isProductUploading ? 'Uploading...' : editingProduct ? 'Update Product' : currentImageIndex < newProducts.length - 1 ? 'Next' : 'Add All Products'}
+                                </button>
+                                <button type="button" onClick={resetProductForm} className="cancel-button">
+                                  Cancel
+                                </button>
+                              </form>
+                            ) : (
+                              <div className="form-group">
+                                <label>Upload Product Photos:</label>
+                                <input type="file" onChange={handleProductImageChange} multiple />
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="admin-section">
+                    <h3>Current Products</h3>
+                    {selectedSubcollectionId ? (
+                      isProductLoading ? (
+                        <p>Loading products...</p>
+                      ) : (
+                        <>
+                          <div className="search-container">
+                            <input
+                              type="text"
+                              placeholder="Search by name or code..."
+                              value={productSearchTerm}
+                              onChange={(e) => setProductSearchTerm(e.target.value)}
+                              className="search-input"
+                            />
+                          </div>
+                          <div className="collections-grid">
+                            {filteredProducts.length > 0 ? (
+                              filteredProducts.map((product) => (
+                                <ProductCard
+                                  key={product.id}
+                                  product={product} // This passes the entire product object
+                                  onEdit={() => startEditProduct(product)}
+                                  onDelete={() => handleDeleteProduct(product)}
+
+                                  // 🔥 NEW PROP ADDED 🔥
+                                  onToggleHighlight={handleToggleHighlight}
+                                />
+                              ))
+                            ) : (
+                              <p>No products found matching your search criteria.</p>
+                            )}
+                          </div>
+                        </>
+                      )
+                    ) : (
+                      <p className="select-prompt">Please select a main collection and a subcollection to view its products.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
         {/* --- Order Management Section --- */}
-        {activeTab === 'orders' && (
-          <div className="admin-section">
-            <h2>Customer Orders</h2>
+        {activeTab === 'orders' &&
+          ROLE_PERMISSIONS[currentUserRole]?.includes("orders") && (
+            <div className="admin-section">
+              <h2>Customer Orders</h2>
 
-            {/* Search and Filter Bar */}
-            <div className="order-filters">
-              <input
-                type="text"
-                placeholder="Search by ID, name, email, or phone"
-                value={orderSearchTerm}
-                onChange={(e) => setOrderSearchTerm(e.target.value)}
-                className="search-input"
-              />
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                title="Start Date"
-              />
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                title="End Date"
-              />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="status-select"
-              >
-                <option value="All">All Statuses</option>
-                <option value="Pending">Pending</option>
-                <option value="Processing">Processing</option>
-                <option value="Shipped">Shipped</option>
-                <option value="Delivered">Delivered</option>
+              {/* Search and Filter Bar */}
+              <div className="order-filters">
+                <input
+                  type="text"
+                  placeholder="Search by ID, name, email, or phone"
+                  value={orderSearchTerm}
+                  onChange={(e) => setOrderSearchTerm(e.target.value)}
+                  className="search-input"
+                />
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  title="Start Date"
+                />
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  title="End Date"
+                />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="status-select"
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Processing">Processing</option>
+                  <option value="Shipped">Shipped</option>
+                  <option value="Delivered">Delivered</option>
 
-              </select>
+                </select>
 
-            </div>
+              </div>
 
-            {isOrderLoading ? (
-              <p>Loading orders...</p>
-            ) : filteredOrders.length === 0 ? (
-              <p>No orders found with the current filters.</p>
-            ) : (
-              // Now we map over the sortedDateKeys
-              sortedDateKeys.length > 0 ? (
-                sortedDateKeys.map(dateKey => (
-                  <div key={dateKey} className="order-date-group">
-                    <h3>{dateKey}</h3>
-                    <ul className="orders-list">
-                      {
-                        // 👇 FIX: Use optional chaining and nullish coalescing
-                        groupedOrdersFromFiltered[dateKey]?.map((order) => (
-                          <li
-                            key={order.id}
-                            onClick={() => setSelectedOrder(order)}
-                            className="order-list-item"
-                          >
-                            <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
-                            <p>Contact: <strong>{order.billingInfo?.phoneNumber || ''}</strong></p>
-                            <p>Name: <strong>{order.billingInfo?.fullName || ''}</strong></p>
-
-                            <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
-                            <p>Status: <span className={`order-status status-${order.status ? order.status.toLowerCase() : 'pending'}`}>{order.status}</span></p>
-                          </li>
-                        ))}
-                    </ul>
-                  </div>
-                ))
-              ) : (
+              {isOrderLoading ? (
+                <p>Loading orders...</p>
+              ) : filteredOrders.length === 0 ? (
                 <p>No orders found with the current filters.</p>
-              )
-            )}
-          </div>
-        )}
+              ) : (
+                // Now we map over the sortedDateKeys
+                sortedDateKeys.length > 0 ? (
+                  sortedDateKeys.map(dateKey => (
+                    <div key={dateKey} className="order-date-group">
+                      <h3>{dateKey}</h3>
+                      <ul className="orders-list">
+                        {
+                          // 👇 FIX: Use optional chaining and nullish coalescing
+                          groupedOrdersFromFiltered[dateKey]?.map((order) => (
+                            <li
+                              key={order.id}
+                              onClick={() => setSelectedOrder(order)}
+                              className="order-list-item"
+                            >
+                              <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
+                              <p>Contact: <strong>{order.billingInfo?.phoneNumber || ''}</strong></p>
+                              <p>Name: <strong>{order.billingInfo?.fullName || ''}</strong></p>
+
+                              <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
+                              <p>Status: <span className={`order-status status-${order.status ? order.status.toLowerCase() : 'pending'}`}>{order.status}</span></p>
+                            </li>
+                          ))}
+                      </ul>
+                    </div>
+                  ))
+                ) : (
+                  <p>No orders found with the current filters.</p>
+                )
+              )}
+            </div>
+          )}
 
         {/* Render Order Details Modal */}
         {selectedOrder && (
@@ -4169,7 +4257,8 @@ role: ROLE_KEYS.find(
         )}
         {/* --- User Management Tab --- */}
 
-        {activeTab === 'users' && (
+        {activeTab === 'users' && 
+          ROLE_PERMISSIONS[currentUserRole]?.includes("users") && (
           <section className="saas-users-section">
             <h2 className="saas-users-title">User Management</h2>
 
@@ -4236,14 +4325,14 @@ role: ROLE_KEYS.find(
                 {userSortOrder === 'asc' ? '⬆ Ascending' : '⬇ Descending'}
               </button>
               <div className="saas-users-export-bar">
-  <button
-    className="saas-btn saas-btn--secondary"
-    onClick={handleExportUsers}
-    disabled={filteredAndSortedUsers.length === 0}
-  >
-    ⬇ Export Users
-  </button>
-</div>
+                <button
+                  className="saas-btn saas-btn--secondary"
+                  onClick={handleExportUsers}
+                  disabled={filteredAndSortedUsers.length === 0}
+                >
+                  ⬇ Export Users
+                </button>
+              </div>
 
             </div>
 
@@ -4312,7 +4401,7 @@ role: ROLE_KEYS.find(
                           ₹{(stats.lifetimeValue || 0).toLocaleString('en-IN')}
                         </div>
 
-                        
+
 
                         <div className="saas-users-cell saas-users-muted">
                           {formatDate(user.createdAt)}
@@ -4325,32 +4414,32 @@ role: ROLE_KEYS.find(
                         </div>
 
                         <div
-  className="saas-users-cell saas-users-actions"
-  onClick={(e) => e.stopPropagation()}
->
-  {/* ROLE SELECT (CONFIG DRIVEN) */}
-  <select
-    value={user.role}
-    onChange={(e) =>
-      handleUpdateUserRole(user.id, e.target.value)
-    }
-    className="saas-users-role-select"
-  >
-    {ROLE_KEYS.map(role => (
-      <option key={role} value={role}>
-        {ROLE_CONFIG[role].label}
-      </option>
-    ))}
-  </select>
+                          className="saas-users-cell saas-users-actions"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {/* ROLE SELECT (CONFIG DRIVEN) */}
+                          <select
+                            value={user.role}
+                            onChange={(e) =>
+                              handleUpdateUserRole(user.id, e.target.value)
+                            }
+                            className="saas-users-role-select"
+                          >
+                            {ROLE_KEYS.map(role => (
+                              <option key={role} value={role}>
+                                {ROLE_CONFIG[role].label}
+                              </option>
+                            ))}
+                          </select>
 
-  {/* DELETE USER */}
-  <button
-    className="saas-btn saas-btn--danger"
-    onClick={() => handleDeleteUser(user.id)}
-  >
-    Delete
-  </button>
-</div>
+                          {/* DELETE USER */}
+                          <button
+                            className="saas-btn saas-btn--danger"
+                            onClick={() => handleDeleteUser(user.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
 
                       </li>
                     );
@@ -4363,44 +4452,45 @@ role: ROLE_KEYS.find(
 
 
 
-        {activeTab === 'offline-billing' && (
+        {activeTab === 'offline-billing' && 
+          ROLE_PERMISSIONS[currentUserRole]?.includes("offline-billing") && (
           <div className="offline-billing-section">
             <h2>Offline Billing</h2>
 
-{/* 🔑 HIDDEN BARCODE INPUT (USB / Bluetooth Scanner) */}
-<input
-  ref={barcodeInputRef}
-  type="text"
-  value={scannedBarcode}
-  onChange={(e) => setScannedBarcode(e.target.value)}
-  autoFocus={isScanMode}
-  style={{
-    position: "absolute",
-    opacity: isScanMode ? 1 : 0,
-    pointerEvents: "none",
-    height: 0,
-  }}
-/>
+            {/* 🔑 HIDDEN BARCODE INPUT (USB / Bluetooth Scanner) */}
+            <input
+              ref={barcodeInputRef}
+              type="text"
+              value={scannedBarcode}
+              onChange={(e) => setScannedBarcode(e.target.value)}
+              autoFocus={isScanMode}
+              style={{
+                position: "absolute",
+                opacity: isScanMode ? 1 : 0,
+                pointerEvents: "none",
+                height: 0,
+              }}
+            />
 
 
             <div className="billing-container">
               <div className="product-selection-panel">
                 <h4>Select Products</h4>
                 <div className="dropdown-group">
-                 <select
-  className="billing-select"
-  value={offlinePricingKey}
-  onChange={(e) => setOfflinePricingKey(e.target.value)}
->
-  {ROLE_KEYS.map(role => (
-    <option
-      key={role}
-      value={ROLE_CONFIG[role].pricingKey}
-    >
-      {ROLE_CONFIG[role].label} Pricing
-    </option>
-  ))}
-</select>
+                  <select
+                    className="billing-select"
+                    value={offlinePricingKey}
+                    onChange={(e) => setOfflinePricingKey(e.target.value)}
+                  >
+                    {ROLE_KEYS.map(role => (
+                      <option
+                        key={role}
+                        value={ROLE_CONFIG[role].pricingKey}
+                      >
+                        {ROLE_CONFIG[role].label} Pricing
+                      </option>
+                    ))}
+                  </select>
 
                   <select
                     className="billing-select"
@@ -4438,57 +4528,57 @@ role: ROLE_KEYS.find(
                   className="product-search-bar"
                 />
                 {/* 📷 CAMERA SCAN BUTTON */}
-<button
-  className="scan-camera-btn"
-  onClick={() => setShowCameraScanner(true)}
-  style={{
-    marginBottom: "12px",
-    padding: "8px 12px",
-    borderRadius: "6px",
-    border: "1px solid #ccc",
-    cursor: "pointer",
-  }}
->
-  📷 Scan with Camera
-</button>
-<button
-  className="scan-mode-btn"
-  onClick={() => {
-    setIsScanMode(true);
+                <button
+                  className="scan-camera-btn"
+                  onClick={() => setShowCameraScanner(true)}
+                  style={{
+                    marginBottom: "12px",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #ccc",
+                    cursor: "pointer",
+                  }}
+                >
+                  📷 Scan with Camera
+                </button>
+                <button
+                  className="scan-mode-btn"
+                  onClick={() => {
+                    setIsScanMode(true);
 
-    setTimeout(() => {
-      barcodeInputRef.current?.focus();
-    }, 50);
-  }}
->
-  🔫 Start Scanner
-</button>
+                    setTimeout(() => {
+                      barcodeInputRef.current?.focus();
+                    }, 50);
+                  }}
+                >
+                  🔫 Start Scanner
+                </button>
 
-<button
-  className="scan-mode-btn stop"
-  onClick={() => setIsScanMode(false)}
->
-  ✋ Stop Scanner
-</button>
+                <button
+                  className="scan-mode-btn stop"
+                  onClick={() => setIsScanMode(false)}
+                >
+                  ✋ Stop Scanner
+                </button>
 
-<button
-  onClick={() => {
-    localStorage.removeItem(
-      "offlineProductsCache"
-    );
+                <button
+                  onClick={() => {
+                    localStorage.removeItem(
+                      "offlineProductsCache"
+                    );
 
-    fetchAllProductsForScan();
-  }}
->
-  🔄 Refresh Products
-</button>
+                    fetchAllProductsForScan();
+                  }}
+                >
+                  🔄 Refresh Products
+                </button>
 
 
-{Object.keys(allProductsMap).length === 0 && (
-  <p style={{ fontSize: 12, color: "#888", marginBottom: "8px" }}>
-    ⏳ Loading barcode data…
-  </p>
-)}
+                {Object.keys(allProductsMap).length === 0 && (
+                  <p style={{ fontSize: 12, color: "#888", marginBottom: "8px" }}>
+                    ⏳ Loading barcode data…
+                  </p>
+                )}
 
 
                 {isOfflineProductsLoading ? (
@@ -4536,18 +4626,18 @@ role: ROLE_KEYS.find(
 
                             {/* Variation Selector */}
                             {product.variations && product.variations.length > 1 && (
-                             <select
-  className="billing-variation-select"
-  value={JSON.stringify(currentSelection || {})}
-  onChange={(e) => {
-    try {
-      const parsed = JSON.parse(e.target.value);
-      handleOfflineSelectionChange(product.id, parsed);
-    } catch (err) {
-      console.error("❌ Variant parse error:", err);
-    }
-  }}
->
+                              <select
+                                className="billing-variation-select"
+                                value={JSON.stringify(currentSelection || {})}
+                                onChange={(e) => {
+                                  try {
+                                    const parsed = JSON.parse(e.target.value);
+                                    handleOfflineSelectionChange(product.id, parsed);
+                                  } catch (err) {
+                                    console.error("❌ Variant parse error:", err);
+                                  }
+                                }}
+                              >
 
                                 {product.variations.map((v, index) => (
                                   <option
@@ -4866,47 +4956,47 @@ role: ROLE_KEYS.find(
       {/* ===============================
    LAST SCANNED PRODUCT POPUP
 =============================== */}
-{lastScannedProduct && (
-  <div className="scan-popup">
-    <div className="scan-popup-content">
-      <div className="scan-success">✅ Added</div>
+      {lastScannedProduct && (
+        <div className="scan-popup">
+          <div className="scan-popup-content">
+            <div className="scan-success">✅ Added</div>
 
-      <div className="scan-product-name">
-        {lastScannedProduct.name}
-      </div>
+            <div className="scan-product-name">
+              {lastScannedProduct.name}
+            </div>
 
-      <div className="scan-product-code">
-        Code: {lastScannedProduct.code}
-      </div>
-    </div>
-  </div>
-)}
+            <div className="scan-product-code">
+              Code: {lastScannedProduct.code}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 📷 CAMERA SCANNER MODAL */}
-{showCameraScanner && (
-  <div className="camera-scanner-modal">
-    <div className="scanner-container">
+      {showCameraScanner && (
+        <div className="camera-scanner-modal">
+          <div className="scanner-container">
 
-      {/* Camera Feed Wrapper */}
-      <div className="camera-wrapper">
-        <div id="camera-scanner" />
+            {/* Camera Feed Wrapper */}
+            <div className="camera-wrapper">
+              <div id="camera-scanner" />
 
-        {/* Overlay INSIDE camera wrapper */}
-        <div className="scanner-overlay">
-          <div className="laser-line"></div>
+              {/* Overlay INSIDE camera wrapper */}
+              <div className="scanner-overlay">
+                <div className="laser-line"></div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowCameraScanner(false)}
+              className="close-scanner-btn"
+            >
+              Close Scanner
+            </button>
+
+          </div>
         </div>
-      </div>
-
-      <button
-        onClick={() => setShowCameraScanner(false)}
-        className="close-scanner-btn"
-      >
-        Close Scanner
-      </button>
-
-    </div>
-  </div>
-)}
+      )}
 
 
 
