@@ -89,7 +89,7 @@ const AdminPage = () => {
   const [isScanMode, setIsScanMode] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState(null);
   const [roleLoading, setRoleLoading] = useState(true);
-
+const [variantSelectionProduct, setVariantSelectionProduct] = useState(null);
 
   const emptyPricing = PRICING_KEYS.reduce((acc, key) => {
     acc[key] = [];
@@ -278,6 +278,7 @@ const [isShippingApplied, setIsShippingApplied] = useState(false);
     city: '',
     state: '',
     pincode: '',
+    gst: '',
   });
 
   const [isGSTApplied, setIsGSTApplied] = useState(false);
@@ -2657,51 +2658,33 @@ useEffect(() => {
     /* ==============================
        🔀 VARIANT HANDLING
     ============================== */
-    if (
-      product.variations &&
-      product.variations.length > 0
-    ) {
+  if (product.variations && product.variations.length > 1) {
 
-      const selectedVariant =
-        offlineSelections[product.id] ||
-        product.variations.find(
-          v => Number(v.quantity) > 0
-        );
+  // 🔥 Multiple variants → open selection modal
+  setVariantSelectionProduct(product);
 
-      /* ❌ OUT OF STOCK */
-      if (!selectedVariant) {
+} else if (product.variations && product.variations.length === 1) {
 
-        playSound("/sounds/scan-error.mp3");
+  const onlyVariant = product.variations[0];
 
-        alert("All variants are out of stock.");
+  if (Number(onlyVariant.quantity) <= 0) {
+    playSound("/sounds/scan-error.mp3");
+    alert("Variant is out of stock.");
+    return;
+  }
 
-        setTimeout(() => {
-          barcodeInputRef.current?.focus();
-        }, 50);
+  handleOfflineAddToCart(product, onlyVariant);
 
-        return;
-      }
+} else {
 
-      /* ✅ ADD VARIANT */
-      handleOfflineAddToCart(
-        product,
-        selectedVariant
-      );
+  // ✅ Simple product
+  handleOfflineAddToCart(product, null);
+}
 
-    } else {
-
-      /* ==============================
-         ✅ SIMPLE PRODUCT
-      ============================== */
-      handleOfflineAddToCart(product, null);
-    }
-
-    /* ==============================
-       🔁 REFOCUS FOR NEXT SCAN
-    ============================== */
-    setTimeout(() => {
-      barcodeInputRef.current?.focus();
-    }, 50);
+// 🔁 Refocus scanner
+setTimeout(() => {
+  barcodeInputRef.current?.focus();
+}, 50);
   };
 
 
@@ -3036,6 +3019,7 @@ useEffect(() => {
           city: offlineCustomer.city,
           state: offlineCustomer.state,
           pincode: offlineCustomer.pincode,
+          gst: offlineCustomer.gst || '',
         };
 
 
@@ -3410,7 +3394,8 @@ localStorage.removeItem("offlineBillingDraft");
       "offline-billing",
       "leads",
       "coupons",
-      "editOrders"
+      "editOrders",
+      "barcode",
     ],
 
     manager: [
@@ -3519,6 +3504,14 @@ localStorage.removeItem("offlineBillingDraft");
             onClick={() => (window.location.href = "/admin/leads")}
           >
             leads
+          </button>
+        )}
+         {ROLE_PERMISSIONS[currentUserRole]?.includes("barcode") && (
+          <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/barcode-printing")}
+          >
+            Barcode Print
           </button>
         )}
 
@@ -4854,6 +4847,14 @@ localStorage.removeItem("offlineBillingDraft");
                           value={offlineCustomer.phoneNumber}
                           onChange={(e) => handleOfflineCustomerChange('phoneNumber', e.target.value)}
                         />
+                        <input
+  type="text"
+  placeholder="Customer GST Number (optional)"
+  value={offlineCustomer.gst || ""}
+  onChange={(e) =>
+    handleOfflineCustomerChange("gst", e.target.value)
+  }
+/>
 
                         <input
                           type="text"
@@ -5070,6 +5071,36 @@ localStorage.removeItem("offlineBillingDraft");
           </div>
         </div>
       )}
+      {variantSelectionProduct && (
+  <div className="variant-modal-backdrop">
+    <div className="variant-modal">
+      <h3>Select Variant</h3>
+
+      {variantSelectionProduct.variations.map((variant, index) => (
+        <button
+          key={index}
+          disabled={Number(variant.quantity) <= 0}
+          onClick={() => {
+            handleOfflineAddToCart(
+              variantSelectionProduct,
+              variant
+            );
+            setVariantSelectionProduct(null);
+          }}
+        >
+          {variant.color} {variant.size}
+          (Stock: {variant.quantity})
+        </button>
+      ))}
+
+      <button
+        onClick={() => setVariantSelectionProduct(null)}
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
 
 
 

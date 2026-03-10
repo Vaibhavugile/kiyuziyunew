@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
 import JsBarcode from "jsbarcode";
 import html2pdf from "html2pdf.js";
 import "./Barcode.css";
-
 /* ======================================================
    BARCODE LABEL
 ====================================================== */
@@ -84,36 +83,44 @@ const BarcodePrintingPage = () => {
   }, [selectedCollectionId]);
 
   /* ================= FETCH PRODUCTS ================= */
-  useEffect(() => {
-    if (!selectedSubcollectionId) {
-      setProducts([]);
-      return;
-    }
+ useEffect(() => {
+  if (!selectedSubcollectionId) {
+    setProducts([]);
+    return;
+  }
 
-    const fetchProducts = async () => {
-      const snap = await getDocs(
-        collection(
-          db,
-          "collections",
-          selectedCollectionId,
-          "subcollections",
-          selectedSubcollectionId,
-          "products"
-        )
-      );
+  const fetchProducts = async () => {
 
-      setProducts(
-        snap.docs.map(d => ({
-          id: d.id, // BARCODE VALUE
-          ...d.data(),
-        }))
-      );
-    };
+    const snap = await getDocs(
+      collection(
+        db,
+        "collections",
+        selectedCollectionId,
+        "subcollections",
+        selectedSubcollectionId,
+        "products"
+      )
+    );
 
-    setSelectedProductIds([]);
-    fetchProducts();
-  }, [selectedSubcollectionId, selectedCollectionId]);
+    const productsData = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+    }));
 
+    // Sort newest first (supports timestamp OR createdAt)
+    productsData.sort((a, b) => {
+      const timeA = (a.timestamp || a.createdAt)?.seconds || 0;
+      const timeB = (b.timestamp || b.createdAt)?.seconds || 0;
+      return timeB - timeA;
+    });
+
+    setProducts(productsData);
+  };
+
+  setSelectedProductIds([]);
+  fetchProducts();
+
+}, [selectedSubcollectionId, selectedCollectionId]);
   /* ================= DERIVED ================= */
   const selectedProducts = useMemo(
     () => products.filter(p => selectedProductIds.includes(p.id)),
@@ -150,6 +157,18 @@ const BarcodePrintingPage = () => {
 
     await html2pdf().set(options).from(pdfRef.current).save();
   };
+const isNewProduct = (product) => {
+  const timeField = product.timestamp || product.createdAt;
+
+  if (!timeField) return false;
+
+  const productTime = timeField.toDate().getTime();
+  const now = Date.now();
+
+  const diffHours = (now - productTime) / (1000 * 60 * 60);
+
+  return diffHours <= 48;
+};
 
   /* ================= UI ================= */
   return (
@@ -222,7 +241,12 @@ const BarcodePrintingPage = () => {
               }
             />
             <div>
-              <strong>{product.productName}</strong>
+              <strong>
+  {product.productName}
+  {isNewProduct(product) && (
+  <span className="new-badge">NEW</span>
+)}
+</strong>
               <div>{selectedSubcollectionName}</div>
               <small>Code: {product.productCode}</small>
             </div>

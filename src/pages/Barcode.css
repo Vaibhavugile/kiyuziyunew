@@ -192,7 +192,37 @@
   background: #fff;
   break-inside: avoid;
 }
+.product-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
+.new-badge {
+  background: #ff3b30;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  animation: pulseBadge 1.5s infinite;
+}
+
+/* Smooth Pulse Animation */
+@keyframes pulseBadge {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.6);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 6px rgba(255, 59, 48, 0);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
 
 /* =====================================================
    LABEL TEXT
@@ -214,4 +244,36 @@
 .barcode-label svg {
   width: 100%;
   height: auto;
+}
+.recent-badge {
+  background: linear-gradient(45deg, #ff9800, #ff5722);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  animation: glowPulse 1.5s infinite;
+}
+
+@keyframes glowPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 87, 34, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(255, 87, 34, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 87, 34, 0);
+  }
+}
+
+.new-badge{
+  background:#ff3b3b;
+  color:white;
+  font-size:10px;
+  padding:2px 6px;
+  border-radius:4px;
+  margin-left:6px;
+  font-weight:bold;
 }
