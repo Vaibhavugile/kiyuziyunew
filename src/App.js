@@ -26,6 +26,17 @@ import BulkEnquiryList from "./pages/BulkEnquiryList";
 import BarcodePrintingPage from './pages/BarcodePrintingPage';
 import PartnerApplicationsList from './pages/PartnerApplicationsList';
 import AdminLeadsDashboard from './pages/AdminLeadsDashboard';
+import DropshipperLayout from "./pages/dropshipper/DropshipperLayout";
+import DropshipperDashboard from "./pages/dropshipper/DropshipperDashboard";
+import DropshipperProducts from "./pages/dropshipper/DropshipperProducts";
+import DropshipperOrders from "./pages/dropshipper/DropshipperOrders";
+import SellerStore from "./pages/dropshipper/SellerStore";
+import DropshipperLogin from "./pages/dropshipper/DropshipperLogin"
+import DropshipperSetup from "./pages/dropshipper/DropshipperSetup"
+import DropshipperSignup from "./pages/dropshipper/DropshipperSignup";
+import { StoreCartProvider } from "./pages/store/StoreCartContext";
+import StoreCartPage from "./pages/store/StoreCartPage";
+import StoreCheckoutPage from "./pages/store/StoreCheckoutPage";
 function App() {
   return (
     <AuthProvider>
@@ -51,6 +62,10 @@ function App() {
   path="/admin/coupons"
   element={ <CouponAdmin />}
 />
+<Route path="/dropshipper/login" element={<DropshipperLogin/>} />
+
+<Route path="/dropshipper/setup" element={<DropshipperSetup/>} />
+<Route path="/dropshipper/signup" element={<DropshipperSignup />} />
 <Route
   path="/admin/coupons/usage"
   element={<CouponUsageHistory />}
@@ -65,6 +80,52 @@ function App() {
   element={<PartnerApplicationsList />}
 />
 <Route path="/admin/leads" element={<AdminLeadsDashboard />} />
+<Route path="/dropshipper" element={<DropshipperLayout />}>
+
+  <Route
+    path="dashboard"
+    element={<DropshipperDashboard />}
+  />
+
+  <Route
+    path="products"
+    element={<DropshipperProducts />}
+  />
+
+  <Route
+    path="orders"
+    element={<DropshipperOrders />}
+  />
+
+</Route>
+
+<Route
+path="/store/:slug"
+element={
+<StoreCartProvider>
+<SellerStore />
+</StoreCartProvider>
+}
+/>
+
+<Route
+path="/store-cart"
+element={
+<StoreCartProvider>
+<StoreCartPage />
+</StoreCartProvider>
+}
+/>
+
+<Route
+path="/store-checkout"
+element={
+<StoreCartProvider>
+<StoreCheckoutPage />
+</StoreCartProvider>
+}
+/>
+
 
 
 
