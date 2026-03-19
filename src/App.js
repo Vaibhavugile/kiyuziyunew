@@ -43,25 +43,26 @@ import AdminSellers from './pages/AdminSellers';
 import AdminStoreOrders from './pages/AdminStoreOrders';
 import AdminSellerProfits from './pages/AdminSellerProfits';
 import StoreHomepage from './pages/store/StoreHomepage';
+import DropshipperHomepage from './pages/dropshipper/DropshipperHomepage';
 function App() {
   return (
     <AuthProvider>
       <CartProvider>
         <Router>
-{isMainDomain() && <Navbar />}
+          {isMainDomain() && <Navbar />}
           <Routes>
-<Route
-path="/"
-element={
-isMainDomain()
-? <HomePage/>
-: (
-<StoreCartProvider>
-<StoreLoader/>
-</StoreCartProvider>
-)
-}
-/>            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/"
+              element={
+                isMainDomain()
+                  ? <HomePage />
+                  : (
+                    <StoreCartProvider>
+                      <StoreHomepage />
+                    </StoreCartProvider>
+                  )
+              }
+            />         <Route path="/login" element={<LoginPage />} />
             <Route path="/Apple@782k" element={<AdminPage />} />
             <Route path="/collections/:collectionId" element={<SubcollectionsPage />} />
             <Route path="/collections/:collectionId/all-products" element={<ProductsPage />} />            <Route path="/cart" element={<CartPage />} />
@@ -74,91 +75,88 @@ isMainDomain()
             <Route path="/admin/orders/edit" element={<OrderEditPage />} />
             <Route path="/admin/bulk" element={<BulkEnquiryList />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
-<Route
-  path="/admin/coupons"
-  element={ <CouponAdmin />}
-/>
-<Route path="/dropshipper/login" element={<DropshipperLogin/>} />
+            <Route
+              path="/admin/coupons"
+              element={<CouponAdmin />}
+            />
+            <Route path="/dropshipper/login" element={<DropshipperLogin />} />
 
-<Route path="/dropshipper/setup" element={<DropshipperSetup/>} />
-<Route path="/dropshipper/signup" element={<DropshipperSignup />} />
-<Route
-  path="/admin/coupons/usage"
-  element={<CouponUsageHistory />}
-/>
-<Route path="/admin/coupon-analytics" element={<CouponAnalytics />} />
-<Route path="/admin/seller-profits" element={<AdminSellerProfits />} />
-<Route
-path="/"
-element={
-<StoreCartProvider>
-<StoreHomepage/>
-</StoreCartProvider>
-}
-/>
+            <Route path="/dropshipper/setup" element={<DropshipperSetup />} />
+            <Route path="/dropshipper/signup" element={<DropshipperSignup />} />
+            <Route
+              path="/admin/coupons/usage"
+              element={<CouponUsageHistory />}
+            />
+            <Route path="/admin/coupon-analytics" element={<CouponAnalytics />} />
+            <Route path="/admin/seller-profits" element={<AdminSellerProfits />} />
 
-<Route
-  path="/admin/barcode-printing"
-  element={<BarcodePrintingPage />}
-/>
-<Route path="/admin/sellers" element={<AdminSellers />} />
-<Route path="/admin/store-orders" element={<AdminStoreOrders />} />
-<Route
-  path="/admin/partner"
-  element={<PartnerApplicationsList />}
-/>
-<Route path="/admin/leads" element={<AdminLeadsDashboard />} />
-<Route path="/dropshipper" element={<DropshipperLayout />}>
 
-  <Route
-    path="dashboard"
-    element={<DropshipperDashboard />}
-  />
+            <Route
+              path="/admin/barcode-printing"
+              element={<BarcodePrintingPage />}
+            />
+            <Route path="/admin/sellers" element={<AdminSellers />} />
+            <Route path="/admin/store-orders" element={<AdminStoreOrders />} />
+            <Route
+              path="/admin/partner"
+              element={<PartnerApplicationsList />}
+            />
+            <Route path="/admin/leads" element={<AdminLeadsDashboard />} />
+            <Route path="/dropshipper" element={<DropshipperLayout />}>
 
-  <Route
-    path="products"
-    element={<DropshipperProducts />}
-  />
+              <Route
+                path="dashboard"
+                element={<DropshipperDashboard />}
+              />
 
-  <Route
-    path="orders"
-    element={<DropshipperOrders />}
-  />
+              <Route
+                path="products"
+                element={<DropshipperProducts />}
+              />
 
-</Route>
+              <Route
+                path="orders"
+                element={<DropshipperOrders />}
+              />
+              <Route
+                path="homepage"
+                element={<DropshipperHomepage />}
+              />
 
-<Route
-path="/store/:slug"
-element={
-<StoreCartProvider>
-<SellerStore />
-</StoreCartProvider>
-}
-/>
+            </Route>
 
-<Route
-path="/store-cart"
-element={
-<StoreCartProvider>
-<StoreCartPage />
-</StoreCartProvider>
-}
-/>
+            <Route
+              path="/store/:slug"
+              element={
+                <StoreCartProvider>
+                  <SellerStore />
+                </StoreCartProvider>
+              }
+            />
 
-<Route
-path="/store-checkout"
-element={
-<StoreCartProvider>
-<StoreCheckoutPage />
-</StoreCartProvider>
-}
-/>
+            <Route
+              path="/store-cart"
+              element={
+                <StoreCartProvider>
+                  <StoreCartPage />
+                </StoreCartProvider>
+              }
+            />
+
+            <Route
+              path="/store-checkout"
+              element={
+                <StoreCartProvider>
+                  <StoreCheckoutPage />
+                </StoreCartProvider>
+              }
+            />
 
 
 
 
-          </Routes> 
-{isMainDomain() && <Footer />}
+          </Routes>
+          {isMainDomain() && <Footer />}
         </Router>
       </CartProvider>
     </AuthProvider>

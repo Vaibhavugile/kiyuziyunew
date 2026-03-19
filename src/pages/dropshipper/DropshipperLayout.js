@@ -63,6 +63,12 @@ className={isActive("orders")}
 Orders
 </Link>
 
+<Link
+  to="/dropshipper/homepage"
+  className={isActive("homepage")}
+>
+  Homepage
+</Link>
 </nav>
 
 </aside>
