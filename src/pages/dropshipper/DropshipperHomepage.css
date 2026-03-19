@@ -1,0 +1,243 @@
+/* ===============================
+   ROOT THEME
+=============================== */
+
+:root {
+  --admin-bg: #f6f8fb;
+  --card-bg: #ffffff;
+  --border: #e5e7eb;
+  --text: #111827;
+  --muted: #6b7280;
+  --primary: #111827;
+  --radius: 12px;
+  --shadow: 0 10px 30px rgba(0,0,0,0.05);
+  --ease: cubic-bezier(.2,.9,.2,1);
+}
+
+/* ===============================
+   PAGE WRAPPER
+=============================== */
+
+.admin-page {
+  background: var(--admin-bg);
+  min-height: 100vh;
+  padding: 30px 20px;
+  box-sizing: border-box;
+  font-family: "Inter", sans-serif;
+}
+
+.admin-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* ===============================
+   HEADER
+=============================== */
+
+.admin-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 25px;
+  color: var(--text);
+}
+
+/* ===============================
+   CARD SECTIONS
+=============================== */
+
+.admin-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  transition: all 0.3s var(--ease);
+}
+
+.admin-card:hover {
+  transform: translateY(-2px);
+}
+
+/* ===============================
+   SECTION TITLE
+=============================== */
+
+.admin-card h3 {
+  margin-bottom: 15px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* ===============================
+   INPUTS
+=============================== */
+
+.admin-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  outline: none;
+  font-size: 14px;
+  transition: border 0.2s ease;
+}
+
+.admin-input:focus {
+  border-color: var(--primary);
+}
+
+/* spacing */
+.admin-field {
+  margin-bottom: 12px;
+}
+
+/* ===============================
+   FILE UPLOAD
+=============================== */
+
+.admin-file {
+  display: block;
+  margin-top: 10px;
+}
+
+.admin-preview {
+  margin-top: 10px;
+}
+
+.admin-preview img {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+/* ===============================
+   HERO IMAGES GRID
+=============================== */
+
+.hero-images {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.hero-image-item {
+  position: relative;
+}
+
+.hero-image-item img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.hero-remove-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 12px;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+/* ===============================
+   FEATURES LIST
+=============================== */
+
+.feature-item {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.feature-item input {
+  flex: 1;
+}
+
+/* ===============================
+   BUTTONS
+=============================== */
+
+.admin-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s var(--ease);
+}
+
+.admin-btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.admin-btn-primary:hover {
+  opacity: 0.9;
+}
+
+.admin-btn-secondary {
+  background: #e5e7eb;
+}
+
+.admin-btn-danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+.admin-btn-small {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+/* ===============================
+   COLOR PICKERS
+=============================== */
+
+.color-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.color-row input[type="color"] {
+  width: 50px;
+  height: 35px;
+  border: none;
+  cursor: pointer;
+}
+
+/* ===============================
+   SAVE BUTTON
+=============================== */
+
+.save-btn {
+  width: 100%;
+  padding: 14px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(90deg, #111827, #374151);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.save-btn:hover {
+  transform: translateY(-2px);
+}
+
+.save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

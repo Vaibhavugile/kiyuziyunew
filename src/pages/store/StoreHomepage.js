@@ -1,96 +1,159 @@
 import React, { useEffect, useState } from "react";
-import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 
-/* ✅ IMPORT YOUR SECTIONS */
-import HeroSection from "./HeroSection";
-import CollectionsSection from "./CollectionsSection";
+/* COMPONENTS */
+import StoreNavbar from "./StoreNavbar";
+import StoreHeroSection from "./StoreHeroSection";
 import ProductsSection from "./ProductsSection";
 import TrustSection from "./TrustSection";
 import TestimonialsSection from "./TestimonialsSection";
 
 const StoreHomepage = () => {
 
-  const [store,setStore] = useState(null);
-  const [homepage,setHomepage] = useState(null);
+  const [homepage, setHomepage] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(()=>{
+  /* ================= LOAD STORE ================= */
+  useEffect(() => {
 
-    const loadStore = async()=>{
+    const loadStore = async () => {
+      try {
+        const domain = window.location.host;
 
-      const domain = window.location.host;
+        console.log("🌐 DOMAIN:", domain);
 
-      const usersSnap = await getDocs(collection(db,"users"));
+        const homepageRef = doc(db, "storeHomepages", domain);
+        const homepageSnap = await getDoc(homepageRef);
 
-      let seller = null;
+        if (homepageSnap.exists()) {
+          const data = homepageSnap.data();
 
-      usersSnap.forEach(doc=>{
-        if(doc.data().storeDomain === domain){
-          seller = { id:doc.id, ...doc.data() }
+          console.log("✅ Homepage loaded:", data);
+
+          setHomepage(data);
+        } else {
+          console.warn("❌ No homepage found for:", domain);
         }
-      });
 
-      if(!seller) return;
-
-      setStore(seller);
-
-      /* 🔥 FIX: USE DOMAIN */
-      const homepageSnap = await getDoc(
-        doc(db,"storeHomepages",domain)
-      );
-
-      if(homepageSnap.exists()){
-        setHomepage(homepageSnap.data());
+      } catch (err) {
+        console.error("❌ Load error:", err);
       }
 
+      setLoading(false);
     };
 
     loadStore();
 
-  },[]);
+  }, []);
 
+  /* ================= THEME ================= */
+  const theme = homepage?.theme || {
+    colors: {
+      primary: "#C9A34E",
+      background: "#ffffff",
+      text: "#111111"
+    },
+    font: "sans-serif"
+  };
 
-  /* ===============================
-  LOADING
-  =============================== */
+  /* ================= APPLY THEME GLOBALLY 🔥 ================= */
+  useEffect(() => {
+    if (!theme?.colors) return;
 
-  if(!store || !homepage){
-    return <div style={{padding:"40px"}}>Loading store...</div>;
+    console.log("🎨 Applying theme globally:", theme);
+
+    // HERO + GLOBAL CSS
+    document.documentElement.style.setProperty("--accent", theme.colors.primary);
+    document.documentElement.style.setProperty("--accent-2", theme.colors.primary + "80");
+    document.documentElement.style.setProperty("--text", theme.colors.text);
+    document.documentElement.style.setProperty("--bg-light", theme.colors.background);
+    document.documentElement.style.setProperty("--bg-soft", theme.colors.background);
+
+    // NAVBAR CSS (your existing system)
+    document.documentElement.style.setProperty("--kj-gold", theme.colors.primary);
+    document.documentElement.style.setProperty("--kj-gold-2", theme.colors.primary);
+    document.documentElement.style.setProperty("--kj-bg", theme.colors.background);
+
+  }, [theme]);
+
+  /* ================= LOADING ================= */
+  if (loading) {
+    return (
+      <div style={{ padding: "40px" }}>
+        Loading store...
+      </div>
+    );
   }
 
-
-  /* ===============================
-  UI (UPDATED)
-  =============================== */
-
-  return(
-
-    <div>
-{homepage.sections?.map((sec, index) => {
-
-  switch(sec.type){
-
-    case "hero":
-      return <HeroSection key={index} data={sec} store={store} />
-
-    case "collections":
-      return <CollectionsSection key={index} data={sec} />
-
-    case "testimonials":
-      return <TestimonialsSection key={index} data={sec} />
-
-    default:
-      return null;
+  if (!homepage) {
+    return (
+      <div style={{ padding: "40px", color: "red" }}>
+        ❌ Store not found for this domain
+        <br />
+        Check console for DOMAIN mismatch
+      </div>
+    );
   }
 
-})}
+  /* ================= UI ================= */
 
-<TrustSection />
+  return (
+    <div
+      style={{
+        background: theme.colors.background,
+        color: theme.colors.text,
+        fontFamily: theme.font,
+        minHeight: "100vh"
+      }}
+    >
+
+      {/* 🔥 NAVBAR */}
+      <StoreNavbar
+        data={homepage?.navbar}
+        theme={theme}
+      />
+
+      {/* 🔥 HERO */}
+      {homepage?.hero && (
+        <StoreHeroSection data={homepage.hero} />
+      )}
+
+      {/* 🔥 OTHER SECTIONS */}
+      {homepage?.sections?.map((sec) => {
+
+        switch (sec.type) {
+
+
+          case "products":
+            return (
+              <ProductsSection
+                key={sec.id}
+                products={sec.products || []}
+                theme={theme}
+              />
+            );
+
+          case "testimonials":
+            return (
+              <TestimonialsSection
+                key={sec.id}
+                data={sec}
+                theme={theme}
+              />
+            );
+
+          default:
+            return null;
+        }
+
+      })}
+
+      {/* 🔥 TRUST */}
+      <TrustSection theme={theme} />
 
     </div>
-
   );
-
 };
 
 export default StoreHomepage;
