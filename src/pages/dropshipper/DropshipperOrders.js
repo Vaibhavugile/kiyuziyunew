@@ -18,6 +18,7 @@ const { currentUser } = useAuth();
 
 const [orders,setOrders] = useState([]);
 const [loading,setLoading] = useState(true);
+const [expandedOrder,setExpandedOrder] = useState(null);
 
 /* =========================
 LOAD SELLER ORDERS
@@ -26,6 +27,8 @@ LOAD SELLER ORDERS
 useEffect(()=>{
 
 const loadOrders = async()=>{
+
+if(!currentUser) return;
 
 try{
 
@@ -52,9 +55,7 @@ setLoading(false);
 
 };
 
-if(currentUser){
 loadOrders();
-}
 
 },[currentUser]);
 
@@ -66,12 +67,12 @@ const calculateOrderProfit = (order)=>{
 
 let profit = 0;
 
-order.items?.forEach(item=>{
+(order.items || []).forEach(item=>{
 
 const sellingPrice = item.priceAtTimeOfOrder || 0;
 const costPrice = item.costPrice || 0;
 
-profit += (sellingPrice - costPrice) * item.quantity;
+profit += (sellingPrice - costPrice) * (item.quantity || 0);
 
 });
 
@@ -80,11 +81,28 @@ return profit;
 };
 
 /* =========================
+FORMAT DATE
+========================= */
+
+const formatDate = (timestamp)=>{
+
+if(!timestamp) return "";
+
+try{
+return new Date(timestamp.seconds * 1000)
+.toLocaleDateString();
+}catch{
+return "";
+}
+
+};
+
+/* =========================
 LOADING
 ========================= */
 
 if(loading){
-return <p style={{padding:"40px"}}>Loading orders...</p>;
+return <div className="orders-loading">Loading orders...</div>;
 }
 
 /* =========================
@@ -93,65 +111,94 @@ UI
 
 return(
 
-<div className="dropshipper-orders-container">
+<div className="dropshipper-orders">
 
-<h1>Dropshipper Orders</h1>
+<h1>Orders</h1>
 
 {orders.length === 0 && (
-<p>No orders yet.</p>
+<div className="no-orders">
+No orders yet
+</div>
 )}
 
-<div className="orders-list">
+<div className="orders-table">
 
 {orders.map(order=>{
 
 const profit = calculateOrderProfit(order);
+const isExpanded = expandedOrder === order.id;
 
 return(
 
-<div key={order.id} className="order-card">
+<div key={order.id} className="order-row">
 
-{/* ORDER HEADER */}
+{/* SUMMARY */}
 
-<div className="order-header">
+<div
+className="order-summary"
+onClick={()=>setExpandedOrder(
+isExpanded ? null : order.id
+)}
+>
 
-<div>
-<strong>Order ID:</strong> {order.id}
+<div className="order-id">
+#{order.id.slice(0,8)}
 </div>
 
-<div>
-<strong>Status:</strong> {order.status}
+<div className="order-customer">
+{order.billingInfo?.fullName || "Customer"}
 </div>
 
-<div>
-<strong>Total:</strong> ₹{order.totalAmount}
+<div className={`order-status status-${(order.status || "pending").toLowerCase()}`}>
+{order.status || "Pending"}
 </div>
 
-<div className="profit">
-Profit: ₹{profit}
+<div className="order-total">
+₹{order.totalAmount || 0}
+</div>
+
+<div className="order-profit">
+₹{profit}
 </div>
 
 </div>
 
+{/* EXPANDED DETAILS */}
+
+{isExpanded && (
+
+<div className="order-details">
 
 {/* CUSTOMER */}
 
-<div className="customer-info">
+<div className="customer-block">
 
-<strong>Customer:</strong> {order.billingInfo?.fullName}
+<h3>Customer Details</h3>
 
-<br/>
+<p><strong>Name:</strong> {order.billingInfo?.fullName}</p>
 
+<p><strong>Phone:</strong> {order.billingInfo?.phone}</p>
+
+<p><strong>Address:</strong> {order.billingInfo?.address}</p>
+
+<p>
+<strong>Location:</strong>{" "}
 {order.billingInfo?.city}, {order.billingInfo?.state}
+</p>
+
+<p>
+<strong>Date:</strong> {formatDate(order.createdAt)}
+</p>
 
 </div>
 
+{/* PRODUCTS */}
 
-{/* ORDER ITEMS */}
+<div className="items-block">
 
-<div className="order-items">
+<h3>Products</h3>
 
-{order.items?.map((item,i)=>(
+{(order.items || []).map((item,i)=>(
 
 <div key={i} className="order-item">
 
@@ -160,22 +207,26 @@ src={item.images?.[0]?.url || item.image}
 alt={item.productName}
 />
 
-<div className="item-details">
+<div className="item-info">
 
 <div className="item-name">
 {item.productName}
 </div>
 
-<div>
+<div className="item-meta">
 Code: {item.productCode}
 </div>
 
-<div>
+<div className="item-meta">
 Qty: {item.quantity}
 </div>
 
-<div>
+<div className="item-meta">
 Price: ₹{item.priceAtTimeOfOrder}
+</div>
+
+<div className="item-meta">
+Cost: ₹{item.costPrice}
 </div>
 
 </div>
@@ -185,6 +236,10 @@ Price: ₹{item.priceAtTimeOfOrder}
 ))}
 
 </div>
+
+</div>
+
+)}
 
 </div>
 

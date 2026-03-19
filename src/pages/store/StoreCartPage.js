@@ -7,28 +7,29 @@ import "../CartPage.css";
 TIER PRICE CALCULATOR
 ========================= */
 
-const getTierPrice = (tiers, quantity) => {
+const getTierData = (tiers, quantity) => {
 
-if(!tiers || tiers.length === 0) return 0;
+if(!tiers || tiers.length === 0){
+return { price:0, costPrice:0 };
+}
 
-const sorted = [...tiers].sort(
-(a,b)=>Number(a.min_quantity) - Number(b.min_quantity)
-);
+let selected = tiers[0];
 
-let price = sorted[0].price;
-
-for(const tier of sorted){
+for(const tier of tiers){
 
 const min = Number(tier.min_quantity);
 const max = Number(tier.max_quantity) || Infinity;
 
 if(quantity >= min && quantity <= max){
-price = tier.price;
+selected = tier;
 }
 
 }
 
-return price;
+return {
+price:Number(selected.price),
+costPrice:Number(selected.costPrice ?? 0)
+};
 
 };
 
@@ -75,7 +76,7 @@ STOCK VALIDATION
 ========================= */
 
 const stockErrors = items.filter(item =>
-item.quantity > (item.stock ?? 999999)
+item.quantity > (item.stock ?? Infinity)
 );
 
 
@@ -102,7 +103,7 @@ const tiers = item.tieredPricing?.retail ?? [];
 
 const subQty = subcollectionTotals[item.subcollectionId] || 0;
 
-const price = getTierPrice(tiers, subQty);
+const { price } = getTierData(tiers, subQty);
 
 return sum + price * item.quantity;
 
@@ -204,11 +205,11 @@ const tiers = item.tieredPricing?.retail ?? [];
 
 const subQty = subcollectionTotals[item.subcollectionId] || 0;
 
-const price = getTierPrice(tiers, subQty);
+const { price, costPrice } = getTierData(tiers, subQty);
 
 const subtotal = price * item.quantity;
 
-const stock = item.stock ?? 999999;
+const stock = item.stock ?? Infinity;
 
 const isOutOfStock = item.quantity > stock;
 
@@ -246,7 +247,6 @@ className="cart-item-image1"
 ₹{price} each
 </div>
 
-
 {/* STOCK WARNING */}
 
 {isOutOfStock && (
@@ -265,7 +265,7 @@ Only {stock} available (You selected {item.quantity})
 
 )}
 
-{!isOutOfStock && isMaxReached && stock !== 999999 && (
+{!isOutOfStock && isMaxReached && stock !== Infinity && (
 
 <div
 style={{

@@ -45,7 +45,6 @@ LOAD STORE
 
 useEffect(()=>{
 
-if(!slug) return;
 
 let inventoryListeners = [];
 
@@ -55,29 +54,35 @@ try{
 
 setLoading(true);
 
-console.log("Loading store for slug:", slug);
-
 /* ===============================
 FIND SELLER
 =============================== */
 
-const sellerSnap = await getDocs(
+let sellerSnap;
+
+if(slug){
+
+sellerSnap = await getDocs(
 query(collection(db,"users"),where("storeSlug","==",slug))
 );
 
+}else{
+
+const domain = window.location.host;
+
+sellerSnap = await getDocs(
+query(collection(db,"users"),where("storeDomain","==",domain))
+);
+
+}
+
 if(sellerSnap.empty){
-
-console.warn("Store not found for slug:",slug);
-
 setLoading(false);
 return;
-
 }
 
 const sellerDoc = sellerSnap.docs[0];
 const sellerId = sellerDoc.id;
-
-console.log("Seller found:",sellerId);
 
 setSeller({
 id:sellerId,
@@ -86,7 +91,7 @@ id:sellerId,
 
 
 /* ===============================
-LOAD PRICING
+LOAD SELLER PRICING
 =============================== */
 
 const pricingSnap = await getDocs(
@@ -126,15 +131,19 @@ const pricingKey = `${p.collectionId}_${p.subcollectionId}`;
 
 const tiers = pricingMap[pricingKey]?.tieredPricing || [];
 
+/* NORMALIZE TIERS (INCLUDING COST PRICE) */
+
 const normalized = tiers.map(t=>({
 min_quantity:Number(t.min_quantity),
 max_quantity:Number(t.max_quantity),
-price:Number(t.price)
+price:Number(t.price),
+costPrice:Number(t.costPrice ?? 0)
 }));
 
 return{
 ...p,
-sellerId:sellerId, // ⭐ IMPORTANT
+sellerId:sellerId,
+
 tieredPricing:{
 retail:normalized,
 wholesale:normalized,
@@ -142,6 +151,7 @@ dealer:normalized,
 distributor:normalized,
 vip:normalized
 }
+
 };
 
 });
@@ -456,12 +466,8 @@ onChange={(e)=>setSearch(e.target.value)}
 key={product.id}
 product={product}
 
-onIncrement={() => {
-
-console.log("Adding product to cart:",product);
-
+onIncrement={()=>{
 addToCart(product);
-
 }}
 
 onDecrement={(cartId)=>removeFromCart(cartId)}

@@ -34,7 +34,6 @@ const [baseTiers,setBaseTiers] = useState([]);
 const [sellerTiers,setSellerTiers] = useState([]);
 
 const [enabledProducts,setEnabledProducts] = useState({});
-
 const [loading,setLoading] = useState(false);
 
 
@@ -174,18 +173,40 @@ const subData = subSnap.data();
 
 const tiers = subData?.tieredPricing?.[pricingKey] || [];
 
+/* BASE = COST PRICE */
+
 const cleanedBase = tiers.map(t=>({
 min_quantity:Number(t.min_quantity),
 max_quantity:Number(t.max_quantity),
-price:Number(t.price)
+costPrice:Number(t.price)
 }));
 
 setBaseTiers(cleanedBase);
 
+/* LOAD SELLER DATA */
+
 if(sellerSnap.exists()){
-setSellerTiers(sellerSnap.data()?.tieredPricing || []);
+
+const data = sellerSnap.data()?.tieredPricing || [];
+
+setSellerTiers(
+data.map(t=>({
+min_quantity:Number(t.min_quantity),
+max_quantity:Number(t.max_quantity),
+costPrice:Number(t.costPrice ?? t.price ?? 0),
+price:Number(t.price ?? t.costPrice ?? 0)
+}))
+);
+
 }else{
-setSellerTiers(cleanedBase.map(t=>({...t})));
+
+setSellerTiers(
+cleanedBase.map(t=>({
+...t,
+price:t.costPrice
+}))
+);
+
 }
 
 }catch(err){
@@ -296,8 +317,6 @@ setEnabledProducts(prev=>({
 [product.id]:newValue
 }));
 
-/* ORIGINAL ENABLE MAP */
-
 await setDoc(
 doc(
 db,
@@ -315,9 +334,6 @@ updatedAt:Date.now()
 },
 {merge:true}
 );
-
-
-/* ⭐ FAST STORE INDEX */
 
 const storeRef = doc(
 db,
@@ -392,9 +408,6 @@ pricingKey,
 tieredPricing:sellerTiers,
 updatedAt:Date.now()
 },{merge:true});
-
-
-/* UPDATE STORE INDEX PRICING */
 
 const storeSnap = await getDocs(
 collection(
@@ -496,8 +509,8 @@ disabled={!selectedCollection}
 <thead>
 <tr>
 <th>Qty Range</th>
-<th>Base Price</th>
-<th>Your Price</th>
+<th>Cost Price</th>
+<th>Selling Price</th>
 </tr>
 </thead>
 
@@ -509,16 +522,14 @@ disabled={!selectedCollection}
 
 <td>{tier.min_quantity} - {tier.max_quantity}</td>
 
-<td>₹{baseTiers[index]?.price ?? "-"}</td>
+<td>₹{tier.costPrice}</td>
 
 <td>
-
 <input
 type="number"
 value={tier.price}
 onChange={(e)=>updateSellerPrice(index,e.target.value)}
 />
-
 </td>
 
 </tr>

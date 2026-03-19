@@ -21,25 +21,31 @@ return {};
 
 });
 
-
 /* =========================
-REALTIME LISTENER STORAGE
-(useRef to avoid rerenders)
+REALTIME LISTENERS
 ========================= */
 
 const listenersRef = useRef({});
-
 
 /* =========================
 SAVE CART
 ========================= */
 
 useEffect(()=>{
-
 localStorage.setItem("store_cart",JSON.stringify(cart));
-
 },[cart]);
 
+/* =========================
+RESTORE LISTENERS AFTER REFRESH
+========================= */
+
+useEffect(()=>{
+
+Object.values(cart).forEach(item=>{
+attachInventoryListener(item);
+});
+
+},[]);
 
 /* =========================
 CREATE CART ID
@@ -47,7 +53,7 @@ CREATE CART ID
 
 const getCartItemId = (product)=>{
 
-let id = product.id;
+let id = product.productId || product.id;
 
 if(product.variation){
 
@@ -64,14 +70,15 @@ return id;
 
 };
 
-
 /* =========================
 ATTACH INVENTORY LISTENER
 ========================= */
 
 const attachInventoryListener = (product)=>{
 
-if(listenersRef.current[product.productId]) return;
+const pid = product.productId;
+
+if(listenersRef.current[pid]) return;
 
 const ref = doc(
 db,
@@ -80,7 +87,7 @@ product.collectionId,
 "subcollections",
 product.subcollectionId,
 "products",
-product.productId
+pid
 );
 
 const unsub = onSnapshot(ref,(snap)=>{
@@ -97,7 +104,7 @@ Object.keys(updated).forEach(id=>{
 
 const item = updated[id];
 
-if(item.productId === product.productId){
+if(item.productId === pid){
 
 const stock = data.quantity ?? 0;
 
@@ -106,12 +113,8 @@ updated[id] = {
 stock
 };
 
-/* auto adjust quantity */
-
 if(item.quantity > stock){
-
 updated[id].quantity = stock;
-
 }
 
 }
@@ -124,10 +127,9 @@ return updated;
 
 });
 
-listenersRef.current[product.productId] = unsub;
+listenersRef.current[pid] = unsub;
 
 };
-
 
 /* =========================
 REMOVE LISTENER
@@ -147,7 +149,6 @@ delete listenersRef.current[productId];
 
 };
 
-
 /* =========================
 ADD TO CART
 ========================= */
@@ -162,43 +163,37 @@ setCart(prev=>{
 
 const existing = prev[cartId];
 
-const stock = existing?.stock ?? product.stock ?? 999999;
+const stock = existing?.stock ?? product.stock ?? Infinity;
 
 if(existing){
 
 if(existing.quantity >= stock) return prev;
 
 return{
-
 ...prev,
-
 [cartId]:{
 ...existing,
 quantity: existing.quantity + 1
 }
-
 };
 
 }
 
 return{
-
 ...prev,
-
 [cartId]:{
 ...product,
 sellerId: product.sellerId ?? null,
 cartId,
+productId: product.productId || product.id,
 quantity:1,
-stock: product.stock ?? 999999
+stock: product.stock ?? Infinity
 }
-
 };
 
 });
 
 };
-
 
 /* =========================
 REMOVE FROM CART
@@ -225,20 +220,16 @@ return copy;
 }
 
 return{
-
 ...prev,
-
 [cartId]:{
 ...item,
 quantity:item.quantity - 1
 }
-
 };
 
 });
 
 };
-
 
 /* =========================
 SET QUANTITY
@@ -252,7 +243,7 @@ const item = prev[cartId];
 
 if(!item) return prev;
 
-const stock = item.stock ?? 999999;
+const stock = item.stock ?? Infinity;
 
 if(qty > stock) qty = stock;
 
@@ -269,20 +260,16 @@ return copy;
 }
 
 return{
-
 ...prev,
-
 [cartId]:{
 ...item,
 quantity:qty
 }
-
 };
 
 });
 
 };
-
 
 /* =========================
 CLEAR CART
@@ -300,7 +287,6 @@ setCart({});
 
 };
 
-
 /* =========================
 TOTAL ITEMS
 ========================= */
@@ -309,7 +295,6 @@ const cartItemsCount = Object.values(cart).reduce(
 (sum,item)=> sum + item.quantity,
 0
 );
-
 
 /* =========================
 SUBCOLLECTION TOTAL
@@ -329,13 +314,11 @@ return sum;
 
 };
 
-
 /* =========================
 CONTEXT VALUE
 ========================= */
 
 const value={
-
 cart,
 addToCart,
 removeFromCart,
@@ -343,16 +326,12 @@ setQuantity,
 clearCart,
 cartItemsCount,
 getSubcollectionQty
-
 };
 
-
 return(
-
 <StoreCartContext.Provider value={value}>
 {children}
 </StoreCartContext.Provider>
-
 );
 
 };

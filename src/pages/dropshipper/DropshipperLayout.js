@@ -1,58 +1,94 @@
 import React from "react";
-import { Link, Outlet } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../components/AuthContext";
 import "./DropshipperLayout.css";
 
 const DropshipperLayout = () => {
 
-  const { currentUser } = useAuth();
+const { currentUser } = useAuth();
+const location = useLocation();
 
-  return (
+const isActive = (path) => {
+return location.pathname.includes(path) ? "active-link" : "";
+};
 
-    <div className="dropshipper-layout">
+return (
 
-      <aside className="dropshipper-sidebar">
+<div className="dropshipper-layout">
 
-        <h2>Dropshipper Panel</h2>
+{/* SIDEBAR */}
 
-        <p className="store-link">
-          Store:
-          <a
-            href={`/store/${currentUser?.storeSlug}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {window.location.origin}/store/{currentUser?.storeSlug}
-          </a>
-        </p>
+<aside className="dropshipper-sidebar">
 
-        <nav>
+<div className="sidebar-header">
 
-          <Link to="/dropshipper/dashboard">
-            Dashboard
-          </Link>
+<h2>Dropshipper</h2>
 
-          <Link to="/dropshipper/products">
-            My Products
-          </Link>
+</div>
 
-          <Link to="/dropshipper/orders">
-            Orders
-          </Link>
+<div className="store-preview">
 
-        </nav>
+<p>Store URL</p>
 
-      </aside>
+<a
+href={`/store/${currentUser?.storeSlug}`}
+target="_blank"
+rel="noreferrer"
+>
+{window.location.origin}/{currentUser?.storeSlug}
+</a>
 
-      <main className="dropshipper-content">
+</div>
 
-        <Outlet />
+<nav className="sidebar-nav">
 
-      </main>
+<Link
+to="/dropshipper/dashboard"
+className={isActive("dashboard")}
+>
+Dashboard
+</Link>
 
-    </div>
+<Link
+to="/dropshipper/products"
+className={isActive("products")}
+>
+My Products
+</Link>
 
-  );
+<Link
+to="/dropshipper/orders"
+className={isActive("orders")}
+>
+Orders
+</Link>
+
+</nav>
+
+</aside>
+
+{/* MAIN CONTENT */}
+
+<main className="dropshipper-content">
+
+<div className="content-header">
+
+<h1>Dropshipper Dashboard</h1>
+
+</div>
+
+<div className="content-body">
+
+<Outlet />
+
+</div>
+
+</main>
+
+</div>
+
+);
+
 };
 
 export default DropshipperLayout;

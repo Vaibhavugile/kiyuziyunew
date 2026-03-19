@@ -37,15 +37,31 @@ import DropshipperSignup from "./pages/dropshipper/DropshipperSignup";
 import { StoreCartProvider } from "./pages/store/StoreCartContext";
 import StoreCartPage from "./pages/store/StoreCartPage";
 import StoreCheckoutPage from "./pages/store/StoreCheckoutPage";
+import StoreLoader from "./pages/store/StoreLoader";
+import { isMainDomain } from "./utils/domain";
+import AdminSellers from './pages/AdminSellers';
+import AdminStoreOrders from './pages/AdminStoreOrders';
+import AdminSellerProfits from './pages/AdminSellerProfits';
+import StoreHomepage from './pages/store/StoreHomepage';
 function App() {
   return (
     <AuthProvider>
       <CartProvider>
         <Router>
-          <Navbar />
+{isMainDomain() && <Navbar />}
           <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
+<Route
+path="/"
+element={
+isMainDomain()
+? <HomePage/>
+: (
+<StoreCartProvider>
+<StoreLoader/>
+</StoreCartProvider>
+)
+}
+/>            <Route path="/login" element={<LoginPage />} />
             <Route path="/Apple@782k" element={<AdminPage />} />
             <Route path="/collections/:collectionId" element={<SubcollectionsPage />} />
             <Route path="/collections/:collectionId/all-products" element={<ProductsPage />} />            <Route path="/cart" element={<CartPage />} />
@@ -71,10 +87,22 @@ function App() {
   element={<CouponUsageHistory />}
 />
 <Route path="/admin/coupon-analytics" element={<CouponAnalytics />} />
+<Route path="/admin/seller-profits" element={<AdminSellerProfits />} />
+<Route
+path="/"
+element={
+<StoreCartProvider>
+<StoreHomepage/>
+</StoreCartProvider>
+}
+/>
+
 <Route
   path="/admin/barcode-printing"
   element={<BarcodePrintingPage />}
 />
+<Route path="/admin/sellers" element={<AdminSellers />} />
+<Route path="/admin/store-orders" element={<AdminStoreOrders />} />
 <Route
   path="/admin/partner"
   element={<PartnerApplicationsList />}
@@ -130,7 +158,7 @@ element={
 
 
           </Routes> 
-          <Footer />
+{isMainDomain() && <Footer />}
         </Router>
       </CartProvider>
     </AuthProvider>

@@ -74,6 +74,7 @@ const ProductCard = ({
     : totalStock;
 
   const isOutOfStock = totalStock <= 0;
+  if (isOutOfStock) return null;
 
   /* =====================
      CART HELPERS
@@ -148,13 +149,16 @@ const ProductCard = ({
       )}
 
       {/* IMAGE */}
-     <div className="product-image-container">
-  <ProgressiveImage
-    src={mainImage}
-    alt={productName}
-    className="product-image"
-  />
+   <div className="product-image-container">
+  <Zoom>
+    <ProgressiveImage
+      src={mainImage}
+      alt={productName}
+      className="product-image"
+    />
+  </Zoom>
 </div>
+
 
 
       {/* INFO */}

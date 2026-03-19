@@ -3,6 +3,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../../firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import "./DropshipperLogin.css";
 
 const DropshipperLogin = () => {
 
@@ -45,15 +46,21 @@ alert(err.message);
 
 return(
 
-<div>
+<div className="dropshipper-login-wrapper">
+
+<div className="dropshipper-login-card">
 
 <h2>Dropshipper Login</h2>
+
+<p className="login-subtitle">
+Access your store dashboard
+</p>
 
 <form onSubmit={handleLogin}>
 
 <input
 type="email"
-placeholder="Email"
+placeholder="Email Address"
 value={email}
 onChange={(e)=>setEmail(e.target.value)}
 required
@@ -68,23 +75,27 @@ required
 />
 
 <button type="submit">
-
-Login
-
+Login to Dashboard
 </button>
 
 </form>
-<p>
+
+<p className="signup-text">
+
 Don't have an account?
+
 <a href="/dropshipper/signup">
 Create Dropshipper Account
 </a>
+
 </p>
 
 </div>
 
-)
+</div>
 
-}
+);
 
-export default DropshipperLogin
+};
+
+export default DropshipperLogin;

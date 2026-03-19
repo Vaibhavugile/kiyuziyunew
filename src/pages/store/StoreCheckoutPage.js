@@ -14,28 +14,29 @@ import { db } from "../../firebase";
 TIER PRICE CALCULATOR
 ========================= */
 
-const getTierPrice = (tiers, quantity) => {
+const getTierData = (tiers, quantity) => {
 
-if(!tiers || tiers.length === 0) return 0;
+if(!tiers || tiers.length === 0){
+return { price:0, costPrice:0 };
+}
 
-const sorted = [...tiers].sort(
-(a,b)=>Number(a.min_quantity) - Number(b.min_quantity)
-);
+let selected = tiers[0];
 
-let price = sorted[0].price;
-
-for(const tier of sorted){
+for(const tier of tiers){
 
 const min = Number(tier.min_quantity);
 const max = Number(tier.max_quantity) || Infinity;
 
 if(quantity >= min && quantity <= max){
-price = tier.price;
+selected = tier;
 }
 
 }
 
-return Number(price) || 0;
+return {
+price:Number(selected.price) || 0,
+costPrice:Number(selected.costPrice) || 0
+};
 
 };
 
@@ -85,7 +86,7 @@ const subtotal = items.reduce((sum,item)=>{
 
 const subQty = getSubcollectionQty(item.subcollectionId);
 
-const price = getTierPrice(
+const { price } = getTierData(
 item.tieredPricing?.retail ?? [],
 subQty
 );
@@ -103,10 +104,6 @@ PLACE ORDER
 const handleSubmitOrder = async(e)=>{
 
 e.preventDefault();
-
-console.log("🛒 Checkout started");
-console.log("Cart items:", items);
-console.log("Billing form:", formData);
 
 setIsProcessing(true);
 setError(null);
@@ -141,8 +138,6 @@ await runTransaction(db, async (transaction)=>{
 
 const productDocs = [];
 
-console.log("🔍 Validating stock...");
-
 /* =========================
 VALIDATE STOCK
 ========================= */
@@ -167,12 +162,6 @@ throw new Error(`${item.productName} no longer exists`);
 
 const stock = snap.data().quantity;
 
-console.log(
-`Stock check → ${item.productName}`,
-"Requested:", item.quantity,
-"Available:", stock
-);
-
 if(item.quantity > stock){
 throw new Error(`${item.productName} only has ${stock} available`);
 }
@@ -189,17 +178,9 @@ item
 REDUCE INVENTORY
 ========================= */
 
-console.log("📦 Reducing inventory...");
-
 productDocs.forEach(p => {
 
 const newStock = p.stock - p.item.quantity;
-
-console.log(
-`Updating stock for ${p.item.productName}`,
-"Old:", p.stock,
-"New:", newStock
-);
 
 transaction.update(p.ref,{
 quantity: newStock
@@ -215,10 +196,15 @@ const sanitizedItems = items.map(item=>{
 
 const subQty = getSubcollectionQty(item.subcollectionId);
 
-const sellingPrice = getTierPrice(
+const { price, costPrice } = getTierData(
 item.tieredPricing?.retail ?? [],
 subQty
 );
+
+const quantity = Number(item.quantity) || 0;
+
+const profitPerUnit = price - costPrice;
+const totalProfit = profitPerUnit * quantity;
 
 return{
 
@@ -229,11 +215,13 @@ productCode: item.productCode ?? "",
 image: item.image ?? "",
 images: item.images ?? [],
 
-quantity: Number(item.quantity) || 0,
+quantity: quantity,
 
-priceAtTimeOfOrder: sellingPrice,   // ⭐ FIXED
+priceAtTimeOfOrder: price,
+costPrice: costPrice,
 
-costPrice: Number(item.costPrice ?? 0),  // optional for profit
+profitPerUnit: profitPerUnit,
+profit: totalProfit,
 
 collectionId: item.collectionId ?? "",
 subcollectionId: item.subcollectionId ?? ""
@@ -241,6 +229,15 @@ subcollectionId: item.subcollectionId ?? ""
 };
 
 });
+
+/* =========================
+TOTAL PROFIT
+========================= */
+
+const totalProfit = sanitizedItems.reduce(
+(sum,i)=> sum + (i.profit || 0),
+0
+);
 
 /* =========================
 CREATE ORDER DOCUMENT
@@ -257,6 +254,8 @@ items: sanitizedItems,
 subtotal: Number(subtotal) || 0,
 shippingFee: SHIPPING_FEE,
 totalAmount: Number(totalAmount) || 0,
+
+totalProfit: totalProfit,
 
 billingInfo:{
 fullName,
@@ -275,13 +274,9 @@ createdAt: serverTimestamp()
 
 };
 
-console.log("🧾 Creating order:", orderData);
-
 transaction.set(orderRef,orderData);
 
 });
-
-console.log("✅ Order created successfully");
 
 clearCart();
 
@@ -289,7 +284,7 @@ navigate("/order-success");
 
 }catch(err){
 
-console.error("❌ Checkout failed:", err);
+console.error("Checkout failed:", err);
 
 setError(err.message || "Order failed.");
 
@@ -352,7 +347,7 @@ return(
 
 const subQty = getSubcollectionQty(item.subcollectionId);
 
-const price = getTierPrice(
+const { price } = getTierData(
 item.tieredPricing?.retail ?? [],
 subQty
 );
