@@ -8,152 +8,161 @@ import StoreHeroSection from "./StoreHeroSection";
 import ProductsSection from "./ProductsSection";
 import TrustSection from "./TrustSection";
 import TestimonialsSection from "./TestimonialsSection";
-
+import CollectionsSection from "./CollectionsSection";
 const StoreHomepage = () => {
 
-  const [homepage, setHomepage] = useState(null);
-  const [loading, setLoading] = useState(true);
+    const [homepage, setHomepage] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-  /* ================= LOAD STORE ================= */
-  useEffect(() => {
+    /* ================= LOAD STORE ================= */
+    useEffect(() => {
 
-    const loadStore = async () => {
-      try {
-        const domain = window.location.host;
+        const loadStore = async () => {
+            try {
+                const domain = window.location.host;
 
-        console.log("🌐 DOMAIN:", domain);
+                console.log("🌐 DOMAIN:", domain);
 
-        const homepageRef = doc(db, "storeHomepages", domain);
-        const homepageSnap = await getDoc(homepageRef);
+                const homepageRef = doc(db, "storeHomepages", domain);
+                const homepageSnap = await getDoc(homepageRef);
 
-        if (homepageSnap.exists()) {
-          const data = homepageSnap.data();
+                if (homepageSnap.exists()) {
+                    const data = homepageSnap.data();
 
-          console.log("✅ Homepage loaded:", data);
+                    console.log("✅ Homepage loaded:", data);
 
-          setHomepage(data);
-        } else {
-          console.warn("❌ No homepage found for:", domain);
-        }
+                    setHomepage(data);
+                } else {
+                    console.warn("❌ No homepage found for:", domain);
+                }
 
-      } catch (err) {
-        console.error("❌ Load error:", err);
-      }
+            } catch (err) {
+                console.error("❌ Load error:", err);
+            }
 
-      setLoading(false);
+            setLoading(false);
+        };
+
+        loadStore();
+
+    }, []);
+
+    /* ================= THEME ================= */
+    const theme = homepage?.theme || {
+        colors: {
+            primary: "#C9A34E",
+            background: "#ffffff",
+            text: "#111111"
+        },
+        font: "sans-serif"
     };
 
-    loadStore();
+    /* ================= APPLY THEME GLOBALLY 🔥 ================= */
+    useEffect(() => {
+        if (!theme?.colors) return;
 
-  }, []);
+        console.log("🎨 Applying theme globally:", theme);
 
-  /* ================= THEME ================= */
-  const theme = homepage?.theme || {
-    colors: {
-      primary: "#C9A34E",
-      background: "#ffffff",
-      text: "#111111"
-    },
-    font: "sans-serif"
-  };
+        // HERO + GLOBAL CSS
+        document.documentElement.style.setProperty("--accent", theme.colors.primary);
+        document.documentElement.style.setProperty("--accent-2", theme.colors.primary + "80");
+        document.documentElement.style.setProperty("--text", theme.colors.text);
+        document.documentElement.style.setProperty("--bg-light", theme.colors.background);
+        document.documentElement.style.setProperty("--bg-soft", theme.colors.background);
 
-  /* ================= APPLY THEME GLOBALLY 🔥 ================= */
-  useEffect(() => {
-    if (!theme?.colors) return;
+        // NAVBAR CSS (your existing system)
+        document.documentElement.style.setProperty("--kj-gold", theme.colors.primary);
+        document.documentElement.style.setProperty("--kj-gold-2", theme.colors.primary);
+        document.documentElement.style.setProperty("--kj-bg", theme.colors.background);
 
-    console.log("🎨 Applying theme globally:", theme);
+    }, [theme]);
 
-    // HERO + GLOBAL CSS
-    document.documentElement.style.setProperty("--accent", theme.colors.primary);
-    document.documentElement.style.setProperty("--accent-2", theme.colors.primary + "80");
-    document.documentElement.style.setProperty("--text", theme.colors.text);
-    document.documentElement.style.setProperty("--bg-light", theme.colors.background);
-    document.documentElement.style.setProperty("--bg-soft", theme.colors.background);
+    /* ================= LOADING ================= */
+    if (loading) {
+        return (
+            <div style={{ padding: "40px" }}>
+                Loading store...
+            </div>
+        );
+    }
 
-    // NAVBAR CSS (your existing system)
-    document.documentElement.style.setProperty("--kj-gold", theme.colors.primary);
-    document.documentElement.style.setProperty("--kj-gold-2", theme.colors.primary);
-    document.documentElement.style.setProperty("--kj-bg", theme.colors.background);
+    if (!homepage) {
+        return (
+            <div style={{ padding: "40px", color: "red" }}>
+                ❌ Store not found for this domain
+                <br />
+                Check console for DOMAIN mismatch
+            </div>
+        );
+    }
 
-  }, [theme]);
+    /* ================= UI ================= */
 
-  /* ================= LOADING ================= */
-  if (loading) {
     return (
-      <div style={{ padding: "40px" }}>
-        Loading store...
-      </div>
-    );
-  }
+        <div
+            style={{
+                background: theme.colors.background,
+                color: theme.colors.text,
+                fontFamily: theme.font,
+                minHeight: "100vh"
+            }}
+        >
 
-  if (!homepage) {
-    return (
-      <div style={{ padding: "40px", color: "red" }}>
-        ❌ Store not found for this domain
-        <br />
-        Check console for DOMAIN mismatch
-      </div>
-    );
-  }
-
-  /* ================= UI ================= */
-
-  return (
-    <div
-      style={{
-        background: theme.colors.background,
-        color: theme.colors.text,
-        fontFamily: theme.font,
-        minHeight: "100vh"
-      }}
-    >
-
-      {/* 🔥 NAVBAR */}
-      <StoreNavbar
-        data={homepage?.navbar}
-        theme={theme}
-      />
-
-      {/* 🔥 HERO */}
-      {homepage?.hero && (
-        <StoreHeroSection data={homepage.hero} />
-      )}
-
-      {/* 🔥 OTHER SECTIONS */}
-      {homepage?.sections?.map((sec) => {
-
-        switch (sec.type) {
-
-
-          case "products":
-            return (
-              <ProductsSection
-                key={sec.id}
-                products={sec.products || []}
+            {/* 🔥 NAVBAR */}
+            <StoreNavbar
+                data={homepage?.navbar}
                 theme={theme}
-              />
-            );
+            />
 
-          case "testimonials":
-            return (
-              <TestimonialsSection
-                key={sec.id}
-                data={sec}
-                theme={theme}
-              />
-            );
+            {/* 🔥 HERO */}
+            {homepage?.hero && (
+                <StoreHeroSection data={homepage.hero} />
+            )}
 
-          default:
-            return null;
-        }
+            {/* 🔥 OTHER SECTIONS */}
+            {homepage?.sections?.map((sec) => {
 
-      })}
+                switch (sec.type) {
 
-      {/* 🔥 TRUST */}
-      <TrustSection theme={theme} />
+                    case "collections":
+                        return (
+                            <CollectionsSection
+                                key={sec.id}
+                                data={sec}
+                            />
+                        );
 
-    </div>
-  );
+
+                    case "products":
+                        return (
+                            <ProductsSection
+                                key={sec.id}
+                                products={sec.products || []}
+                                theme={theme}
+                            />
+                        );
+
+
+                    case "testimonials":
+                        return (
+                            <TestimonialsSection
+                                key={sec.id}
+                                data={sec}
+                                theme={theme}
+                            />
+                        );
+
+                    default:
+                        return null;
+                }
+
+            })}
+
+            {/* 🔥 TRUST */}
+            <TrustSection theme={theme} />
+
+        </div>
+    );
 };
 
 export default StoreHomepage;

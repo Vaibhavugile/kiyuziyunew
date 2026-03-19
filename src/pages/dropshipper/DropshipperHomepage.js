@@ -4,8 +4,8 @@ import { db, storage } from "../../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../../components/AuthContext";
 import "./DropshipperHomepage.css";
-const DropshipperHomepage = () => {
 
+const DropshipperHomepage = () => {
   const { currentUser } = useAuth();
 
   const [userData, setUserData] = useState(null);
@@ -37,10 +37,11 @@ const DropshipperHomepage = () => {
     font: "Playfair Display"
   });
 
+  const [sections, setSections] = useState([]);
+
   /* ================= LOAD ================= */
 
   useEffect(() => {
-
     if (!currentUser) return;
 
     const load = async () => {
@@ -57,12 +58,13 @@ const DropshipperHomepage = () => {
         setUserData(user);
 
         if (!user.storeDomain) {
-          console.warn("❌ No storeDomain");
           setInitialLoading(false);
           return;
         }
 
-        const snap = await getDoc(doc(db, "storeHomepages", user.storeDomain));
+        const snap = await getDoc(
+          doc(db, "storeHomepages", user.storeDomain)
+        );
 
         if (snap.exists()) {
           const data = snap.data();
@@ -70,8 +72,8 @@ const DropshipperHomepage = () => {
           setNavbar(data.navbar || {});
           setHero(prev => ({ ...prev, ...data.hero }));
           setTheme(data.theme || theme);
+          setSections(data.sections || []);
         }
-
       } catch (err) {
         console.error("❌ Load error:", err);
       }
@@ -80,7 +82,6 @@ const DropshipperHomepage = () => {
     };
 
     load();
-
   }, [currentUser]);
 
   /* ================= UPLOAD ================= */
@@ -95,11 +96,10 @@ const DropshipperHomepage = () => {
     return await getDownloadURL(storageRef);
   };
 
-  /* ================= HERO IMAGE HANDLERS ================= */
+  /* ================= HERO ================= */
 
   const handleAddHeroImage = async (file) => {
     const url = await uploadImage(file, "hero");
-
     if (!url) return;
 
     setHero(prev => ({
@@ -115,8 +115,6 @@ const DropshipperHomepage = () => {
     }));
   };
 
-  /* ================= FEATURES ================= */
-
   const addFeature = () => {
     setHero(prev => ({
       ...prev,
@@ -125,12 +123,11 @@ const DropshipperHomepage = () => {
   };
 
   const updateFeature = (index, value) => {
-    const updated = [...hero.features];
-    updated[index] = value;
-
     setHero(prev => ({
       ...prev,
-      features: updated
+      features: prev.features.map((f, i) =>
+        i === index ? value : f
+      )
     }));
   };
 
@@ -141,10 +138,77 @@ const DropshipperHomepage = () => {
     }));
   };
 
+  /* ================= COLLECTION HELPERS ================= */
+
+  const updateCollection = (secIndex, colIndex, field, value) => {
+    setSections(prev =>
+      prev.map((sec, i) =>
+        i === secIndex
+          ? {
+              ...sec,
+              collections: sec.collections.map((col, ci) =>
+                ci === colIndex
+                  ? { ...col, [field]: value }
+                  : col
+              )
+            }
+          : sec
+      )
+    );
+  };
+
+  const addCollectionImage = async (secIndex, colIndex, file) => {
+    const url = await uploadImage(file, "collections");
+    if (!url) return;
+
+    setSections(prev =>
+      prev.map((sec, i) =>
+        i === secIndex
+          ? {
+              ...sec,
+              collections: sec.collections.map((col, ci) =>
+                ci === colIndex
+                  ? {
+                      ...col,
+                      additionalImages: [
+                        ...(col.additionalImages || []),
+                        url
+                      ]
+                    }
+                  : col
+              )
+            }
+          : sec
+      )
+    );
+  };
+
+  const removeCollectionImage = (secIndex, colIndex, imgIndex) => {
+    setSections(prev =>
+      prev.map((sec, i) =>
+        i === secIndex
+          ? {
+              ...sec,
+              collections: sec.collections.map((col, ci) =>
+                ci === colIndex
+                  ? {
+                      ...col,
+                      additionalImages:
+                        col.additionalImages.filter(
+                          (_, ii) => ii !== imgIndex
+                        )
+                    }
+                  : col
+              )
+            }
+          : sec
+      )
+    );
+  };
+
   /* ================= SAVE ================= */
 
   const handleSave = async () => {
-
     if (!userData?.storeDomain) {
       alert("No store domain");
       return;
@@ -158,13 +222,13 @@ const DropshipperHomepage = () => {
         {
           navbar,
           hero,
-          theme
+          theme,
+          sections
         },
         { merge: true }
       );
 
       alert("✅ Saved!");
-
     } catch (err) {
       console.error("❌ Save error:", err);
       alert("Error saving");
@@ -173,28 +237,28 @@ const DropshipperHomepage = () => {
     setLoading(false);
   };
 
-  /* ================= LOADING ================= */
+  /* ================= UI ================= */
 
   if (initialLoading) {
     return <div style={{ padding: "40px" }}>Loading...</div>;
   }
 
-  /* ================= UI ================= */
-
   return (
     <div style={{ padding: "20px", maxWidth: "800px" }}>
-
       <h2>Store Customization</h2>
 
-      {/* ================= NAVBAR ================= */}
-      <div style={{ marginBottom: "30px" }}>
+      {/* NAVBAR */}
+      <div>
         <h3>Navbar</h3>
 
         <input
           placeholder="Brand Name"
           value={navbar.brandName || ""}
           onChange={(e) =>
-            setNavbar(prev => ({ ...prev, brandName: e.target.value }))
+            setNavbar(prev => ({
+              ...prev,
+              brandName: e.target.value
+            }))
           }
         />
 
@@ -203,25 +267,23 @@ const DropshipperHomepage = () => {
         <input
           type="file"
           onChange={async (e) => {
-            const file = e.target.files[0];
-            const url = await uploadImage(file, "navbar");
-
+            const url = await uploadImage(e.target.files[0], "navbar");
             if (url) {
               setNavbar(prev => ({ ...prev, logo: url }));
             }
           }}
         />
 
-        {navbar.logo && <img src={navbar.logo} width="80" alt="logo" />}
+        {navbar.logo && <img src={navbar.logo} width="80" alt="" />}
       </div>
 
-      {/* ================= HERO ================= */}
-      <div style={{ marginBottom: "30px" }}>
-        <h3>Hero Section</h3>
+      {/* HERO */}
+      <div>
+        <h3>Hero</h3>
 
         <input
           placeholder="Title"
-          value={hero.title || ""}
+          value={hero.title}
           onChange={(e) =>
             setHero(prev => ({ ...prev, title: e.target.value }))
           }
@@ -231,7 +293,7 @@ const DropshipperHomepage = () => {
 
         <input
           placeholder="Subtitle"
-          value={hero.subtitle || ""}
+          value={hero.subtitle}
           onChange={(e) =>
             setHero(prev => ({ ...prev, subtitle: e.target.value }))
           }
@@ -240,113 +302,143 @@ const DropshipperHomepage = () => {
         <br /><br />
 
         <input
-          placeholder="Primary Button"
-          value={hero.buttonText || ""}
-          onChange={(e) =>
-            setHero(prev => ({ ...prev, buttonText: e.target.value }))
-          }
-        />
-
-        <br /><br />
-
-        <input
-          placeholder="Secondary Button"
-          value={hero.secondaryButton || ""}
-          onChange={(e) =>
-            setHero(prev => ({ ...prev, secondaryButton: e.target.value }))
-          }
-        />
-
-        <br /><br />
-
-        {/* 🔥 IMAGE UPLOAD */}
-        <input
           type="file"
           onChange={(e) => handleAddHeroImage(e.target.files[0])}
         />
 
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "10px" }}>
-          {hero.images?.map((img, i) => (
-            <div key={i}>
-              <img src={img.src} width="80" alt="hero" />
-              <button onClick={() => removeHeroImage(i)}>❌</button>
-            </div>
-          ))}
-        </div>
-
-        {/* 🔥 FEATURES */}
-        <h4>Features</h4>
-
-        <button onClick={addFeature}>+ Add Feature</button>
-
-        {hero.features?.map((f, i) => (
+        {hero.images?.map((img, i) => (
           <div key={i}>
-            <input
-              value={f}
-              onChange={(e) => updateFeature(i, e.target.value)}
-            />
-            <button onClick={() => removeFeature(i)}>❌</button>
+            <img src={img.src} width="80" alt="" />
+            <button onClick={() => removeHeroImage(i)}>❌</button>
           </div>
         ))}
-
       </div>
 
-      {/* ================= THEME ================= */}
-      <div style={{ marginBottom: "30px" }}>
-        <h3>Theme</h3>
+      {/* SECTIONS */}
+      <div>
+        <h3>Collections</h3>
 
-        <input
-          type="color"
-          value={theme.colors.primary}
-          onChange={(e) =>
-            setTheme(prev => ({
+        <button
+          onClick={() =>
+            setSections(prev => [
               ...prev,
-              colors: { ...prev.colors, primary: e.target.value }
-            }))
-          }
-        />
-
-        <input
-          type="color"
-          value={theme.colors.background}
-          onChange={(e) =>
-            setTheme(prev => ({
-              ...prev,
-              colors: { ...prev.colors, background: e.target.value }
-            }))
-          }
-        />
-
-        <input
-          type="color"
-          value={theme.colors.text}
-          onChange={(e) =>
-            setTheme(prev => ({
-              ...prev,
-              colors: { ...prev.colors, text: e.target.value }
-            }))
-          }
-        />
-
-        <br /><br />
-
-        <select
-          value={theme.font}
-          onChange={(e) =>
-            setTheme(prev => ({ ...prev, font: e.target.value }))
+              {
+                id: Date.now(),
+                type: "collections",
+                title: "New Section",
+                collections: []
+              }
+            ])
           }
         >
-          <option>Playfair Display</option>
-          <option>Poppins</option>
-          <option>Inter</option>
-        </select>
+          + Add Section
+        </button>
+
+        {sections.map((sec, secIndex) => (
+          <div key={sec.id}>
+            <input
+              value={sec.title}
+              onChange={(e) => {
+                const updated = [...sections];
+                updated[secIndex].title = e.target.value;
+                setSections(updated);
+              }}
+            />
+
+            <button
+              onClick={() =>
+                setSections(prev =>
+                  prev.map((s, i) =>
+                    i === secIndex
+                      ? {
+                          ...s,
+                          collections: [
+                            ...s.collections,
+                            {
+                              id: Date.now(),
+                              title: "",
+                              image: "",
+                              additionalImages: []
+                            }
+                          ]
+                        }
+                      : s
+                  )
+                )
+              }
+            >
+              + Add Collection
+            </button>
+
+            {sec.collections.map((col, colIndex) => (
+              <div key={col.id}>
+                <input
+                  placeholder="Title"
+                  value={col.title}
+                  onChange={(e) =>
+                    updateCollection(
+                      secIndex,
+                      colIndex,
+                      "title",
+                      e.target.value
+                    )
+                  }
+                />
+
+                {/* MAIN IMAGE */}
+                <input
+                  type="file"
+                  onChange={async (e) => {
+                    const url = await uploadImage(
+                      e.target.files[0],
+                      "collections"
+                    );
+                    updateCollection(secIndex, colIndex, "image", url);
+                  }}
+                />
+
+                {col.image && <img src={col.image} width="60" alt="" />}
+
+                {/* ADDITIONAL IMAGES */}
+                <input
+                  type="file"
+                  onChange={(e) =>
+                    addCollectionImage(
+                      secIndex,
+                      colIndex,
+                      e.target.files[0]
+                    )
+                  }
+                />
+
+                <div style={{ display: "flex", gap: 8 }}>
+                  {col.additionalImages?.map((img, i) => (
+                    <div key={i}>
+                      <img src={img} width="50" alt="" />
+                      <button
+                        onClick={() =>
+                          removeCollectionImage(
+                            secIndex,
+                            colIndex,
+                            i
+                          )
+                        }
+                      >
+                        ❌
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
 
       {/* SAVE */}
       <button onClick={handleSave} disabled={loading}>
         {loading ? "Saving..." : "Save"}
       </button>
-
     </div>
   );
 };
