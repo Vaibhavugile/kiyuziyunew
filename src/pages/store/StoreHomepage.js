@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase";
-
+import { getCleanDomain } from "../../utils/domain";
 /* COMPONENTS */
 import StoreNavbar from "./StoreNavbar";
 import StoreHeroSection from "./StoreHeroSection";
@@ -19,7 +19,7 @@ const StoreHomepage = () => {
 
         const loadStore = async () => {
             try {
-                const domain = window.location.host;
+                const domain = getCleanDomain();
 
                 console.log("🌐 DOMAIN:", domain);
 

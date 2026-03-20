@@ -1,514 +1,401 @@
 import React, { useEffect, useState, useMemo } from "react";
 import {
-collection,
-getDocs,
-query,
-where,
-doc,
-onSnapshot
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  onSnapshot
 } from "firebase/firestore";
 
 import { db } from "../../firebase";
-import { useParams, Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import ProductCard from "../../components/ProductCard";
 import { useStoreCart } from "../store/StoreCartContext";
-
+import { getCleanDomain } from "../../utils/domain";
 const SellerStore = () => {
 
-const { slug } = useParams();
+  const location = useLocation();
 
-const { cart, addToCart, removeFromCart, cartItemsCount } = useStoreCart();
+  const { cart, addToCart, removeFromCart, cartItemsCount } = useStoreCart();
 
-/* ===============================
-STATE
-=============================== */
+  /* ===============================
+  STATE
+  =============================== */
 
-const [seller,setSeller] = useState(null);
-const [products,setProducts] = useState([]);
+  const [seller, setSeller] = useState(null);
+  const [products, setProducts] = useState([]);
 
-const [collections,setCollections] = useState([]);
-const [subcollectionsMap,setSubcollectionsMap] = useState({});
+  const [collections, setCollections] = useState([]);
+  const [subcollectionsMap, setSubcollectionsMap] = useState({});
 
-const [selectedCollection,setSelectedCollection] = useState("");
-const [selectedSubcollection,setSelectedSubcollection] = useState("");
+  const [selectedCollection, setSelectedCollection] = useState("");
+  const [selectedSubcollection, setSelectedSubcollection] = useState("");
 
-const [loading,setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-const [search,setSearch] = useState("");
-const [sortBy,setSortBy] = useState("default");
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("default");
 
+  /* ===============================
+  NAVIGATION DATA
+  =============================== */
 
-/* ===============================
-LOAD STORE
-=============================== */
+  const initialCollection =
+    location.state?.collectionId ||
+    localStorage.getItem("selectedCollection") ||
+    "";
 
-useEffect(()=>{
+  const passedDomain =
+    location.state?.storeDomain || getCleanDomain();
 
+  /* ===============================
+  LOAD STORE
+  =============================== */
 
-let inventoryListeners = [];
+  useEffect(() => {
 
-const loadStore = async()=>{
+    let inventoryListeners = [];
 
-try{
+    const loadStore = async () => {
+      try {
+        setLoading(true);
+
+        /* ===============================
+        FIND SELLER (DOMAIN BASED)
+        =============================== */
+
+        const sellerSnap = await getDocs(
+          query(
+            collection(db, "users"),
+            where("storeDomain", "==", passedDomain)
+          )
+        );
 
-setLoading(true);
+        if (sellerSnap.empty) {
+          setLoading(false);
+          return;
+        }
+
+        const sellerDoc = sellerSnap.docs[0];
+        const sellerId = sellerDoc.id;
 
-/* ===============================
-FIND SELLER
-=============================== */
+        setSeller({
+          id: sellerId,
+          ...sellerDoc.data()
+        });
+
+        /* ===============================
+        LOAD PRICING
+        =============================== */
 
-let sellerSnap;
+        const pricingSnap = await getDocs(
+          collection(db, "dropshipperPricing", sellerId, "pricing")
+        );
 
-if(slug){
+        const pricingMap = {};
 
-sellerSnap = await getDocs(
-query(collection(db,"users"),where("storeSlug","==",slug))
-);
+        pricingSnap.docs.forEach(d => {
+          pricingMap[d.id] = d.data();
+        });
 
-}else{
+        /* ===============================
+        LOAD PRODUCTS
+        =============================== */
 
-const domain = window.location.host;
+        const storeSnap = await getDocs(
+          collection(db, "storeProducts", sellerId, "products")
+        );
 
-sellerSnap = await getDocs(
-query(collection(db,"users"),where("storeDomain","==",domain))
-);
+        let storeProducts = storeSnap.docs
+          .map(d => ({
+            id: d.id,
+            ...d.data()
+          }))
+          .filter(p => p.enabled);
 
-}
+        /* ===============================
+        APPLY PRICING
+        =============================== */
 
-if(sellerSnap.empty){
-setLoading(false);
-return;
-}
+        storeProducts = storeProducts.map(p => {
 
-const sellerDoc = sellerSnap.docs[0];
-const sellerId = sellerDoc.id;
+          const pricingKey = `${p.collectionId}_${p.subcollectionId}`;
+          const tiers = pricingMap[pricingKey]?.tieredPricing || [];
 
-setSeller({
-id:sellerId,
-...sellerDoc.data()
-});
+          const normalized = tiers.map(t => ({
+            min_quantity: Number(t.min_quantity),
+            max_quantity: Number(t.max_quantity),
+            price: Number(t.price),
+            costPrice: Number(t.costPrice ?? 0)
+          }));
 
+          return {
+            ...p,
+            sellerId,
 
-/* ===============================
-LOAD SELLER PRICING
-=============================== */
+            tieredPricing: {
+              retail: normalized,
+              wholesale: normalized,
+              dealer: normalized,
+              distributor: normalized,
+              vip: normalized
+            }
+          };
+        });
 
-const pricingSnap = await getDocs(
-collection(db,"dropshipperPricing",sellerId,"pricing")
-);
+        setProducts(storeProducts);
 
-const pricingMap = {};
+        /* ===============================
+        LIVE INVENTORY
+        =============================== */
 
-pricingSnap.docs.forEach(d=>{
-pricingMap[d.id] = d.data();
-});
+        storeProducts.forEach(p => {
 
+          const ref = doc(
+            db,
+            "collections",
+            p.collectionId,
+            "subcollections",
+            p.subcollectionId,
+            "products",
+            p.productId
+          );
 
-/* ===============================
-LOAD STORE PRODUCTS
-=============================== */
+          const unsub = onSnapshot(ref, (snap) => {
+            if (!snap.exists()) return;
 
-const storeSnap = await getDocs(
-collection(db,"storeProducts",sellerId,"products")
-);
+            const data = snap.data();
 
-let storeProducts = storeSnap.docs
-.map(d=>({
-id:d.id,
-...d.data()
-}))
-.filter(p=>p.enabled);
+            setProducts(prev =>
+              prev.map(prod =>
+                prod.productId === p.productId
+                  ? { ...prod, quantity: data.quantity }
+                  : prod
+              )
+            );
+          });
 
+          inventoryListeners.push(unsub);
+        });
 
-/* ===============================
-APPLY PRICING
-=============================== */
+        /* ===============================
+        COLLECTION DETECTION
+        =============================== */
 
-storeProducts = storeProducts.map(p=>{
+        const collectionsSet = {};
+        const subMap = {};
 
-const pricingKey = `${p.collectionId}_${p.subcollectionId}`;
+        storeProducts.forEach(p => {
 
-const tiers = pricingMap[pricingKey]?.tieredPricing || [];
+          collectionsSet[p.collectionId] = true;
 
-/* NORMALIZE TIERS (INCLUDING COST PRICE) */
+          if (!subMap[p.collectionId]) {
+            subMap[p.collectionId] = new Set();
+          }
 
-const normalized = tiers.map(t=>({
-min_quantity:Number(t.min_quantity),
-max_quantity:Number(t.max_quantity),
-price:Number(t.price),
-costPrice:Number(t.costPrice ?? 0)
-}));
+          subMap[p.collectionId].add(p.subcollectionId);
+        });
 
-return{
-...p,
-sellerId:sellerId,
+        /* ===============================
+        LOAD COLLECTIONS
+        =============================== */
 
-tieredPricing:{
-retail:normalized,
-wholesale:normalized,
-dealer:normalized,
-distributor:normalized,
-vip:normalized
-}
+        const collectionsSnap = await getDocs(collection(db, "collections"));
 
-};
+        const validCollections = collectionsSnap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(c => collectionsSet[c.id]);
 
-});
+        setCollections(validCollections);
 
-setProducts(storeProducts);
+        /* ===============================
+        LOAD SUBCOLLECTIONS
+        =============================== */
 
+        const finalSubMap = {};
 
-/* ===============================
-LIVE INVENTORY
-=============================== */
+        for (const colId in subMap) {
+          const snap = await getDocs(
+            collection(db, "collections", colId, "subcollections")
+          );
 
-storeProducts.forEach(p=>{
+          finalSubMap[colId] = snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .filter(s => subMap[colId].has(s.id));
+        }
 
-const ref = doc(
-db,
-"collections",
-p.collectionId,
-"subcollections",
-p.subcollectionId,
-"products",
-p.productId
-);
+        setSubcollectionsMap(finalSubMap);
 
-const unsub = onSnapshot(ref,(snap)=>{
+        /* ===============================
+        AUTO SELECT (FROM CLICK)
+        =============================== */
 
-if(!snap.exists()) return;
+        if (validCollections.length) {
 
-const data = snap.data();
+          let selectedCol = initialCollection;
 
-setProducts(prev =>
-prev.map(prod =>
-prod.productId === p.productId
-? { ...prod, quantity:data.quantity }
-: prod
-)
-);
+          if (!selectedCol || !finalSubMap[selectedCol]) {
+            selectedCol = validCollections[0].id;
+          }
 
-});
+          const firstSub = finalSubMap[selectedCol]?.[0]?.id || "";
 
-inventoryListeners.push(unsub);
+          setSelectedCollection(selectedCol);
+          setSelectedSubcollection(firstSub);
+        }
 
-});
+      } catch (err) {
+        console.error("Store load error:", err);
+      }
 
+      setLoading(false);
+    };
 
-/* ===============================
-DETECT COLLECTIONS
-=============================== */
+    loadStore();
 
-const collectionsSet = {};
-const subMap = {};
-
-storeProducts.forEach(p=>{
-
-collectionsSet[p.collectionId] = true;
-
-if(!subMap[p.collectionId]){
-subMap[p.collectionId] = new Set();
-}
-
-subMap[p.collectionId].add(p.subcollectionId);
-
-});
-
-
-/* ===============================
-LOAD COLLECTION TITLES
-=============================== */
-
-const collectionsSnap = await getDocs(collection(db,"collections"));
-
-const validCollections = collectionsSnap.docs
-.map(d=>({id:d.id,...d.data()}))
-.filter(c=>collectionsSet[c.id]);
-
-setCollections(validCollections);
-
-
-/* ===============================
-LOAD SUBCOLLECTIONS
-=============================== */
-
-const finalSubMap = {};
-
-for(const colId in subMap){
-
-const snap = await getDocs(
-collection(db,"collections",colId,"subcollections")
-);
-
-finalSubMap[colId] = snap.docs
-.map(d=>({id:d.id,...d.data()}))
-.filter(s=>subMap[colId].has(s.id));
-
-}
-
-setSubcollectionsMap(finalSubMap);
-
-
-/* ===============================
-AUTO SELECT
-=============================== */
-
-if(validCollections.length){
-
-const firstCol = validCollections[0].id;
-const firstSub = finalSubMap[firstCol]?.[0]?.id;
-
-setSelectedCollection(firstCol);
-setSelectedSubcollection(firstSub);
-
-}
-
-}catch(err){
-
-console.error("Store load error:",err);
-
-}
-
-setLoading(false);
-
-};
-
-loadStore();
-
-/* CLEANUP LISTENERS */
-
-return ()=>{
-inventoryListeners.forEach(unsub=>unsub());
-};
-
-},[slug]);
-
-
-/* ===============================
-FILTER PRODUCTS
-=============================== */
-
-const filteredProducts = useMemo(()=>{
-
-let list = [...products];
-
-if(selectedCollection){
-list = list.filter(p=>p.collectionId === selectedCollection);
-}
-
-if(selectedSubcollection){
-list = list.filter(p=>p.subcollectionId === selectedSubcollection);
-}
-
-/* SEARCH */
-
-if(search){
-
-const term = search.toLowerCase();
-
-list = list.filter(p=>
-p.productName?.toLowerCase().includes(term) ||
-p.productCode?.toLowerCase().includes(term)
-);
-
-}
-
-/* SORT */
-
-if(sortBy==="price-asc"){
-
-list.sort((a,b)=>{
-
-const pa = a.tieredPricing?.retail?.[0]?.price ?? 0;
-const pb = b.tieredPricing?.retail?.[0]?.price ?? 0;
-
-return pa-pb;
-
-});
-
-}
-
-if(sortBy==="price-desc"){
-
-list.sort((a,b)=>{
-
-const pa = a.tieredPricing?.retail?.[0]?.price ?? 0;
-const pb = b.tieredPricing?.retail?.[0]?.price ?? 0;
-
-return pb-pa;
-
-});
-
-}
-
-return list;
-
-},[
-products,
-selectedCollection,
-selectedSubcollection,
-search,
-sortBy
-]);
-
-
-/* ===============================
-UI
-=============================== */
-
-if(!seller && loading){
-return <p style={{padding:"40px"}}>Loading store...</p>;
-}
-
-if(!seller){
-return <p style={{padding:"40px"}}>Store not found</p>;
-}
-
-return(
-
-<div className="products-page-container">
-
-<h1 style={{marginBottom:"20px"}}>
-{seller.name}'s Store
-</h1>
-
-
-<div className="product-controls">
-
-<div className="filter-group">
-
-<label>Collection</label>
-
-<select
-value={selectedCollection}
-onChange={(e)=>{
-
-const col = e.target.value;
-
-setSelectedCollection(col);
-
-setSelectedSubcollection(
-subcollectionsMap[col]?.[0]?.id || ""
-);
-
-}}
->
-
-{collections.map(c=>(
-<option key={c.id} value={c.id}>
-{c.title}
-</option>
-))}
-
-</select>
-
-</div>
-
-
-<div className="filter-group">
-
-<label>Subcollection</label>
-
-<select
-value={selectedSubcollection}
-onChange={(e)=>setSelectedSubcollection(e.target.value)}
->
-
-{subcollectionsMap[selectedCollection]?.map(sub=>(
-<option key={sub.id} value={sub.id}>
-{sub.name}
-</option>
-))}
-
-</select>
-
-</div>
-
-
-<div className="filter-group">
-
-<label>Sort</label>
-
-<select
-value={sortBy}
-onChange={(e)=>setSortBy(e.target.value)}
->
-
-<option value="default">Default</option>
-<option value="price-asc">Price Low → High</option>
-<option value="price-desc">Price High → Low</option>
-
-</select>
-
-</div>
-
-
-<div className="search-group">
-
-<input
-type="text"
-placeholder="Search product..."
-value={search}
-onChange={(e)=>setSearch(e.target.value)}
-/>
-
-</div>
-
-</div>
-
-
-<div className="products-grid collections-grid">
-
-{filteredProducts.map(product=>(
-
-<ProductCard
-key={product.id}
-product={product}
-
-onIncrement={()=>{
-addToCart(product);
-}}
-
-onDecrement={(cartId)=>removeFromCart(cartId)}
-
-cart={cart}
-
-/>
-
-))}
-
-</div>
-
-
-{cartItemsCount > 0 && (
-
-<div className="view-cart-fixed-container">
-
-<Link to="/store-cart" className="view-cart-btn-overlay">
-
-<div className="cart-details-wrapper">
-
-<span className="view-cart-text">
-View Cart
-</span>
-
-<span className="cart-items-count-overlay">
-{cartItemsCount} items
-</span>
-
-</div>
-
-</Link>
-
-</div>
-
-)}
-
-</div>
-
-);
-
+    return () => {
+      inventoryListeners.forEach(unsub => unsub());
+    };
+
+  }, []);
+
+  /* ===============================
+  SAVE SELECTION (REFRESH SAFE)
+  =============================== */
+
+  useEffect(() => {
+    if (selectedCollection) {
+      localStorage.setItem("selectedCollection", selectedCollection);
+    }
+  }, [selectedCollection]);
+
+  /* ===============================
+  FILTER PRODUCTS
+  =============================== */
+
+  const filteredProducts = useMemo(() => {
+
+    let list = [...products];
+
+    if (selectedCollection) {
+      list = list.filter(p => p.collectionId === selectedCollection);
+    }
+
+    if (selectedSubcollection) {
+      list = list.filter(p => p.subcollectionId === selectedSubcollection);
+    }
+
+    if (search) {
+      const term = search.toLowerCase();
+
+      list = list.filter(p =>
+        p.productName?.toLowerCase().includes(term) ||
+        p.productCode?.toLowerCase().includes(term)
+      );
+    }
+
+    if (sortBy === "price-asc") {
+      list.sort((a, b) =>
+        (a.tieredPricing?.retail?.[0]?.price ?? 0) -
+        (b.tieredPricing?.retail?.[0]?.price ?? 0)
+      );
+    }
+
+    if (sortBy === "price-desc") {
+      list.sort((a, b) =>
+        (b.tieredPricing?.retail?.[0]?.price ?? 0) -
+        (a.tieredPricing?.retail?.[0]?.price ?? 0)
+      );
+    }
+
+    return list;
+
+  }, [products, selectedCollection, selectedSubcollection, search, sortBy]);
+
+  /* ===============================
+  UI
+  =============================== */
+
+  if (!seller && loading) {
+    return <p style={{ padding: "40px" }}>Loading store...</p>;
+  }
+
+  if (!seller) {
+    return <p style={{ padding: "40px" }}>Store not found</p>;
+  }
+
+  return (
+    <div className="products-page-container">
+
+      <h1>{seller.name}'s Store</h1>
+
+      {/* FILTERS */}
+      <div className="product-controls">
+
+        <select
+          value={selectedCollection}
+          onChange={(e) => {
+            const col = e.target.value;
+            setSelectedCollection(col);
+            setSelectedSubcollection(
+              subcollectionsMap[col]?.[0]?.id || ""
+            );
+          }}
+        >
+          {collections.map(c => (
+            <option key={c.id} value={c.id}>
+              {c.title}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={selectedSubcollection}
+          onChange={(e) => setSelectedSubcollection(e.target.value)}
+        >
+          {subcollectionsMap[selectedCollection]?.map(sub => (
+            <option key={sub.id} value={sub.id}>
+              {sub.name}
+            </option>
+          ))}
+        </select>
+
+        <input
+          placeholder="Search..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
+      </div>
+
+      {/* PRODUCTS */}
+      <div className="products-grid collections-grid">
+
+        {filteredProducts.map(product => (
+          <ProductCard
+            key={product.id}
+            product={product}
+            onIncrement={() => addToCart(product)}
+            onDecrement={(cartId) => removeFromCart(cartId)}
+            cart={cart}
+          />
+        ))}
+
+      </div>
+
+      {/* CART */}
+      {cartItemsCount > 0 && (
+        <div className="view-cart-fixed-container">
+          <Link to="/store-cart" className="view-cart-btn-overlay">
+            {cartItemsCount} items - View Cart
+          </Link>
+        </div>
+      )}
+
+    </div>
+  );
 };
 
 export default SellerStore;

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
 import { db, storage } from "../../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../../components/AuthContext";
@@ -11,6 +11,9 @@ const DropshipperHomepage = () => {
   const [userData, setUserData] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
+
+  /* 🔥 NEW: COLLECTION LIST */
+  const [collectionsList, setCollectionsList] = useState([]);
 
   /* ================= STATES ================= */
 
@@ -61,6 +64,15 @@ const DropshipperHomepage = () => {
           setInitialLoading(false);
           return;
         }
+
+        /* 🔥 LOAD ALL COLLECTIONS */
+        const collectionsSnap = await getDocs(collection(db, "collections"));
+        setCollectionsList(
+          collectionsSnap.docs.map(d => ({
+            id: d.id,
+            ...d.data()
+          }))
+        );
 
         const snap = await getDoc(
           doc(db, "storeHomepages", user.storeDomain)
@@ -358,7 +370,8 @@ const DropshipperHomepage = () => {
                               id: Date.now(),
                               title: "",
                               image: "",
-                              additionalImages: []
+                              additionalImages: [],
+                              openCollectionId: "" // 🔥 NEW
                             }
                           ]
                         }
@@ -372,6 +385,7 @@ const DropshipperHomepage = () => {
 
             {sec.collections.map((col, colIndex) => (
               <div key={col.id}>
+
                 <input
                   placeholder="Title"
                   value={col.title}
@@ -384,6 +398,26 @@ const DropshipperHomepage = () => {
                     )
                   }
                 />
+
+                {/* 🔥 SELECT WHICH COLLECTION OPENS */}
+                <select
+                  value={col.openCollectionId || ""}
+                  onChange={(e) =>
+                    updateCollection(
+                      secIndex,
+                      colIndex,
+                      "openCollectionId",
+                      e.target.value
+                    )
+                  }
+                >
+                  <option value="">Select Collection</option>
+                  {collectionsList.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title}
+                    </option>
+                  ))}
+                </select>
 
                 {/* MAIN IMAGE */}
                 <input
@@ -429,6 +463,7 @@ const DropshipperHomepage = () => {
                     </div>
                   ))}
                 </div>
+
               </div>
             ))}
           </div>

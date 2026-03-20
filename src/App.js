@@ -125,14 +125,14 @@ function App() {
 
             </Route>
 
-            <Route
-              path="/store/:slug"
-              element={
-                <StoreCartProvider>
-                  <SellerStore />
-                </StoreCartProvider>
-              }
-            />
+           <Route
+  path="/store"
+  element={
+    <StoreCartProvider>
+      <SellerStore />
+    </StoreCartProvider>
+  }
+/>
 
             <Route
               path="/store-cart"

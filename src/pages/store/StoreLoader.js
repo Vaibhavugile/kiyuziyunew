@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../../firebase";
 import SellerStore from "../dropshipper/SellerStore";
-
+import { getCleanDomain } from "../../utils/domain";
 const StoreLoader = () => {
 
 const [seller,setSeller] = useState(null);
@@ -11,7 +11,7 @@ useEffect(()=>{
 
 const loadStore = async()=>{
 
-const domain = window.location.host;
+const domain = getCleanDomain();
 
 const q = query(
 collection(db,"users"),

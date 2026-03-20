@@ -1,9 +1,13 @@
 import React from "react";
 import CollectionCard from "../../components/CollectionCard";
 import "../../components/CollectionCard.css";
+import { useNavigate } from "react-router-dom";
+import { getCleanDomain } from "../../utils/domain";
 
 const CollectionsSection = ({ data }) => {
+    const navigate = useNavigate();
   if (!data?.collections?.length) return null;
+
 
   return (
     <section style={{ padding: "40px 20px" }}>
@@ -23,10 +27,13 @@ const CollectionsSection = ({ data }) => {
             image={col.image}
             additionalImages={col.additionalImages}
             onClick={() => {
-              console.log("Go to collection:", col.id);
-
-              // 👉 later: navigate(`/collection/${col.id}`)
-            }}
+  navigate("/store", {
+    state: {
+      collectionId: col.id,
+      storeDomain: getCleanDomain()
+    }
+  });
+}}
           />
         ))}
       </div>
