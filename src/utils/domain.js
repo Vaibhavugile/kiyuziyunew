@@ -1,17 +1,28 @@
 export const MAIN_DOMAIN = "kiyuziyuofficial.com";
 
 export const getCleanDomain = () => {
-  return window.location.host
-    .replace("www.", "")
-    .split(":")[0];
+  const rawHost = window.location.host.replace("www.", "");
+  const domain = rawHost.split(":")[0];
+  const port = window.location.port;
+
+  // ✅ Only localhost:3000 acts as main domain
+  if (
+    (domain === "localhost" || domain === "127.0.0.1") &&
+    port === "3000"
+  ) {
+    return MAIN_DOMAIN;
+  }
+
+  // otherwise return actual host
+  return rawHost;
 };
 
 export const isMainDomain = () => {
-  const host = getCleanDomain();
+  const rawHost = window.location.host.replace("www.", "");
 
   return (
-    host === MAIN_DOMAIN ||
-    host.includes("localhost") ||
-    host === "127.0.0.1"
+    rawHost === MAIN_DOMAIN ||
+    rawHost === "localhost:3000" ||
+    rawHost === "127.0.0.1:3000"
   );
 };
