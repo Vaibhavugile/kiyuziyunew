@@ -270,6 +270,24 @@ const SellerStore = () => {
       localStorage.setItem("selectedCollection", selectedCollection);
     }
   }, [selectedCollection]);
+  const getTierPrice = (tiers, quantity) => {
+
+  if (!tiers || tiers.length === 0) return 0;
+
+  let selected = tiers[0];
+
+  for (const tier of tiers) {
+
+    const min = Number(tier.min_quantity);
+    const max = Number(tier.max_quantity) || Infinity;
+
+    if (quantity >= min && quantity <= max) {
+      selected = tier;
+    }
+  }
+
+  return Number(selected.price);
+};
 
   /* ===============================
   FILTER PRODUCTS
@@ -277,43 +295,46 @@ const SellerStore = () => {
 
   const filteredProducts = useMemo(() => {
 
-    let list = [...products];
+  let list = [...products];
 
-    if (selectedCollection) {
-      list = list.filter(p => p.collectionId === selectedCollection);
-    }
+  if (selectedCollection) {
+    list = list.filter(p => p.collectionId === selectedCollection);
+  }
 
-    if (selectedSubcollection) {
-      list = list.filter(p => p.subcollectionId === selectedSubcollection);
-    }
+  if (selectedSubcollection) {
+    list = list.filter(p => p.subcollectionId === selectedSubcollection);
+  }
 
-    if (search) {
-      const term = search.toLowerCase();
+  if (search) {
+    const term = search.toLowerCase();
 
-      list = list.filter(p =>
-        p.productName?.toLowerCase().includes(term) ||
-        p.productCode?.toLowerCase().includes(term)
-      );
-    }
+    list = list.filter(p =>
+      p.productName?.toLowerCase().includes(term) ||
+      p.productCode?.toLowerCase().includes(term)
+    );
+  }
 
-    if (sortBy === "price-asc") {
-      list.sort((a, b) =>
-        (a.tieredPricing?.retail?.[0]?.price ?? 0) -
-        (b.tieredPricing?.retail?.[0]?.price ?? 0)
-      );
-    }
+  return list.map(product => {
 
-    if (sortBy === "price-desc") {
-      list.sort((a, b) =>
-        (b.tieredPricing?.retail?.[0]?.price ?? 0) -
-        (a.tieredPricing?.retail?.[0]?.price ?? 0)
-      );
-    }
+    const tiers = product.tieredPricing?.retail ?? [];
 
-    return list;
+    const subQty = Object.values(cart).reduce((sum,item)=>{
+      if(item.subcollectionId === product.subcollectionId){
+        return sum + item.quantity;
+      }
+      return sum;
+    },0);
 
-  }, [products, selectedCollection, selectedSubcollection, search, sortBy]);
+    const price = getTierPrice(tiers, subQty || 1);
 
+    return {
+      ...product,
+      displayPrice: price
+    };
+
+  });
+
+}, [products, selectedCollection, selectedSubcollection, search, cart]);
   /* ===============================
   UI
   =============================== */

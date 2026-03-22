@@ -83,11 +83,42 @@ const ProductCard = ({
     ...product,
     variation: selectedVariation,
   };
+  const tiers =
+    tieredPricing?.[pricingKey] && Array.isArray(tieredPricing[pricingKey])
+      ? [...tieredPricing[pricingKey]].sort(
+          (a, b) => Number(a.min_quantity) - Number(b.min_quantity)
+        )
+      : [];
+  const startingPrice = product.calculatedPrice ?? (
+  tiers.length > 0 ? Number(tiers[0].price) : null
+);
+const subQty = Object.values(cart || {}).reduce((sum, item) => {
+  if (item.subcollectionId === product.subcollectionId) {
+    return sum + item.quantity;
+  }
+  return sum;
+}, 0);
+const getTierPrice = (tiers, qty) => {
 
+  if (!tiers || tiers.length === 0) return null;
+
+  let selected = tiers[0];
+
+  for (const tier of tiers) {
+
+    const min = Number(tier.min_quantity);
+    const max = Number(tier.max_quantity) || Infinity;
+
+    if (qty >= min && qty <= max) {
+      selected = tier;
+    }
+  }
+
+  return Number(selected.price);
+};
   const cartItemId = getCartItemId(productWithVariation);
   const cartQuantity = cart?.[cartItemId]?.quantity || 0;
-  const unitPrice = cart?.[cartItemId]?.price ?? null;
-
+ const unitPrice = getTierPrice(tiers, subQty || 1);
   const isMaxStockReached = cartQuantity >= availableStock;
 
   /* =====================
@@ -129,15 +160,9 @@ const ProductCard = ({
   /* =====================
      ROLE-BASED TIERS (UI)
   ===================== */
-  const tiers =
-    tieredPricing?.[pricingKey] && Array.isArray(tieredPricing[pricingKey])
-      ? [...tieredPricing[pricingKey]].sort(
-          (a, b) => Number(a.min_quantity) - Number(b.min_quantity)
-        )
-      : [];
+  
 
-  const startingPrice =
-    tiers.length > 0 ? Number(tiers[0].price) : null;
+
 
   /* =====================
      RENDER
