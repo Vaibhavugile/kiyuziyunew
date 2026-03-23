@@ -104,7 +104,9 @@ const StoreHomepage = () => {
                 background: theme.colors.background,
                 color: theme.colors.text,
                 fontFamily: theme.font,
-                minHeight: "100vh"
+                minHeight: "100vh",
+                margin: 0,
+    padding: 0
             }}
         >
 

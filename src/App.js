@@ -46,6 +46,7 @@ import StoreHomepage from './pages/store/StoreHomepage';
 import DropshipperHomepage from './pages/dropshipper/DropshipperHomepage';
 import StoreLogin from './pages/store/StoreLogin';
 import StoreSignup from './pages/store/StoreSignup';
+import { StoreAuthProvider } from './pages/store/StoreAuthContext';
 function App() {
   return (
     <AuthProvider>
@@ -59,9 +60,11 @@ function App() {
                 isMainDomain()
                   ? <HomePage />
                   : (
-                    <StoreCartProvider>
-                      <StoreHomepage />
-                    </StoreCartProvider>
+                    <StoreAuthProvider>
+<StoreCartProvider>
+<StoreHomepage />
+</StoreCartProvider>
+</StoreAuthProvider>
                   )
               }
             />         <Route path="/login" element={<LoginPage />} />

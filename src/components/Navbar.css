@@ -24,6 +24,8 @@
   z-index: 60;
   background: var(--kj-bg);
   transition: background 260ms ease, box-shadow 260ms ease;
+  margin:0;
+padding:0;
 }
 
 .kj-header.kj-sticky {
