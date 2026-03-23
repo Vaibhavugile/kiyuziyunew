@@ -47,6 +47,7 @@ import DropshipperHomepage from './pages/dropshipper/DropshipperHomepage';
 import StoreLogin from './pages/store/StoreLogin';
 import StoreSignup from './pages/store/StoreSignup';
 import { StoreAuthProvider } from './pages/store/StoreAuthContext';
+import DropshipperPayments from './pages/dropshipper/DropshipperPayments';
 function App() {
   return (
     <AuthProvider>
@@ -127,6 +128,7 @@ function App() {
                 path="homepage"
                 element={<DropshipperHomepage />}
               />
+              <Route path="payments" element={<DropshipperPayments />} />
 
             </Route>
 

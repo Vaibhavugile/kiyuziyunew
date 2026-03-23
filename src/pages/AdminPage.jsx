@@ -3396,6 +3396,9 @@ localStorage.removeItem("offlineBillingDraft");
       "coupons",
       "editOrders",
       "barcode",
+      "sellerprofit",
+      "storeorders",
+      "adminsellers",
     ],
 
     manager: [
@@ -3514,6 +3517,31 @@ localStorage.removeItem("offlineBillingDraft");
             Barcode Print
           </button>
         )}
+         {ROLE_PERMISSIONS[currentUserRole]?.includes("adminsellers") && (
+          <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/sellers")}
+          >
+            Sellers
+          </button>
+        )}
+          {ROLE_PERMISSIONS[currentUserRole]?.includes("storeorders") && (
+          <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/store-orders")}
+          >
+            Store Orders
+          </button>
+        )}
+          {ROLE_PERMISSIONS[currentUserRole]?.includes("sellerprofit") && (
+          <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/seller-profits")}
+          >
+            Seller Profit
+          </button>
+        )}
+
 
       </div>
 

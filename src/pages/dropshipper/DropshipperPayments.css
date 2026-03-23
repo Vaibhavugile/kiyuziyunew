@@ -1,0 +1,117 @@
+.dropshipper-payments{
+padding:30px;
+}
+
+.payments-table{
+width:100%;
+border-collapse:collapse;
+background:white;
+}
+
+.payments-table th,
+.payments-table td{
+padding:12px;
+border-bottom:1px solid #eee;
+text-align:center;
+}
+
+.payments-table th{
+background:#fafafa;
+font-weight:600;
+}
+
+.profit{
+color:#16a34a;
+font-weight:600;
+}
+
+.payable{
+color:#dc2626;
+font-weight:600;
+}.dropshipper-payments{
+padding:30px;
+}
+
+.payments-controls{
+display:flex;
+gap:10px;
+margin-bottom:20px;
+}
+
+.payments-controls input{
+padding:8px 10px;
+border:1px solid #ddd;
+border-radius:6px;
+}
+
+.payments-controls select{
+padding:8px;
+border-radius:6px;
+border:1px solid #ddd;
+}
+
+.payments-table{
+width:100%;
+border-collapse:collapse;
+background:white;
+}
+
+.payments-table th,
+.payments-table td{
+padding:12px;
+border-bottom:1px solid #eee;
+text-align:center;
+}
+
+.payments-table th{
+background:#fafafa;
+font-weight:600;
+}
+
+.status{
+padding:4px 10px;
+border-radius:20px;
+font-size:12px;
+font-weight:600;
+}
+
+.status-pending{
+background:#fff7ed;
+color:#ea580c;
+}
+
+.status-readytopack{
+background:#ecfdf5;
+color:#16a34a;
+}
+
+.status-cancelled{
+background:#fee2e2;
+color:#dc2626;
+}
+
+.profit{
+color:#16a34a;
+font-weight:600;
+}
+
+.payable{
+color:#dc2626;
+font-weight:600;
+}
+
+.payments-summary{
+margin-top:30px;
+display:grid;
+grid-template-columns:repeat(5,1fr);
+gap:20px;
+background:#fafafa;
+padding:20px;
+border-radius:10px;
+}
+
+.payments-summary div{
+display:flex;
+flex-direction:column;
+text-align:center;
+}

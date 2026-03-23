@@ -69,6 +69,13 @@ Orders
 >
   Homepage
 </Link>
+<Link
+  to="/dropshipper/payments"
+  className={isActive("payments")}
+>
+  Payment
+</Link>
+
 </nav>
 
 </aside>
