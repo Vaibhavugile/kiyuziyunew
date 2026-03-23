@@ -3,12 +3,15 @@ import { useStoreCart } from "./StoreCartContext";
 import { useNavigate } from "react-router-dom";
 import "../CheckoutPage.css";
 import {
-doc,
-collection,
-runTransaction,
-serverTimestamp
+    doc,
+    collection,
+    runTransaction,
+    serverTimestamp
 } from "firebase/firestore";
 import { db } from "../../firebase";
+import { useStoreAuth } from "./StoreAuthContext";
+
+
 
 /* =========================
 TIER PRICE CALCULATOR
@@ -16,27 +19,27 @@ TIER PRICE CALCULATOR
 
 const getTierData = (tiers, quantity) => {
 
-if(!tiers || tiers.length === 0){
-return { price:0, costPrice:0 };
-}
+    if (!tiers || tiers.length === 0) {
+        return { price: 0, costPrice: 0 };
+    }
 
-let selected = tiers[0];
+    let selected = tiers[0];
 
-for(const tier of tiers){
+    for (const tier of tiers) {
 
-const min = Number(tier.min_quantity);
-const max = Number(tier.max_quantity) || Infinity;
+        const min = Number(tier.min_quantity);
+        const max = Number(tier.max_quantity) || Infinity;
 
-if(quantity >= min && quantity <= max){
-selected = tier;
-}
+        if (quantity >= min && quantity <= max) {
+            selected = tier;
+        }
 
-}
+    }
 
-return {
-price:Number(selected.price) || 0,
-costPrice:Number(selected.costPrice) || 0
-};
+    return {
+        price: Number(selected.price) || 0,
+        costPrice: Number(selected.costPrice) || 0
+    };
 
 };
 
@@ -44,380 +47,474 @@ const SHIPPING_FEE = 199;
 
 const StoreCheckoutPage = () => {
 
-const { cart, clearCart, getSubcollectionQty } = useStoreCart();
-const navigate = useNavigate();
+    const { cart, clearCart, getSubcollectionQty } = useStoreCart();
+    const navigate = useNavigate();
 
-const items = Object.values(cart);
+    const items = Object.values(cart);
 
-const [formData,setFormData] = useState({
-fullName:"",
-email:"",
-phoneNumber:"",
-addressLine1:"",
-addressLine2:"",
-city:"",
-state:"",
-pincode:""
+    const [formData, setFormData] = useState({
+        fullName: "",
+        email: "",
+        phoneNumber: "",
+        addressLine1: "",
+        addressLine2: "",
+        city: "",
+        state: "",
+        pincode: ""
+    });
+
+    const [error, setError] = useState(null);
+    const [isProcessing, setIsProcessing] = useState(false);
+const { user } = useStoreAuth();
+    /* =========================
+    FORM CHANGE
+    ========================= */
+
+    const handleInputChange = (e) => {
+
+        const { name, value } = e.target;
+
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+
+    };
+
+    /* =========================
+    TOTAL CALCULATIONS
+    ========================= */
+
+    const subtotal = items.reduce((sum, item) => {
+
+        const subQty = getSubcollectionQty(item.subcollectionId);
+
+        const { price } = getTierData(
+            item.tieredPricing?.retail ?? [],
+            subQty
+        );
+
+        return sum + price * item.quantity;
+
+    }, 0);
+
+    const totalAmount = subtotal + SHIPPING_FEE;
+
+    /* =========================
+    PLACE ORDER
+    ========================= */
+
+    const handleSubmitOrder = async (e) => {
+
+        e.preventDefault();
+
+        setIsProcessing(true);
+        setError(null);
+
+        if (items.length === 0) {
+            setError("Your cart is empty.");
+            setIsProcessing(false);
+            return;
+        }
+        if (!user) {
+
+navigate("/store/login", {
+state: { redirectTo: "/store/checkout" }
 });
 
-const [error,setError] = useState(null);
-const [isProcessing,setIsProcessing] = useState(false);
-
-/* =========================
-FORM CHANGE
-========================= */
-
-const handleInputChange = (e)=>{
-
-const {name,value} = e.target;
-
-setFormData(prev=>({
-...prev,
-[name]:value
-}));
-
-};
-
-/* =========================
-TOTAL CALCULATIONS
-========================= */
-
-const subtotal = items.reduce((sum,item)=>{
-
-const subQty = getSubcollectionQty(item.subcollectionId);
-
-const { price } = getTierData(
-item.tieredPricing?.retail ?? [],
-subQty
-);
-
-return sum + price * item.quantity;
-
-},0);
-
-const totalAmount = subtotal + SHIPPING_FEE;
-
-/* =========================
-PLACE ORDER
-========================= */
-
-const handleSubmitOrder = async(e)=>{
-
-e.preventDefault();
-
-setIsProcessing(true);
-setError(null);
-
-if(items.length === 0){
-setError("Your cart is empty.");
-setIsProcessing(false);
-return;
-}
-
-const {
-fullName,
-email,
-phoneNumber,
-addressLine1,
-city,
-state,
-pincode
-} = formData;
-
-if(!fullName || !email || !phoneNumber || !addressLine1 || !city || !state || !pincode){
-
-setError("Please fill all required shipping details.");
-setIsProcessing(false);
 return;
 
 }
 
-try{
+        const {
+            fullName,
+            email,
+            phoneNumber,
+            addressLine1,
+            city,
+            state,
+            pincode
+        } = formData;
 
-await runTransaction(db, async (transaction)=>{
+        if (!fullName || !email || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
 
-const productDocs = [];
+            setError("Please fill all required shipping details.");
+            setIsProcessing(false);
+            return;
 
-/* =========================
-VALIDATE STOCK
-========================= */
+        }
 
-for(const item of items){
+        try {
 
-const ref = doc(
-db,
-"collections",
-item.collectionId,
-"subcollections",
-item.subcollectionId,
-"products",
-item.productId
-);
+            await runTransaction(db, async (transaction) => {
 
-const snap = await transaction.get(ref);
+                const productDocs = [];
 
-if(!snap.exists()){
-throw new Error(`${item.productName} no longer exists`);
-}
+                /* =========================
+                VALIDATE STOCK
+                ========================= */
 
-const stock = snap.data().quantity;
+                for (const item of items) {
 
-if(item.quantity > stock){
-throw new Error(`${item.productName} only has ${stock} available`);
-}
+                    const ref = doc(
+                        db,
+                        "collections",
+                        item.collectionId,
+                        "subcollections",
+                        item.subcollectionId,
+                        "products",
+                        item.productId
+                    );
 
-productDocs.push({
-ref,
-stock,
-item
-});
+                    const snap = await transaction.get(ref);
 
-}
+                    if (!snap.exists()) {
+                        throw new Error(`${item.productName} no longer exists`);
+                    }
 
-/* =========================
-REDUCE INVENTORY
-========================= */
+                    const data = snap.data();
 
-productDocs.forEach(p => {
+                    let stock = 0;
 
-const newStock = p.stock - p.item.quantity;
+                    /* =========================
+                    VARIANT PRODUCT
+                    ========================= */
 
-transaction.update(p.ref,{
-quantity: newStock
-});
+                    if (item.variation && data.variations) {
 
-});
+                        const match = data.variations.find(v =>
+                            Object.keys(item.variation).every(
+                                key => v[key] === item.variation[key]
+                            )
+                        );
 
-/* =========================
-CREATE ORDER ITEMS
-========================= */
+                        stock = match?.quantity ?? 0;
 
-const sanitizedItems = items.map(item=>{
+                    } else {
 
-const subQty = getSubcollectionQty(item.subcollectionId);
+                        /* =========================
+                        NORMAL PRODUCT
+                        ========================= */
 
-const { price, costPrice } = getTierData(
-item.tieredPricing?.retail ?? [],
-subQty
-);
+                        stock = data.quantity ?? 0;
 
-const quantity = Number(item.quantity) || 0;
+                    }
 
-const profitPerUnit = price - costPrice;
-const totalProfit = profitPerUnit * quantity;
+                    if (item.quantity > stock) {
+                        throw new Error(`${item.productName} only has ${stock} available`);
+                    }
 
-return{
+                    productDocs.push({
+                        ref,
+                        data,
+                        stock,
+                        item
+                    });
 
-productId: item.productId ?? null,
-productName: item.productName ?? "",
-productCode: item.productCode ?? "",
+                }
 
-image: item.image ?? "",
-images: item.images ?? [],
 
-quantity: quantity,
+                /* =========================
+                REDUCE INVENTORY
+                ========================= */
 
-priceAtTimeOfOrder: price,
-costPrice: costPrice,
+                productDocs.forEach(p => {
 
-profitPerUnit: profitPerUnit,
-profit: totalProfit,
+                    const { ref, data, item } = p;
 
-collectionId: item.collectionId ?? "",
-subcollectionId: item.subcollectionId ?? ""
+                    /* =========================
+                    VARIANT PRODUCT
+                    ========================= */
 
-};
+                    if (item.variation && data.variations) {
 
-});
+                        const updatedVariations = data.variations.map(v => {
 
-/* =========================
-TOTAL PROFIT
-========================= */
+                            const isMatch = Object.keys(item.variation).every(
+                                key => v[key] === item.variation[key]
+                            );
 
-const totalProfit = sanitizedItems.reduce(
-(sum,i)=> sum + (i.profit || 0),
-0
-);
+                            if (!isMatch) return v;
 
-/* =========================
-CREATE ORDER DOCUMENT
-========================= */
+                            return {
+                                ...v,
+                                quantity: v.quantity - item.quantity
+                            };
 
-const orderRef = doc(collection(db,"storeOrders"));
+                        });
 
-const orderData = {
+                        transaction.update(ref, {
+                            variations: updatedVariations
+                        });
 
-sellerId: items[0]?.sellerId ?? null,
+                    } else {
 
-items: sanitizedItems,
+                        /* =========================
+                        NORMAL PRODUCT
+                        ========================= */
 
-subtotal: Number(subtotal) || 0,
-shippingFee: SHIPPING_FEE,
-totalAmount: Number(totalAmount) || 0,
+                        const newStock = p.stock - item.quantity;
 
-totalProfit: totalProfit,
+                        transaction.update(ref, {
+                            quantity: newStock
+                        });
 
-billingInfo:{
-fullName,
-email,
-phoneNumber,
-addressLine1,
-addressLine2: formData.addressLine2 ?? "",
-city,
-state,
-pincode
-},
+                    }
 
-status:"Pending",
+                });
 
-createdAt: serverTimestamp()
 
-};
+                /* =========================
+                CREATE ORDER ITEMS
+                ========================= */
 
-transaction.set(orderRef,orderData);
+                const sanitizedItems = items.map(item => {
 
-});
+                    const subQty = getSubcollectionQty(item.subcollectionId);
 
-clearCart();
+                    const { price, costPrice } = getTierData(
+                        item.tieredPricing?.retail ?? [],
+                        subQty
+                    );
 
-navigate("/order-success");
+                    const quantity = Number(item.quantity) || 0;
 
-}catch(err){
+                    const profitPerUnit = price - costPrice;
+                    const totalProfit = profitPerUnit * quantity;
 
-console.error("Checkout failed:", err);
+                    return {
 
-setError(err.message || "Order failed.");
+                        productId: item.productId ?? null,
+                        productName: item.productName ?? "",
+                        productCode: item.productCode ?? "",
 
-}
+                        variation: item.variation ?? null,
 
-setIsProcessing(false);
+                        variationLabel: item.variation
+                            ? Object.entries(item.variation)
+                                .map(([k, v]) => `${k}: ${v}`)
+                                .join(" / ")
+                            : null,
+                        cartId: item.cartId ?? null,
 
-};
+                        image: item.image ?? "",
+                        images: item.images ?? [],
 
-/* =========================
-UI
-========================= */
+                        quantity: quantity,
 
-return(
+                        priceAtTimeOfOrder: price,
+                        costPrice: costPrice,
 
-<div className="checkout-page-container">
+                        profitPerUnit: profitPerUnit,
+                        profit: totalProfit,
 
-<h2>Complete Your Order</h2>
+                        collectionId: item.collectionId ?? "",
+                        subcollectionId: item.subcollectionId ?? ""
 
-{error && <pre className="error-message">{error}</pre>}
+                    };
 
-{items.length > 0 ? (
+                });
 
-<div className="checkout-content">
 
-{/* BILLING */}
+                /* =========================
+                TOTAL PROFIT
+                ========================= */
 
-<div className="billing-section">
+                const totalProfit = sanitizedItems.reduce(
+                    (sum, i) => sum + (i.profit || 0),
+                    0
+                );
 
-<h3>Billing & Shipping Information</h3>
 
-<form onSubmit={handleSubmitOrder}>
+                /* =========================
+                CREATE ORDER DOCUMENT
+                ========================= */
 
-<input name="fullName" placeholder="Full Name *" value={formData.fullName} onChange={handleInputChange} required />
-<input name="email" type="email" placeholder="Email *" value={formData.email} onChange={handleInputChange} required />
-<input name="phoneNumber" placeholder="Phone *" value={formData.phoneNumber} onChange={handleInputChange} required />
-<input name="addressLine1" placeholder="Address *" value={formData.addressLine1} onChange={handleInputChange} required />
-<input name="addressLine2" placeholder="Address 2" value={formData.addressLine2} onChange={handleInputChange} />
-<input name="city" placeholder="City *" value={formData.city} onChange={handleInputChange} required />
-<input name="state" placeholder="State *" value={formData.state} onChange={handleInputChange} required />
-<input name="pincode" placeholder="Pincode *" value={formData.pincode} onChange={handleInputChange} required />
+                const orderRef = doc(collection(db, "storeOrders"));
 
-<button type="submit" className="checkout-btn" disabled={isProcessing}>
-{isProcessing ? "Processing..." : "Place Order"}
-</button>
+                const orderData = {
 
-</form>
+                    sellerId: items[0]?.sellerId ?? null,
+customerId: user?.uid ?? null,
+customerEmail: user?.email ?? null,
+                    items: sanitizedItems,
 
-</div>
+                    subtotal: Number(subtotal) || 0,
+                    shippingFee: SHIPPING_FEE,
+                    totalAmount: Number(totalAmount) || 0,
+                    totalItems: sanitizedItems.length,
+                    totalUnits: sanitizedItems.reduce((s, i) => s + i.quantity, 0),
+                    totalProfit: totalProfit,
 
-{/* ORDER SUMMARY */}
+                    billingInfo: {
+                        fullName,
+                        email,
+                        phoneNumber,
+                        addressLine1,
+                        addressLine2: formData.addressLine2 ?? "",
+                        city,
+                        state,
+                        pincode
+                    },
 
-<div className="order-details">
+                    status: "Pending",
 
-<h3>Order Summary</h3>
+                    createdAt: serverTimestamp()
 
-<div className="cart-items-list">
+                };
 
-{items.map(item=>{
+                transaction.set(orderRef, orderData);
 
-const subQty = getSubcollectionQty(item.subcollectionId);
+            });
 
-const { price } = getTierData(
-item.tieredPricing?.retail ?? [],
-subQty
-);
+            clearCart();
 
-return(
+            navigate("/order-success");
 
-<div key={item.cartId} className="cart-item">
+        } catch (err) {
 
-<div className="cart-item-image-wrapper">
+            console.error("Checkout failed:", err);
 
-<img
-src={item.images?.[0]?.url || item.image}
-alt={item.productName}
-className="cart-item-image"
-/>
+            setError(err.message || "Order failed.");
 
-</div>
+        }
 
-<div className="cart-item-details">
+        setIsProcessing(false);
 
-<h4 className="cart-item-name">{item.productName}</h4>
+    };
 
-<p className="cart-item-code">
-Code: {item.productCode}
-</p>
+    /* =========================
+    UI
+    ========================= */
 
-<p className="cart-item-price">
-₹{price.toFixed(2)} × {item.quantity}
-</p>
+    return (
 
-</div>
+        <div className="checkout-page-container">
 
-</div>
+            <h2>Complete Your Order</h2>
 
-);
+            {error && <pre className="error-message">{error}</pre>}
 
-})}
+            {items.length > 0 ? (
 
-</div>
+                <div className="checkout-content">
 
-<div className="cart-total-section">
-<p>Subtotal</p>
-<p>₹{subtotal.toFixed(2)}</p>
-</div>
+                    {/* BILLING */}
 
-<div className="cart-total-section">
-<p>Packing</p>
-<p>₹{SHIPPING_FEE.toFixed(2)}</p>
-</div>
+                    <div className="billing-section">
 
-<div className="cart-total-section total-final">
-<p>Total</p>
-<p>₹{totalAmount.toFixed(2)}</p>
-</div>
+                        <h3>Billing & Shipping Information</h3>
 
-</div>
+                        <form onSubmit={handleSubmitOrder}>
 
-</div>
+                            <input name="fullName" placeholder="Full Name *" value={formData.fullName} onChange={handleInputChange} required />
+                            <input name="email" type="email" placeholder="Email *" value={formData.email} onChange={handleInputChange} required />
+                            <input name="phoneNumber" placeholder="Phone *" value={formData.phoneNumber} onChange={handleInputChange} required />
+                            <input name="addressLine1" placeholder="Address *" value={formData.addressLine1} onChange={handleInputChange} required />
+                            <input name="addressLine2" placeholder="Address 2" value={formData.addressLine2} onChange={handleInputChange} />
+                            <input name="city" placeholder="City *" value={formData.city} onChange={handleInputChange} required />
+                            <input name="state" placeholder="State *" value={formData.state} onChange={handleInputChange} required />
+                            <input name="pincode" placeholder="Pincode *" value={formData.pincode} onChange={handleInputChange} required />
 
-):( 
+                            <button type="submit" className="checkout-btn" disabled={isProcessing}>
+                                {isProcessing ? "Processing..." : "Place Order"}
+                            </button>
 
-<p className="empty-cart-message">
-Your cart is empty.
-</p>
+                        </form>
 
-)}
+                    </div>
 
-</div>
+                    {/* ORDER SUMMARY */}
 
-);
+                    <div className="order-details">
+
+                        <h3>Order Summary</h3>
+
+                        <div className="cart-items-list">
+
+                            {items.map(item => {
+
+                                const subQty = getSubcollectionQty(item.subcollectionId);
+
+                                const { price } = getTierData(
+                                    item.tieredPricing?.retail ?? [],
+                                    subQty
+                                );
+
+                                return (
+
+                                    <div key={item.cartId} className="cart-item">
+
+                                        <div className="cart-item-image-wrapper">
+
+                                            <img
+                                                src={item.images?.[0]?.url || item.image}
+                                                alt={item.productName}
+                                                className="cart-item-image"
+                                            />
+
+                                        </div>
+
+                                        <div className="cart-item-details">
+
+                                            <h4 className="cart-item-name">{item.productName}</h4>
+
+                                            <p className="cart-item-code">
+                                                Code: {item.productCode}
+                                            </p>
+
+                                            {item.variation && (
+                                                <p style={{ fontSize: "13px", color: "#666" }}>
+                                                    {Object.entries(item.variation)
+                                                        .map(([k, v]) => `${k}: ${v}`)
+                                                        .join(" / ")}
+                                                </p>
+                                            )}
+
+                                            <p className="cart-item-price">
+                                                ₹{price.toFixed(2)} × {item.quantity}
+                                            </p>
+
+                                        </div>
+
+                                    </div>
+
+                                );
+
+                            })}
+
+                        </div>
+
+                        <div className="cart-total-section">
+                            <p>Subtotal</p>
+                            <p>₹{subtotal.toFixed(2)}</p>
+                        </div>
+
+                        <div className="cart-total-section">
+                            <p>Packing</p>
+                            <p>₹{SHIPPING_FEE.toFixed(2)}</p>
+                        </div>
+
+                        <div className="cart-total-section total-final">
+                            <p>Total</p>
+                            <p>₹{totalAmount.toFixed(2)}</p>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            ) : (
+
+                <p className="empty-cart-message">
+                    Your cart is empty.
+                </p>
+
+            )}
+
+        </div>
+
+    );
 
 };
 

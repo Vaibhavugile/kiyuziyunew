@@ -44,6 +44,8 @@ import AdminStoreOrders from './pages/AdminStoreOrders';
 import AdminSellerProfits from './pages/AdminSellerProfits';
 import StoreHomepage from './pages/store/StoreHomepage';
 import DropshipperHomepage from './pages/dropshipper/DropshipperHomepage';
+import StoreLogin from './pages/store/StoreLogin';
+import StoreSignup from './pages/store/StoreSignup';
 function App() {
   return (
     <AuthProvider>
@@ -125,32 +127,16 @@ function App() {
 
             </Route>
 
-           <Route
-  path="/store"
+        <Route
+  path="/store/*"
   element={
     <StoreCartProvider>
-      <SellerStore />
+      <StoreLoader />
     </StoreCartProvider>
   }
 />
 
-            <Route
-              path="/store-cart"
-              element={
-                <StoreCartProvider>
-                  <StoreCartPage />
-                </StoreCartProvider>
-              }
-            />
-
-            <Route
-              path="/store-checkout"
-              element={
-                <StoreCartProvider>
-                  <StoreCheckoutPage />
-                </StoreCartProvider>
-              }
-            />
+           
 
 
 

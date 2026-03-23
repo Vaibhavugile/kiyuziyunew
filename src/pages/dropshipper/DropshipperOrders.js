@@ -90,7 +90,7 @@ if(!timestamp) return "";
 
 try{
 return new Date(timestamp.seconds * 1000)
-.toLocaleDateString();
+.toLocaleString();
 }catch{
 return "";
 }
@@ -116,6 +116,7 @@ return(
 <h1>Orders</h1>
 
 {orders.length === 0 && (
+
 <div className="no-orders">
 No orders yet
 </div>
@@ -142,7 +143,7 @@ isExpanded ? null : order.id
 >
 
 <div className="order-id">
-#{order.id.slice(0,8)}
+#{order.orderNumber || order.id.slice(0,8)}
 </div>
 
 <div className="order-customer">
@@ -175,15 +176,34 @@ isExpanded ? null : order.id
 
 <h3>Customer Details</h3>
 
-<p><strong>Name:</strong> {order.billingInfo?.fullName}</p>
-
-<p><strong>Phone:</strong> {order.billingInfo?.phone}</p>
-
-<p><strong>Address:</strong> {order.billingInfo?.address}</p>
+<p>
+<strong>Name:</strong> {order.billingInfo?.fullName}
+</p>
 
 <p>
-<strong>Location:</strong>{" "}
-{order.billingInfo?.city}, {order.billingInfo?.state}
+<strong>Email:</strong> {order.billingInfo?.email}
+</p>
+
+<p>
+<strong>Phone:</strong> {order.billingInfo?.phoneNumber}
+</p>
+
+<p>
+<strong>Address:</strong>{" "}
+{order.billingInfo?.addressLine1}{" "}
+{order.billingInfo?.addressLine2}
+</p>
+
+<p>
+<strong>City:</strong> {order.billingInfo?.city}
+</p>
+
+<p>
+<strong>State:</strong> {order.billingInfo?.state}
+</p>
+
+<p>
+<strong>Pincode:</strong> {order.billingInfo?.pincode}
 </p>
 
 <p>
@@ -217,6 +237,15 @@ alt={item.productName}
 Code: {item.productCode}
 </div>
 
+{/* VARIANT */}
+
+{item.variationLabel && (
+
+<div className="item-meta">
+{item.variationLabel}
+</div>
+)}
+
 <div className="item-meta">
 Qty: {item.quantity}
 </div>
@@ -229,11 +258,37 @@ Price: ₹{item.priceAtTimeOfOrder}
 Cost: ₹{item.costPrice}
 </div>
 
+<div className="item-meta">
+Subtotal: ₹{(item.priceAtTimeOfOrder * item.quantity).toFixed(2)}
+</div>
+
 </div>
 
 </div>
 
 ))}
+
+</div>
+
+{/* ORDER TOTALS */}
+
+<div className="order-summary-totals">
+
+<p>
+<strong>Subtotal:</strong> ₹{order.subtotal || 0}
+</p>
+
+<p>
+<strong>Shipping:</strong> ₹{order.shippingFee || 0}
+</p>
+
+<p>
+<strong>Total:</strong> ₹{order.totalAmount || 0}
+</p>
+
+<p>
+<strong>Total Profit:</strong> ₹{profit}
+</p>
 
 </div>
 

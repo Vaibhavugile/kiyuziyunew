@@ -163,7 +163,7 @@ const StoreNavbar = ({ data, theme }) => {
                     )}
                   </div>
                 ) : (
-                  <Link to="/login" className="kj-login-link">Login</Link>
+                  <Link to="/store/login" className="kj-login-link">Login</Link>
                 )}
               </div>
 
@@ -215,7 +215,7 @@ const StoreNavbar = ({ data, theme }) => {
                 Sign out
               </button>
             ) : (
-              <Link to="/login" className="kj-btn-solid">
+              <Link to="/store/login" className="kj-btn-solid">
                 Login
               </Link>
             )}

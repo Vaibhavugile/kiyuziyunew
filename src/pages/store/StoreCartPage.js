@@ -133,7 +133,7 @@ return;
 
 }
 
-navigate("/store-checkout");
+navigate("/store/checkout");
 
 };
 
@@ -241,6 +241,21 @@ className="cart-item-image1"
 
 <div className="cart-item-name">
 {item.productName}
+{item.productCode && (
+<div style={{fontSize:"12px",color:"#777"}}>
+Code: {item.productCode}
+</div>
+)}
+
+{item.variation && (
+<div style={{fontSize:"12px",color:"#666"}}>
+{Object.entries(item.variation)
+.filter(([k]) => k !== "quantity")
+.map(([k,v]) => `${k}: ${v}`)
+.join(" / ")}
+</div>
+)}
+
 </div>
 
 <div className="cart-item-price">

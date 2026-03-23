@@ -779,9 +779,27 @@ setEnabledProducts(prev=>({
 
                             <p>{p.productCode}</p>
 
-                            <p style={{ fontSize: "13px", color: "#666" }}>
-                                Stock: {p.quantity ?? 0}
-                            </p>
+                            {p.variations && p.variations.length > 0 ? (
+
+<div style={{fontSize:"13px",color:"#666"}}>
+
+<p>Variants:</p>
+
+{p.variations.map((v,i)=>(
+<div key={i}>
+{v.color} {v.size} — {v.quantity}
+</div>
+))}
+
+</div>
+
+) : (
+
+<p style={{fontSize:"13px",color:"#666"}}>
+Stock: {p.quantity ?? 0}
+</p>
+
+)}
 
                             <label style={{
                                 display: "flex",

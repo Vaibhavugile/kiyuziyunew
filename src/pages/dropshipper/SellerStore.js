@@ -169,12 +169,36 @@ const SellerStore = () => {
             const data = snap.data();
 
             setProducts(prev =>
-              prev.map(prod =>
-                prod.productId === p.productId
-                  ? { ...prod, quantity: data.quantity }
-                  : prod
-              )
-            );
+  prev.map(prod => {
+
+    if (prod.productId !== p.productId) return prod;
+
+    /* Variant products */
+
+    if (data.variations && data.variations.length > 0) {
+
+      const totalStock = data.variations.reduce(
+        (sum,v)=> sum + Number(v.quantity || 0),
+        0
+      );
+
+      return {
+        ...prod,
+        variations: data.variations,
+        quantity: totalStock
+      };
+
+    }
+
+    /* Normal product */
+
+    return {
+      ...prod,
+      quantity: data.quantity ?? 0
+    };
+
+  })
+);
           });
 
           inventoryListeners.push(unsub);
@@ -398,7 +422,7 @@ const SellerStore = () => {
           <ProductCard
             key={product.id}
             product={product}
-            onIncrement={() => addToCart(product)}
+            onIncrement={addToCart}
             onDecrement={(cartId) => removeFromCart(cartId)}
             cart={cart}
           />
@@ -409,7 +433,7 @@ const SellerStore = () => {
       {/* CART */}
       {cartItemsCount > 0 && (
         <div className="view-cart-fixed-container">
-          <Link to="/store-cart" className="view-cart-btn-overlay">
+          <Link to="/store/cart" className="view-cart-btn-overlay">
             {cartItemsCount} items - View Cart
           </Link>
         </div>

@@ -73,7 +73,6 @@ return id;
 /* =========================
 ATTACH INVENTORY LISTENER
 ========================= */
-
 const attachInventoryListener = (product)=>{
 
 const pid = product.productId;
@@ -104,9 +103,35 @@ Object.keys(updated).forEach(id=>{
 
 const item = updated[id];
 
-if(item.productId === pid){
+if(item.productId !== pid) return;
 
-const stock = data.quantity ?? 0;
+let stock = 0;
+
+/* =========================
+VARIANT STOCK
+========================= */
+
+if(item.variation && data.variations){
+
+const match = data.variations.find(v=>{
+
+return Object.keys(item.variation).every(
+key => v[key] === item.variation[key]
+);
+
+});
+
+stock = match?.quantity ?? 0;
+
+}else{
+
+/* =========================
+NORMAL PRODUCT
+========================= */
+
+stock = data.quantity ?? 0;
+
+}
 
 updated[id] = {
 ...item,
@@ -115,8 +140,6 @@ stock
 
 if(item.quantity > stock){
 updated[id].quantity = stock;
-}
-
 }
 
 });
@@ -130,7 +153,6 @@ return updated;
 listenersRef.current[pid] = unsub;
 
 };
-
 /* =========================
 REMOVE LISTENER
 ========================= */
