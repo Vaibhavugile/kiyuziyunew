@@ -249,4 +249,81 @@ gap:10px;
 grid-template-columns:1fr;
 }
 
+}/* BUTTON CONTAINER */
+
+.order-actions{
+display:flex;
+gap:10px;
+margin-top:14px;
+flex-wrap:wrap;
+}
+
+
+/* BASE BUTTON */
+
+.order-actions button{
+border:none;
+padding:8px 14px;
+font-size:13px;
+border-radius:6px;
+cursor:pointer;
+font-weight:500;
+transition:all .2s ease;
+display:flex;
+align-items:center;
+justify-content:center;
+}
+
+
+/* VIEW PDF */
+
+.btn-view{
+background:#3b82f6;
+color:white;
+}
+
+.btn-view:hover{
+background:#2563eb;
+transform:translateY(-1px);
+}
+
+
+/* MARK PAID */
+
+.btn-paid{
+background:#22c55e;
+color:white;
+}
+
+.btn-paid:hover{
+background:#16a34a;
+transform:translateY(-1px);
+}
+
+
+/* CANCEL */
+
+.btn-cancel{
+background:#ef4444;
+color:white;
+}
+
+.btn-cancel:hover{
+background:#dc2626;
+transform:translateY(-1px);
+}
+
+
+/* SMALL SHADOW */
+
+.order-actions button{
+box-shadow:0 2px 6px rgba(0,0,0,0.08);
+}
+
+
+/* ACTIVE PRESS EFFECT */
+
+.order-actions button:active{
+transform:scale(.97);
+box-shadow:0 1px 3px rgba(0,0,0,0.2);
 }
