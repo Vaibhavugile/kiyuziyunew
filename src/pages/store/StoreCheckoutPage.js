@@ -106,283 +106,290 @@ const { user } = useStoreAuth();
 
     const handleSubmitOrder = async (e) => {
 
-        e.preventDefault();
+e.preventDefault();
 
-        setIsProcessing(true);
-        setError(null);
+setIsProcessing(true);
+setError(null);
 
-        if (items.length === 0) {
-            setError("Your cart is empty.");
-            setIsProcessing(false);
-            return;
-        }
-        if (!user) {
+if (items.length === 0) {
+setError("Your cart is empty.");
+setIsProcessing(false);
+return;
+}
+
+if (!user) {
 
 navigate("/store/login", {
 state: { redirectTo: "/store/checkout" }
 });
 
 return;
+}
+
+const {
+fullName,
+email,
+phoneNumber,
+addressLine1,
+city,
+state,
+pincode
+} = formData;
+
+if (!fullName || !email || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
+
+setError("Please fill all required shipping details.");
+setIsProcessing(false);
+return;
 
 }
 
-        const {
-            fullName,
-            email,
-            phoneNumber,
-            addressLine1,
-            city,
-            state,
-            pincode
-        } = formData;
+try {
 
-        if (!fullName || !email || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
+await runTransaction(db, async (transaction) => {
 
-            setError("Please fill all required shipping details.");
-            setIsProcessing(false);
-            return;
+const productDocs = [];
 
-        }
+/* =========================
+READ PRODUCTS
+========================= */
 
-        try {
+for (const item of items) {
 
-            await runTransaction(db, async (transaction) => {
+const ref = doc(
+db,
+"collections",
+item.collectionId,
+"subcollections",
+item.subcollectionId,
+"products",
+item.productId
+);
 
-                const productDocs = [];
+const snap = await transaction.get(ref);
 
-                /* =========================
-                VALIDATE STOCK
-                ========================= */
+if (!snap.exists()) {
+throw new Error(`${item.productName} no longer exists`);
+}
 
-                for (const item of items) {
+productDocs.push({
+ref,
+data: snap.data(),
+item
+});
 
-                    const ref = doc(
-                        db,
-                        "collections",
-                        item.collectionId,
-                        "subcollections",
-                        item.subcollectionId,
-                        "products",
-                        item.productId
-                    );
+}
 
-                    const snap = await transaction.get(ref);
+/* =========================
+GROUP ITEMS BY PRODUCT
+========================= */
 
-                    if (!snap.exists()) {
-                        throw new Error(`${item.productName} no longer exists`);
-                    }
+const groupedProducts = {};
 
-                    const data = snap.data();
+productDocs.forEach(p => {
 
-                    let stock = 0;
+const key = p.ref.path;
 
-                    /* =========================
-                    VARIANT PRODUCT
-                    ========================= */
+if (!groupedProducts[key]) {
+groupedProducts[key] = {
+ref: p.ref,
+data: JSON.parse(JSON.stringify(p.data)),
+items: []
+};
+}
 
-                    if (item.variation && data.variations) {
+groupedProducts[key].items.push(p.item);
 
-                        const match = data.variations.find(v =>
-                            Object.keys(item.variation).every(
-                                key => v[key] === item.variation[key]
-                            )
-                        );
+});
 
-                        stock = match?.quantity ?? 0;
+/* =========================
+VALIDATE + UPDATE STOCK
+========================= */
 
-                    } else {
+for (const group of Object.values(groupedProducts)) {
 
-                        /* =========================
-                        NORMAL PRODUCT
-                        ========================= */
+const { ref, data, items } = group;
 
-                        stock = data.quantity ?? 0;
+/* ===== VARIANT PRODUCT ===== */
 
-                    }
+if (data.variations) {
 
-                    if (item.quantity > stock) {
-                        throw new Error(`${item.productName} only has ${stock} available`);
-                    }
+let updatedVariations = [...data.variations];
 
-                    productDocs.push({
-                        ref,
-                        data,
-                        stock,
-                        item
-                    });
+items.forEach(item => {
 
-                }
+const matchIndex = updatedVariations.findIndex(v => {
 
+return Object.keys(item.variation || {})
+.filter(k => k !== "quantity")
+.every(key => v[key] === item.variation[key]);
 
-                /* =========================
-                REDUCE INVENTORY
-                ========================= */
+});
 
-                productDocs.forEach(p => {
+if (matchIndex === -1) {
+throw new Error(`${item.productName} variant not found`);
+}
 
-                    const { ref, data, item } = p;
+const currentQty = updatedVariations[matchIndex].quantity || 0;
 
-                    /* =========================
-                    VARIANT PRODUCT
-                    ========================= */
+if (item.quantity > currentQty) {
+throw new Error(`${item.productName} only has ${currentQty} available`);
+}
 
-                    if (item.variation && data.variations) {
+updatedVariations[matchIndex] = {
+...updatedVariations[matchIndex],
+quantity: currentQty - item.quantity
+};
 
-                        const updatedVariations = data.variations.map(v => {
+});
 
-                            const isMatch = Object.keys(item.variation).every(
-                                key => v[key] === item.variation[key]
-                            );
+transaction.update(ref, {
+variations: updatedVariations
+});
 
-                            if (!isMatch) return v;
+}
 
-                            return {
-                                ...v,
-                                quantity: v.quantity - item.quantity
-                            };
+/* ===== NORMAL PRODUCT ===== */
 
-                        });
+else {
 
-                        transaction.update(ref, {
-                            variations: updatedVariations
-                        });
+let newStock = data.quantity || 0;
 
-                    } else {
+items.forEach(item => {
 
-                        /* =========================
-                        NORMAL PRODUCT
-                        ========================= */
+if (item.quantity > newStock) {
+throw new Error(`${item.productName} only has ${newStock} available`);
+}
 
-                        const newStock = p.stock - item.quantity;
+newStock -= item.quantity;
 
-                        transaction.update(ref, {
-                            quantity: newStock
-                        });
+});
 
-                    }
+transaction.update(ref, {
+quantity: newStock
+});
 
-                });
+}
 
+}
 
-                /* =========================
-                CREATE ORDER ITEMS
-                ========================= */
+/* =========================
+CREATE ORDER ITEMS
+========================= */
 
-                const sanitizedItems = items.map(item => {
+const sanitizedItems = items.map(item => {
 
-                    const subQty = getSubcollectionQty(item.subcollectionId);
+const subQty = getSubcollectionQty(item.subcollectionId);
 
-                    const { price, costPrice } = getTierData(
-                        item.tieredPricing?.retail ?? [],
-                        subQty
-                    );
+const { price, costPrice } = getTierData(
+item.tieredPricing?.retail ?? [],
+subQty
+);
 
-                    const quantity = Number(item.quantity) || 0;
+const quantity = Number(item.quantity) || 0;
 
-                    const profitPerUnit = price - costPrice;
-                    const totalProfit = profitPerUnit * quantity;
+const profitPerUnit = price - costPrice;
+const totalProfit = profitPerUnit * quantity;
 
-                    return {
+return {
 
-                        productId: item.productId ?? null,
-                        productName: item.productName ?? "",
-                        productCode: item.productCode ?? "",
+productId: item.productId ?? null,
+productName: item.productName ?? "",
+productCode: item.productCode ?? "",
 
-                        variation: item.variation ?? null,
+variation: item.variation ?? null,
 
-                        variationLabel: item.variation
-                            ? Object.entries(item.variation)
-                                .map(([k, v]) => `${k}: ${v}`)
-                                .join(" / ")
-                            : null,
-                        cartId: item.cartId ?? null,
+variationLabel: item.variation
+? Object.entries(item.variation)
+.map(([k,v]) => `${k}: ${v}`)
+.join(" / ")
+: null,
 
-                        image: item.image ?? "",
-                        images: item.images ?? [],
+cartId: item.cartId ?? null,
 
-                        quantity: quantity,
+image: item.image ?? "",
+images: item.images ?? [],
 
-                        priceAtTimeOfOrder: price,
-                        costPrice: costPrice,
+quantity,
 
-                        profitPerUnit: profitPerUnit,
-                        profit: totalProfit,
+priceAtTimeOfOrder: price,
+costPrice,
 
-                        collectionId: item.collectionId ?? "",
-                        subcollectionId: item.subcollectionId ?? ""
+profitPerUnit,
+profit: totalProfit,
 
-                    };
+collectionId: item.collectionId ?? "",
+subcollectionId: item.subcollectionId ?? ""
 
-                });
+};
 
+});
 
-                /* =========================
-                TOTAL PROFIT
-                ========================= */
+/* =========================
+TOTAL PROFIT
+========================= */
 
-                const totalProfit = sanitizedItems.reduce(
-                    (sum, i) => sum + (i.profit || 0),
-                    0
-                );
+const totalProfit = sanitizedItems.reduce(
+(sum,i)=> sum + (i.profit || 0),
+0
+);
 
+/* =========================
+CREATE ORDER DOCUMENT
+========================= */
 
-                /* =========================
-                CREATE ORDER DOCUMENT
-                ========================= */
+const orderRef = doc(collection(db,"storeOrders"));
 
-                const orderRef = doc(collection(db, "storeOrders"));
+const orderData = {
 
-                const orderData = {
-
-                    sellerId: items[0]?.sellerId ?? null,
+sellerId: items[0]?.sellerId ?? null,
 customerId: user?.uid ?? null,
 customerEmail: user?.email ?? null,
-                    items: sanitizedItems,
 
-                    subtotal: Number(subtotal) || 0,
-                    shippingFee: SHIPPING_FEE,
-                    totalAmount: Number(totalAmount) || 0,
-                    totalItems: sanitizedItems.length,
-                    totalUnits: sanitizedItems.reduce((s, i) => s + i.quantity, 0),
-                    totalProfit: totalProfit,
+items: sanitizedItems,
 
-                    billingInfo: {
-                        fullName,
-                        email,
-                        phoneNumber,
-                        addressLine1,
-                        addressLine2: formData.addressLine2 ?? "",
-                        city,
-                        state,
-                        pincode
-                    },
+subtotal: Number(subtotal) || 0,
+shippingFee: SHIPPING_FEE,
+totalAmount: Number(totalAmount) || 0,
 
-                    status: "Pending",
+totalItems: sanitizedItems.length,
+totalUnits: sanitizedItems.reduce((s,i)=> s + i.quantity,0),
 
-                    createdAt: serverTimestamp()
+totalProfit,
 
-                };
+billingInfo:{
+fullName,
+email,
+phoneNumber,
+addressLine1,
+addressLine2: formData.addressLine2 ?? "",
+city,
+state,
+pincode
+},
 
-                transaction.set(orderRef, orderData);
+status:"Pending",
+createdAt: serverTimestamp()
 
-            });
+};
 
-            clearCart();
+transaction.set(orderRef,orderData);
 
-            navigate("/order-success");
+});
 
-        } catch (err) {
+clearCart();
+navigate("/order-success");
 
-            console.error("Checkout failed:", err);
+} catch (err) {
 
-            setError(err.message || "Order failed.");
+console.error("Checkout failed:", err);
+setError(err.message || "Order failed.");
 
-        }
+}
 
-        setIsProcessing(false);
+setIsProcessing(false);
 
-    };
-
+};
     /* =========================
     UI
     ========================= */

@@ -159,3 +159,20 @@ gap:6px;
 font-weight:600;
 font-size:16px;
 }
+.cancel-order-btn{
+margin-top:18px;
+width:100%;
+padding:10px;
+border:none;
+border-radius:8px;
+background:#ef4444;
+color:white;
+font-weight:600;
+cursor:pointer;
+transition:all .2s ease;
+}
+
+.cancel-order-btn:hover{
+background:#dc2626;
+transform:translateY(-1px);
+}

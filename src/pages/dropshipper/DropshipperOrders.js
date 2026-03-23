@@ -83,144 +83,182 @@ const DropshipperOrders = () => {
 
     const cancelOrder = async (order) => {
 
-        console.log("🚨 Cancel order clicked:", order);
+console.log("🚨 Cancel order clicked:", order);
 
-        try {
+try {
 
-            await runTransaction(db, async (transaction) => {
+await runTransaction(db, async (transaction) => {
 
-                /* =====================
-                READ PRODUCTS
-                ===================== */
+/* =====================
+READ PRODUCTS
+===================== */
 
-                const productDocs = [];
+const productDocs = [];
 
-                for (const item of order.items) {
+for (const item of order.items) {
 
-                    console.log("📦 Processing item:", item);
+console.log("📦 Processing item:", item);
 
-                    const ref = doc(
-                        db,
-                        "collections",
-                        item.collectionId,
-                        "subcollections",
-                        item.subcollectionId,
-                        "products",
-                        item.productId
-                    );
+const ref = doc(
+db,
+"collections",
+item.collectionId,
+"subcollections",
+item.subcollectionId,
+"products",
+item.productId
+);
 
-                    console.log("📄 Product ref:", ref.path);
+const snap = await transaction.get(ref);
 
-                    const snap = await transaction.get(ref);
+if (!snap.exists()) {
+console.log("❌ Product not found:", item.productId);
+continue;
+}
 
-                    if (!snap.exists()) {
-                        console.log("❌ Product not found:", item.productId);
-                        continue;
-                    }
+productDocs.push({
+ref,
+data: snap.data(),
+item
+});
 
-                    const data = snap.data();
+}
 
-                    console.log("📊 Current product data:", data);
+/* =====================
+GROUP ITEMS BY PRODUCT
+===================== */
 
-                    productDocs.push({
-                        ref,
-                        data,
-                        item
-                    });
+const groupedProducts = {};
 
-                }
+productDocs.forEach(p => {
 
-                /* =====================
-                UPDATE STOCK
-                ===================== */
+const key = p.ref.path;
 
-                for (const p of productDocs) {
+if (!groupedProducts[key]) {
+groupedProducts[key] = {
+ref: p.ref,
+data: JSON.parse(JSON.stringify(p.data)),
+items: []
+};
+}
 
-                    const { ref, data, item } = p;
+groupedProducts[key].items.push(p.item);
 
-                    console.log("🔧 Updating stock for:", item.productName);
+});
 
-                    /* ===== VARIANT PRODUCT ===== */
+/* =====================
+UPDATE STOCK
+===================== */
 
-                    if (item.variation && data.variations) {
+for (const group of Object.values(groupedProducts)) {
 
-                        console.log("🧩 Variant detected:", item.variation);
+const { ref, data, items } = group;
 
-                        const updatedVariations = data.variations.map(v => {
+console.log("📦 Updating grouped product:", ref.path);
 
-                            console.log("🔍 Checking variant:", v);
+/* ===== VARIANT PRODUCT ===== */
 
-                            const match = Object.keys(item.variation)
-                                .filter(k => k !== "quantity")
-                                .every(key => v[key] === item.variation[key]);
+if (data.variations) {
 
-                            if (!match) return v;
+let updatedVariations = [...data.variations];
 
-                            console.log("✅ Variant match found");
+items.forEach(item => {
 
-                            const newQty = (v.quantity || 0) + item.quantity;
+const matchIndex = updatedVariations.findIndex(v => {
 
-                            console.log(
-                                `📈 Variant qty: ${v.quantity} + ${item.quantity} = ${newQty}`
-                            );
+return Object.keys(item.variation || {})
+.filter(k => k !== "quantity")
+.every(key => v[key] === item.variation[key]);
 
-                            return {
-                                ...v,
-                                quantity: newQty
-                            };
+});
 
-                        });
+if (matchIndex === -1) {
+console.log("❌ Variant not found", item.variation);
+return;
+}
 
-                        console.log("📦 Updated variations:", updatedVariations);
+const currentQty = updatedVariations[matchIndex].quantity || 0;
+const newQty = currentQty + item.quantity;
 
-                        transaction.update(ref, {
-                            variations: updatedVariations
-                        });
+console.log(
+`📈 Variant stock: ${currentQty} + ${item.quantity} = ${newQty}`
+);
 
-                    }
+updatedVariations[matchIndex] = {
+...updatedVariations[matchIndex],
+quantity: newQty
+};
 
-                    /* ===== NORMAL PRODUCT ===== */
+});
 
-                    else {
+console.log("📦 Updated variations:", updatedVariations);
 
-                        const newStock = (data.quantity || 0) + item.quantity;
+transaction.update(ref, {
+variations: updatedVariations
+});
 
-                        console.log(
-                            `📈 Normal stock: ${data.quantity} + ${item.quantity} = ${newStock}`
-                        );
+}
 
-                        transaction.update(ref, {
-                            quantity: newStock
-                        });
+/* ===== NORMAL PRODUCT ===== */
 
-                    }
+else {
 
-                }
+let newStock = data.quantity || 0;
 
-                /* =====================
-                UPDATE ORDER STATUS
-                ===================== */
+items.forEach(item => {
+newStock += item.quantity;
+});
 
-                const orderRef = doc(db, "storeOrders", order.id);
+console.log(
+`📈 Normal stock updated to: ${newStock}`
+);
 
-                console.log("🧾 Updating order status → Cancelled");
+transaction.update(ref, {
+quantity: newStock
+});
 
-                transaction.update(orderRef, {
-                    status: "Cancelled",
-                    cancelledAt: Date.now()
-                });
+}
 
-            });
+}
 
-            console.log("✅ Transaction finished");
+/* =====================
+UPDATE ORDER STATUS
+===================== */
 
-        } catch (err) {
+const orderRef = doc(db, "storeOrders", order.id);
 
-            console.error("❌ Cancel order failed:", err);
+console.log("🧾 Updating order status → Cancelled");
 
-        }
+transaction.update(orderRef, {
+status: "Cancelled",
+cancelledAt: Date.now()
+});
 
-    };
+});
+
+console.log("✅ Transaction finished");
+
+/* =====================
+UPDATE UI STATE
+===================== */
+
+setOrders(prev =>
+prev.map(o =>
+o.id === order.id
+? { ...o, status: "Cancelled" }
+: o
+)
+);
+
+
+
+} catch (err) {
+
+console.error("❌ Cancel order failed:", err);
+
+}
+
+};
 
     const markPaid = async (order) => {
 
