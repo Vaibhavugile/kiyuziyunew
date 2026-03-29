@@ -110,15 +110,26 @@ const DropshipperHomepage = () => {
 
   /* ================= HERO ================= */
 
-  const handleAddHeroImage = async (file) => {
-    const url = await uploadImage(file, "hero");
-    if (!url) return;
+ const handleAddHeroImages = async (files) => {
 
-    setHero(prev => ({
-      ...prev,
-      images: [...(prev.images || []), { src: url }]
-    }));
-  };
+  const urls = [];
+
+  for (const file of files) {
+
+    const url = await uploadImage(file, "hero");
+
+    if (url) {
+      urls.push({ src: url });
+    }
+
+  }
+
+  setHero(prev => ({
+    ...prev,
+    images: [...(prev.images || []), ...urls]
+  }));
+
+};
 
   const removeHeroImage = (index) => {
     setHero(prev => ({
@@ -157,62 +168,71 @@ const DropshipperHomepage = () => {
       prev.map((sec, i) =>
         i === secIndex
           ? {
-              ...sec,
-              collections: sec.collections.map((col, ci) =>
-                ci === colIndex
-                  ? { ...col, [field]: value }
-                  : col
-              )
-            }
+            ...sec,
+            collections: sec.collections.map((col, ci) =>
+              ci === colIndex
+                ? { ...col, [field]: value }
+                : col
+            )
+          }
           : sec
       )
     );
   };
 
-  const addCollectionImage = async (secIndex, colIndex, file) => {
+  const addCollectionImages = async (secIndex, colIndex, files) => {
+
+  const urls = [];
+
+  for (const file of files) {
+
     const url = await uploadImage(file, "collections");
-    if (!url) return;
 
-    setSections(prev =>
-      prev.map((sec, i) =>
-        i === secIndex
-          ? {
-              ...sec,
-              collections: sec.collections.map((col, ci) =>
-                ci === colIndex
-                  ? {
-                      ...col,
-                      additionalImages: [
-                        ...(col.additionalImages || []),
-                        url
-                      ]
-                    }
-                  : col
-              )
-            }
-          : sec
-      )
-    );
-  };
+    if (url) urls.push(url);
+
+  }
+
+  setSections(prev =>
+    prev.map((sec, i) =>
+      i === secIndex
+        ? {
+            ...sec,
+            collections: sec.collections.map((col, ci) =>
+              ci === colIndex
+                ? {
+                    ...col,
+                    additionalImages: [
+                      ...(col.additionalImages || []),
+                      ...urls
+                    ]
+                  }
+                : col
+            )
+          }
+        : sec
+    )
+  );
+
+};
 
   const removeCollectionImage = (secIndex, colIndex, imgIndex) => {
     setSections(prev =>
       prev.map((sec, i) =>
         i === secIndex
           ? {
-              ...sec,
-              collections: sec.collections.map((col, ci) =>
-                ci === colIndex
-                  ? {
-                      ...col,
-                      additionalImages:
-                        col.additionalImages.filter(
-                          (_, ii) => ii !== imgIndex
-                        )
-                    }
-                  : col
-              )
-            }
+            ...sec,
+            collections: sec.collections.map((col, ci) =>
+              ci === colIndex
+                ? {
+                  ...col,
+                  additionalImages:
+                    col.additionalImages.filter(
+                      (_, ii) => ii !== imgIndex
+                    )
+                }
+                : col
+            )
+          }
           : sec
       )
     );
@@ -256,11 +276,12 @@ const DropshipperHomepage = () => {
   }
 
   return (
-    <div style={{ padding: "20px", maxWidth: "800px" }}>
+    <div className="customization-container">
+
       <h2>Store Customization</h2>
 
       {/* NAVBAR */}
-      <div>
+      <div className="section-card">
         <h3>Navbar</h3>
 
         <input
@@ -274,8 +295,6 @@ const DropshipperHomepage = () => {
           }
         />
 
-        <br /><br />
-
         <input
           type="file"
           onChange={async (e) => {
@@ -286,11 +305,16 @@ const DropshipperHomepage = () => {
           }}
         />
 
-        {navbar.logo && <img src={navbar.logo} width="80" alt="" />}
+        {navbar.logo && (
+          <div className="image-preview">
+            <img src={navbar.logo} alt="" />
+          </div>
+        )}
       </div>
 
+
       {/* HERO */}
-      <div>
+      <div className="section-card">
         <h3>Hero</h3>
 
         <input
@@ -301,8 +325,6 @@ const DropshipperHomepage = () => {
           }
         />
 
-        <br /><br />
-
         <input
           placeholder="Subtitle"
           value={hero.subtitle}
@@ -310,27 +332,63 @@ const DropshipperHomepage = () => {
             setHero(prev => ({ ...prev, subtitle: e.target.value }))
           }
         />
+        <h4>Hero Features</h4>
 
-        <br /><br />
+        <button className="add-btn" onClick={addFeature}>
+          + Add Feature
+        </button>
+
+        <div className="features-editor">
+          {hero.features?.map((f, i) => (
+            <div key={i} className="feature-row">
+
+              <input
+                placeholder="Feature text"
+                value={f}
+                onChange={(e) =>
+                  updateFeature(i, e.target.value)
+                }
+              />
+
+              <button
+                className="secondary"
+                onClick={() => removeFeature(i)}
+              >
+                Remove
+              </button>
+
+            </div>
+          ))}
+        </div>
 
         <input
-          type="file"
-          onChange={(e) => handleAddHeroImage(e.target.files[0])}
-        />
+  type="file"
+  multiple
+  onChange={(e) => handleAddHeroImages(e.target.files)}
+/>
 
-        {hero.images?.map((img, i) => (
-          <div key={i}>
-            <img src={img.src} width="80" alt="" />
-            <button onClick={() => removeHeroImage(i)}>❌</button>
-          </div>
-        ))}
+        <div className="image-preview">
+          {hero.images?.map((img, i) => (
+            <div key={i}>
+              <img src={img.src} alt="" />
+              <button
+                className="secondary"
+                onClick={() => removeHeroImage(i)}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* SECTIONS */}
-      <div>
+
+      {/* COLLECTION SECTIONS */}
+      <div className="section-card">
         <h3>Collections</h3>
 
         <button
+          className="add-btn"
           onClick={() =>
             setSections(prev => [
               ...prev,
@@ -347,7 +405,8 @@ const DropshipperHomepage = () => {
         </button>
 
         {sections.map((sec, secIndex) => (
-          <div key={sec.id}>
+          <div key={sec.id} className="collection-card">
+
             <input
               value={sec.title}
               onChange={(e) => {
@@ -358,23 +417,24 @@ const DropshipperHomepage = () => {
             />
 
             <button
+              className="secondary"
               onClick={() =>
                 setSections(prev =>
                   prev.map((s, i) =>
                     i === secIndex
                       ? {
-                          ...s,
-                          collections: [
-                            ...s.collections,
-                            {
-                              id: Date.now(),
-                              title: "",
-                              image: "",
-                              additionalImages: [],
-                              openCollectionId: "" // 🔥 NEW
-                            }
-                          ]
-                        }
+                        ...s,
+                        collections: [
+                          ...s.collections,
+                          {
+                            id: Date.now(),
+                            title: "",
+                            image: "",
+                            additionalImages: [],
+                            openCollectionId: ""
+                          }
+                        ]
+                      }
                       : s
                   )
                 )
@@ -384,7 +444,7 @@ const DropshipperHomepage = () => {
             </button>
 
             {sec.collections.map((col, colIndex) => (
-              <div key={col.id}>
+              <div key={col.id} className="collection-card">
 
                 <input
                   placeholder="Title"
@@ -399,7 +459,6 @@ const DropshipperHomepage = () => {
                   }
                 />
 
-                {/* 🔥 SELECT WHICH COLLECTION OPENS */}
                 <select
                   value={col.openCollectionId || ""}
                   onChange={(e) =>
@@ -419,7 +478,6 @@ const DropshipperHomepage = () => {
                   ))}
                 </select>
 
-                {/* MAIN IMAGE */}
                 <input
                   type="file"
                   onChange={async (e) => {
@@ -431,25 +489,26 @@ const DropshipperHomepage = () => {
                   }}
                 />
 
-                {col.image && <img src={col.image} width="60" alt="" />}
+                {col.image && (
+                  <div className="image-preview">
+                    <img src={col.image} alt="" />
+                  </div>
+                )}
 
-                {/* ADDITIONAL IMAGES */}
-                <input
-                  type="file"
-                  onChange={(e) =>
-                    addCollectionImage(
-                      secIndex,
-                      colIndex,
-                      e.target.files[0]
-                    )
-                  }
-                />
+               <input
+  type="file"
+  multiple
+  onChange={(e)=>
+    addCollectionImages(secIndex,colIndex,e.target.files)
+  }
+/>
 
-                <div style={{ display: "flex", gap: 8 }}>
+                <div className="image-preview">
                   {col.additionalImages?.map((img, i) => (
                     <div key={i}>
-                      <img src={img} width="50" alt="" />
+                      <img src={img} alt="" />
                       <button
+                        className="secondary"
                         onClick={() =>
                           removeCollectionImage(
                             secIndex,
@@ -458,7 +517,7 @@ const DropshipperHomepage = () => {
                           )
                         }
                       >
-                        ❌
+                        Remove
                       </button>
                     </div>
                   ))}
@@ -469,11 +528,86 @@ const DropshipperHomepage = () => {
           </div>
         ))}
       </div>
+      <div className="section-card theme-section">
+
+  <h3>Theme</h3>
+
+  {/* PRIMARY COLOR */}
+  <div className="theme-color-row">
+    <label>Primary Color</label>
+    <input
+      type="color"
+      value={theme.colors.primary}
+      onChange={(e) =>
+        setTheme(prev => ({
+          ...prev,
+          colors: { ...prev.colors, primary: e.target.value }
+        }))
+      }
+    />
+  </div>
+
+  {/* BACKGROUND */}
+  <div className="theme-color-row">
+    <label>Background</label>
+    <input
+      type="color"
+      value={theme.colors.background}
+      onChange={(e) =>
+        setTheme(prev => ({
+          ...prev,
+          colors: { ...prev.colors, background: e.target.value }
+        }))
+      }
+    />
+  </div>
+
+  {/* TEXT COLOR */}
+  <div className="theme-color-row">
+    <label>Text Color</label>
+    <input
+      type="color"
+      value={theme.colors.text}
+      onChange={(e) =>
+        setTheme(prev => ({
+          ...prev,
+          colors: { ...prev.colors, text: e.target.value }
+        }))
+      }
+    />
+  </div>
+
+  {/* FONT */}
+  <div className="theme-font">
+    <label>Font</label>
+
+    <select
+      value={theme.font}
+      onChange={(e) =>
+        setTheme(prev => ({
+          ...prev,
+          font: e.target.value
+        }))
+      }
+    >
+      <option>Playfair Display</option>
+      <option>Poppins</option>
+      <option>Inter</option>
+    </select>
+  </div>
+
+</div>
+
 
       {/* SAVE */}
-      <button onClick={handleSave} disabled={loading}>
-        {loading ? "Saving..." : "Save"}
+      <button
+        className="save-btn"
+        onClick={handleSave}
+        disabled={loading}
+      >
+        {loading ? "Saving..." : "Save Changes"}
       </button>
+
     </div>
   );
 };

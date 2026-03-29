@@ -138,3 +138,21 @@ color:#666;
 padding:40px;
 text-align:center;
 }
+.orders-toolbar{
+display:flex;
+gap:10px;
+margin-bottom:20px;
+}
+
+.orders-search{
+padding:10px;
+border:1px solid #ddd;
+border-radius:6px;
+width:250px;
+}
+
+.orders-filter{
+padding:10px;
+border:1px solid #ddd;
+border-radius:6px;
+}

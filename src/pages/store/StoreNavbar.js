@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-import "../../components/Navbar.css";
+import "./StoreNavbar.css";
 
 import { useStoreAuth } from "./StoreAuthContext";
 import { useStoreCart } from "./StoreCartContext";
@@ -113,242 +113,244 @@ const StoreNavbar = ({ data, theme }) => {
 
   }, [mobileOpen]);
 
-  return (
+ return (
 
-    <>
+  <>
 
-      <header className={`kj-header ${isSticky ? "kj-sticky" : ""}`}>
+    <header className={`snv-root ${isSticky ? "snv-fixed" : ""}`}>
 
-        <nav className="kj-nav">
+      <nav className="snv-bar">
 
-          {/* LEFT LOGO */}
+        {/* LEFT LOGO */}
 
-          <div className="kj-nav-left">
+        <div className="snv-left">
 
-            <Link to="/">
+          <Link to="/">
 
-              <img
-                src={data?.logo || "/fallback-logo.png"}
-                alt="logo"
-                className="kj-logo"
-              />
+            <img
+              src={data?.logo || "/fallback-logo.png"}
+              alt="logo"
+              className="snv-logo"
+            />
 
-            </Link>
+          </Link>
 
-          </div>
+        </div>
 
-          {/* CENTER BRAND */}
+        {/* CENTER BRAND */}
 
-          <div className="kj-nav-center">
+        <div className="snv-center">
 
-            <Link to="/" style={{ textDecoration: "none" }}>
+          <Link to="/" style={{ textDecoration: "none" }}>
 
-              {data?.textLogo ? (
+            {data?.textLogo ? (
 
-                <img src={data.textLogo} className="kj-text-logo" />
+              <img src={data.textLogo} className="snv-textlogo" />
 
-              ) : (
+            ) : (
 
-                <div className="kj-brand">
+              <div className="snv-brand">
 
-                  <span className="kj-brand-name">
+                <span className="snv-brand-name">
+                  {data?.brandName || "YOUR BRAND"}
+                </span>
 
-                    {data?.brandName || "YOUR BRAND"}
+                <span className="snv-brand-sub">
+                  LUXURY COLLECTION
+                </span>
 
-                  </span>
+              </div>
 
-                  <span className="kj-brand-sub">
+            )}
 
-                    LUXURY COLLECTION
+          </Link>
 
-                  </span>
+        </div>
 
-                </div>
+        {/* RIGHT */}
 
+        <div className="snv-right">
+
+          <ul className="snv-links">
+
+            <li>
+              <Link to="/" className="snv-link">
+                Home
+              </Link>
+            </li>
+
+          </ul>
+
+          <div className="snv-icons">
+
+            {/* CART */}
+
+            <Link to="/store/cart" className="snv-cart">
+
+              <FiShoppingCart size={22} />
+
+              {cartItemsCount > 0 && (
+                <span className="snv-cart-count">
+                  {cartItemsCount}
+                </span>
               )}
 
             </Link>
 
-          </div>
+            {/* PROFILE */}
 
-          {/* RIGHT */}
+            <div className="snv-user">
 
-          <div className="kj-nav-right">
+              {user ? (
 
-            <ul className="kj-links">
+                <div ref={profileBtnRef}>
 
-              <li>
-                <Link to="/" className="kj-link">
-                  Home
+                  <button
+                    className="snv-user-btn"
+                    onClick={() => setProfileOpen((s) => !s)}
+                  >
+
+                    <FaUserCircle size={22} />
+
+                  </button>
+
+                  {profileOpen && (
+
+                    <div className="snv-user-menu">
+
+                      <Link
+                        to="/store/orders"
+                        className="snv-menu-item"
+                        onClick={() => setProfileOpen(false)}
+                      >
+                        My Orders
+                      </Link>
+
+                      <button
+                        onClick={handleLogout}
+                        className="snv-menu-item"
+                      >
+                        Sign out
+                      </button>
+
+                    </div>
+
+                  )}
+
+                </div>
+
+              ) : (
+
+                <Link to="/store/login" className="snv-login">
+                  Login
                 </Link>
-              </li>
 
-            </ul>
-
-            <div className="kj-icons">
-
-              {/* CART */}
-
-              <Link to="/store/cart" className="kj-cart-icon">
-
-                <FiShoppingCart size={22} />
-
-                {cartItemsCount > 0 && (
-                  <span className="kj-cart-count">
-                    {cartItemsCount}
-                  </span>
-                )}
-
-              </Link>
-
-              {/* PROFILE */}
-
-              <div className="kj-profile">
-
-                {user ? (
-
-                  <div ref={profileBtnRef}>
-
-                    <button
-                      className="kj-profile-btn"
-                      onClick={() => setProfileOpen((s) => !s)}
-                    >
-
-                      <FaUserCircle size={22} />
-
-                    </button>
-
-                    {profileOpen && (
-
-                      <div className="kj-profile-menu">
-
-                        <Link
-                          to="/store/orders"
-                          className="kj-menu-item"
-                          onClick={() => setProfileOpen(false)}
-                        >
-                          My Orders
-                        </Link>
-
-                        <button
-                          onClick={handleLogout}
-                          className="kj-menu-item"
-                        >
-                          Sign out
-                        </button>
-
-                      </div>
-
-                    )}
-
-                  </div>
-
-                ) : (
-
-                  <Link to="/store/login" className="kj-login-link">
-                    Login
-                  </Link>
-
-                )}
-
-              </div>
-
-              {/* MOBILE MENU */}
-
-              <button
-                className={`kj-hamburger ${mobileOpen ? "open" : ""}`}
-                onClick={() => setMobileOpen((s) => !s)}
-              >
-
-                {mobileOpen ? <FiX size={22} /> : <FiMenu size={22} />}
-
-              </button>
+              )}
 
             </div>
 
-          </div>
+            {/* MOBILE MENU */}
 
-        </nav>
+            <button
+              className={`snv-menu-toggle ${mobileOpen ? "open" : ""}`}
+              onClick={() => setMobileOpen((s) => !s)}
+            >
 
-      </header>
+              {mobileOpen ? <FiX size={22} /> : <FiMenu size={22} />}
 
-      {/* BACKDROP */}
-
-      <div
-        className={`kj-mobile-backdrop ${mobileOpen ? "visible" : ""}`}
-        onClick={() => setMobileOpen(false)}
-      />
-
-      {/* MOBILE MENU */}
-
-      <aside
-        ref={mobileMenuRef}
-        className={`kj-mobile-menu ${mobileOpen ? "open" : ""}`}
-      >
-
-        <div className="kj-mobile-inner">
-
-          <div className="kj-mobile-top">
-
-            <img src={data?.logo} alt="logo" />
-
-            <button onClick={() => setMobileOpen(false)}>
-              <FiX size={22} />
             </button>
-
-          </div>
-
-          <nav className="kj-mobile-nav">
-
-            <ul>
-
-              <li>
-                <Link to="/" onClick={() => setMobileOpen(false)}>
-                  Home
-                </Link>
-              </li>
-
-              <li>
-                <Link to="/store/orders" onClick={() => setMobileOpen(false)}>
-                  My Orders
-                </Link>
-              </li>
-
-              <li>
-                <Link to="/store/cart" onClick={() => setMobileOpen(false)}>
-                  Cart
-                </Link>
-              </li>
-
-            </ul>
-
-          </nav>
-
-          <div className="kj-mobile-actions">
-
-            {user ? (
-
-              <button onClick={handleLogout} className="kj-btn-plain">
-                Sign out
-              </button>
-
-            ) : (
-
-              <Link to="/store/login" className="kj-btn-solid">
-                Login
-              </Link>
-
-            )}
 
           </div>
 
         </div>
 
-      </aside>
+      </nav>
 
-    </>
+    </header>
 
-  );
+    {/* BACKDROP */}
+
+    <div
+      className={`snv-overlay ${mobileOpen ? "visible" : ""}`}
+      onClick={() => setMobileOpen(false)}
+    />
+
+    {/* MOBILE MENU */}
+
+    <aside
+      ref={mobileMenuRef}
+      className={`snv-drawer ${mobileOpen ? "open" : ""}`}
+    >
+
+      <div className="snv-drawer-inner">
+
+        <div className="snv-drawer-top">
+
+          <img src={data?.logo} alt="logo" />
+
+          <button onClick={() => setMobileOpen(false)}>
+            <FiX size={22} />
+          </button>
+
+        </div>
+
+        <nav className="snv-drawer-nav">
+
+          <ul>
+
+            <li>
+              <Link to="/" onClick={() => setMobileOpen(false)}>
+                Home
+              </Link>
+            </li>
+
+            <li>
+              <Link to="/store/orders" onClick={() => setMobileOpen(false)}>
+                My Orders
+              </Link>
+            </li>
+
+            <li>
+              <Link to="/store/cart" onClick={() => setMobileOpen(false)}>
+                Cart
+              </Link>
+            </li>
+
+          </ul>
+
+        </nav>
+
+        <div className="snv-drawer-actions">
+
+          {user ? (
+
+            <button
+              onClick={handleLogout}
+              className="snv-btn-plain"
+            >
+              Sign out
+            </button>
+
+          ) : (
+
+            <Link
+              to="/store/login"
+              className="snv-btn-solid"
+            >
+              Login
+            </Link>
+
+          )}
+
+        </div>
+
+      </div>
+
+    </aside>
+
+  </>
+
+);
 
 };
 

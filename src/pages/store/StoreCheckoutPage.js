@@ -222,12 +222,26 @@ const matchIndex = updatedVariations.findIndex(v => {
 
 return Object.keys(item.variation || {})
 .filter(k => k !== "quantity")
-.every(key => v[key] === item.variation[key]);
+.every(key => {
+
+const cartValue = String(item.variation[key]).trim().toLowerCase();
+const dbValue = String(v[key]).trim().toLowerCase();
+
+return cartValue === dbValue;
+
+});
 
 });
 
 if (matchIndex === -1) {
-throw new Error(`${item.productName} variant not found`);
+
+console.error("VARIANT MISMATCH", {
+cartVariation: item.variation,
+availableVariations: updatedVariations
+});
+
+throw new Error(`${item.productName}${item.productCode} variant not found`);
+
 }
 
 const currentQty = updatedVariations[matchIndex].quantity || 0;

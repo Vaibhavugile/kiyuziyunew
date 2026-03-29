@@ -4,7 +4,9 @@ collection,
 query,
 where,
 orderBy,
-getDocs
+getDocs,
+addDoc,
+serverTimestamp
 } from "firebase/firestore";
 
 import { db } from "../../firebase";
@@ -17,12 +19,16 @@ const DropshipperPayments = () => {
 const { currentUser } = useAuth();
 
 const [orders,setOrders] = useState([]);
+const [payments,setPayments] = useState([]);
 const [loading,setLoading] = useState(true);
 
 const [search,setSearch] = useState("");
 const [sortBy,setSortBy] = useState("date");
 
-/* ================= LOAD ORDERS ================= */
+const [payAmount,setPayAmount] = useState("");
+const [paying,setPaying] = useState(false);
+
+/* ================= LOAD DATA ================= */
 
 useEffect(()=>{
 
@@ -32,23 +38,42 @@ if(!currentUser) return;
 
 try{
 
-const q = query(
+/* LOAD ORDERS */
+
+const ordersQuery = query(
 collection(db,"storeOrders"),
 where("sellerId","==",currentUser.uid),
 orderBy("createdAt","desc")
 );
 
-const snap = await getDocs(q);
+const ordersSnap = await getDocs(ordersQuery);
 
-const list = snap.docs.map(doc=>({
+const ordersList = ordersSnap.docs.map(doc=>({
 id:doc.id,
 ...doc.data()
 }));
 
-setOrders(list);
+setOrders(ordersList);
+
+
+/* LOAD PAYMENTS */
+
+const paymentsQuery = query(
+collection(db,"adminPayments"),
+where("sellerId","==",currentUser.uid)
+);
+
+const paymentsSnap = await getDocs(paymentsQuery);
+
+const paymentsList = paymentsSnap.docs.map(doc=>({
+id:doc.id,
+...doc.data()
+}));
+
+setPayments(paymentsList);
 
 }catch(err){
-console.error(err);
+console.error("Dropshipper payments load error:",err);
 }
 
 setLoading(false);
@@ -100,8 +125,6 @@ const filteredOrders = useMemo(()=>{
 
 let filtered = orders.filter(o => o.status !== "Cancelled");
 
-/* SEARCH */
-
 if(search){
 
 const s = search.toLowerCase();
@@ -113,30 +136,16 @@ o.id.toLowerCase().includes(s) ||
 
 }
 
-/* SORT */
-
 if(sortBy === "profit"){
-
-filtered.sort((a,b)=>{
-return calculateOrder(b).profit - calculateOrder(a).profit;
-});
-
+filtered.sort((a,b)=> calculateOrder(b).profit - calculateOrder(a).profit);
 }
 
 if(sortBy === "payable"){
-
-filtered.sort((a,b)=>{
-return calculateOrder(b).payableToAdmin - calculateOrder(a).payableToAdmin;
-});
-
+filtered.sort((a,b)=> calculateOrder(b).payableToAdmin - calculateOrder(a).payableToAdmin);
 }
 
 if(sortBy === "date"){
-
-filtered.sort((a,b)=>{
-return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
-});
-
+filtered.sort((a,b)=> (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 }
 
 return filtered;
@@ -175,18 +184,71 @@ totalPayable
 
 },[filteredOrders]);
 
+/* ================= PAYMENTS ================= */
+
+const totalPaid = payments.reduce(
+(sum,p)=> sum + (p.amount || 0),
+0
+);
+
+const pendingToAdmin = totals.totalPayable - totalPaid;
+
+/* ================= PAY ADMIN ================= */
+
+const payAdmin = async ()=>{
+
+if(!payAmount || Number(payAmount) <= 0){
+alert("Enter valid amount");
+return;
+}
+
+if(Number(payAmount) > pendingToAdmin){
+alert("Amount exceeds pending balance");
+return;
+}
+
+try{
+
+setPaying(true);
+
+await addDoc(collection(db,"adminPayments"),{
+
+sellerId: currentUser.uid,
+amount: Number(payAmount),
+createdAt: serverTimestamp()
+
+});
+
+setPayments(prev=>[
+...prev,
+{
+sellerId: currentUser.uid,
+amount: Number(payAmount)
+}
+]);
+
+setPayAmount("");
+
+alert("Payment recorded successfully");
+
+}catch(err){
+console.error(err);
+alert("Payment failed");
+}
+
+setPaying(false);
+
+};
+
 /* ================= DATE ================= */
 
 const formatDate = (timestamp)=>{
-
 if(!timestamp) return "";
-
 try{
 return new Date(timestamp.seconds * 1000).toLocaleDateString();
 }catch{
 return "";
 }
-
 };
 
 if(loading){
@@ -216,11 +278,9 @@ onChange={(e)=>setSearch(e.target.value)}
 value={sortBy}
 onChange={(e)=>setSortBy(e.target.value)}
 >
-
 <option value="date">Sort by Date</option>
 <option value="profit">Sort by Profit</option>
 <option value="payable">Sort by Payable</option>
-
 </select>
 
 </div>
@@ -228,9 +288,7 @@ onChange={(e)=>setSortBy(e.target.value)}
 <table className="payments-table">
 
 <thead>
-
 <tr>
-
 <th>Order</th>
 <th>Date</th>
 <th>Customer</th>
@@ -241,9 +299,7 @@ onChange={(e)=>setSortBy(e.target.value)}
 <th>Profit</th>
 <th>Shipping</th>
 <th>Payable to Admin</th>
-
 </tr>
-
 </thead>
 
 <tbody>
@@ -317,6 +373,36 @@ return(
 <div>
 <span>Payable To Admin</span>
 <strong className="payable">₹{totals.totalPayable}</strong>
+</div>
+
+</div>
+
+{/* ================= ADMIN PAYMENT ================= */}
+
+<div className="admin-payment-box">
+
+<h3>Pay Admin</h3>
+
+<p><strong>Total Paid:</strong> ₹{totalPaid}</p>
+<p><strong>Pending:</strong> ₹{pendingToAdmin}</p>
+
+<div className="admin-payment-form">
+
+<input
+type="number"
+placeholder="Enter amount"
+value={payAmount}
+onChange={(e)=>setPayAmount(e.target.value)}
+/>
+
+<button
+className="pay-admin-btn"
+onClick={payAdmin}
+disabled={paying}
+>
+{paying ? "Processing..." : "Pay"}
+</button>
+
 </div>
 
 </div>

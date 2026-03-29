@@ -118,21 +118,25 @@ const StoreHomepage = () => {
 
             {/* 🔥 HERO */}
             {homepage?.hero && (
-                <StoreHeroSection data={homepage.hero} />
-            )}
+    <StoreHeroSection
+        data={homepage.hero}
+        theme={theme}
+    />
+)}
 
             {/* 🔥 OTHER SECTIONS */}
             {homepage?.sections?.map((sec) => {
 
                 switch (sec.type) {
 
-                    case "collections":
-                        return (
-                            <CollectionsSection
-                                key={sec.id}
-                                data={sec}
-                            />
-                        );
+                   case "collections":
+    return (
+        <CollectionsSection
+            key={sec.id}
+            data={sec}
+            theme={theme}
+        />
+    );
 
 
                     case "products":
@@ -161,7 +165,7 @@ const StoreHomepage = () => {
             })}
 
             {/* 🔥 TRUST */}
-            <TrustSection theme={theme} />
+            {/* <TrustSection theme={theme} /> */}
 
         </div>
     );

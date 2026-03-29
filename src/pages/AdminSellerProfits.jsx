@@ -6,19 +6,15 @@ getDocs
 
 import { db } from "../firebase";
 
-import SellerPayoutModal from "../components/SellerPayoutModal";
-
 import "./AdminSellerProfits.css";
 
 const AdminSellerProfits = () => {
 
 const [sellers,setSellers] = useState([]);
 const [orders,setOrders] = useState([]);
-const [payouts,setPayouts] = useState([]);
+const [payments,setPayments] = useState([]);
 
 const [loading,setLoading] = useState(true);
-
-const [selectedSeller,setSelectedSeller] = useState(null);
 
 /* =========================
 LOAD DATA
@@ -28,6 +24,10 @@ useEffect(()=>{
 
 const loadData = async()=>{
 
+try{
+
+/* SELLERS */
+
 const sellersSnap = await getDocs(collection(db,"users"));
 
 const sellersList = sellersSnap.docs
@@ -35,8 +35,10 @@ const sellersList = sellersSnap.docs
 id:doc.id,
 ...doc.data()
 }))
-.filter(u=>u.role==="dropshipper");
+.filter(u=>u.role === "dropshipper");
 
+
+/* ORDERS */
 
 const ordersSnap = await getDocs(collection(db,"storeOrders"));
 
@@ -46,9 +48,11 @@ id:doc.id,
 }));
 
 
-const payoutsSnap = await getDocs(collection(db,"sellerPayouts"));
+/* ADMIN PAYMENTS */
 
-const payoutsList = payoutsSnap.docs.map(doc=>({
+const paymentsSnap = await getDocs(collection(db,"adminPayments"));
+
+const paymentsList = paymentsSnap.docs.map(doc=>({
 id:doc.id,
 ...doc.data()
 }));
@@ -56,7 +60,11 @@ id:doc.id,
 
 setSellers(sellersList);
 setOrders(ordersList);
-setPayouts(payoutsList);
+setPayments(paymentsList);
+
+}catch(err){
+console.error("Admin seller payments load error:",err);
+}
 
 setLoading(false);
 
@@ -70,47 +78,63 @@ loadData();
 SELLER STATS
 ========================= */
 
-const getStats = (sellerId)=>{
+const getSellerStats = (sellerId)=>{
 
 const sellerOrders = orders.filter(
-o => o.sellerId === sellerId
+o => o.sellerId === sellerId && o.status !== "Cancelled"
 );
 
 let revenue = 0;
 let profit = 0;
+let costTotal = 0;
+let shippingTotal = 0;
 
 sellerOrders.forEach(order=>{
 
 revenue += order.totalAmount || 0;
 
+shippingTotal += order.shippingFee || 0;
+
 (order.items || []).forEach(item=>{
 
-profit +=
-((item.priceAtTimeOfOrder||0)-(item.costPrice||0))
-*
-(item.quantity||0);
+const selling = item.priceAtTimeOfOrder || 0;
+const cost = item.costPrice || 0;
+const qty = item.quantity || 0;
+
+profit += (selling - cost) * qty;
+
+costTotal += cost * qty;
 
 });
 
 });
 
+/* ADMIN PAYABLE */
 
-const sellerPayouts = payouts.filter(
+const adminPayable = costTotal + shippingTotal;
+
+/* PAYMENTS RECEIVED */
+
+const sellerPayments = payments.filter(
 p => p.sellerId === sellerId
 );
 
-const paid = sellerPayouts.reduce(
-(sum,p)=>sum + (p.amount || 0),
+const received = sellerPayments.reduce(
+(sum,p)=> sum + (p.amount || 0),
 0
 );
 
+/* PENDING */
+
+const pending = adminPayable - received;
 
 return{
-orders:sellerOrders.length,
+orders: sellerOrders.length,
 revenue,
 profit,
-paid,
-pending: profit - paid
+adminPayable,
+received,
+pending
 };
 
 };
@@ -131,31 +155,31 @@ return(
 
 <div className="seller-profits">
 
-<h1>Seller Payouts</h1>
+<h1>Seller Payments</h1>
 
 <div className="profits-table">
 
 <div className="table-header">
 
 <div>Seller</div>
-<div>Orders</div>
+<div>Total Orders</div>
 <div>Revenue</div>
 <div>Profit</div>
-<div>Paid</div>
-<div>Pending</div>
-<div>Action</div>
+<div>Admin Payable</div>
+<div>Admin Payment Received</div>
+<div>Admin Payment Pending</div>
 
 </div>
 
 {sellers.map(seller=>{
 
-const stats = getStats(seller.id);
+const stats = getSellerStats(seller.id);
 
 return(
 
 <div key={seller.id} className="table-row">
 
-<div>{seller.name}</div>
+<div>{seller.name || seller.storeName}</div>
 
 <div>{stats.orders}</div>
 
@@ -165,25 +189,16 @@ return(
 ₹{stats.profit}
 </div>
 
-<div>
-₹{stats.paid}
+<div className="admin-payable">
+₹{stats.adminPayable}
+</div>
+
+<div className="paid">
+₹{stats.received}
 </div>
 
 <div className="pending">
 ₹{stats.pending}
-</div>
-
-<div>
-
-<button
-onClick={()=>setSelectedSeller({
-...seller,
-pending:stats.pending
-})}
->
-Pay Seller
-</button>
-
 </div>
 
 </div>
@@ -193,16 +208,6 @@ Pay Seller
 })}
 
 </div>
-
-{selectedSeller && (
-
-<SellerPayoutModal
-seller={selectedSeller}
-pending={selectedSeller.pending}
-onClose={()=>setSelectedSeller(null)}
-/>
-
-)}
 
 </div>
 
