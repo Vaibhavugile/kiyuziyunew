@@ -699,11 +699,18 @@ const handleAddToCart = (product, variation) => {
       const imageJobs = [];
 
       for (const product of allProducts) {
-        const paths = getAllImagePathsForProduct(product);
-        paths.forEach((path, index) => {
-          imageJobs.push({ product, path, index });
-        });
-      }
+
+  // 🚫 Skip products with quantity 0
+  if (!product.quantity || Number(product.quantity) <= 0) {
+    continue;
+  }
+
+  const paths = getAllImagePathsForProduct(product);
+
+  paths.forEach((path, index) => {
+    imageJobs.push({ product, path, index });
+  });
+}
 
       if (!imageJobs.length) {
         alert("No images found");
