@@ -10,8 +10,8 @@ import { FiMenu, FiX, FiShoppingCart } from "react-icons/fi";
 
 const StoreNavbar = ({ data, theme }) => {
 
-  const { user, logout } = useStoreAuth();
-  const { cartItemsCount } = useStoreCart();
+  const { user = null, logout = () => {} } = useStoreAuth() || {};
+  const { cartItemsCount = 0 } = useStoreCart() || {};
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);

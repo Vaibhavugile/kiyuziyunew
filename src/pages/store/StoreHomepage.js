@@ -4,16 +4,17 @@ import { db } from "../../firebase";
 import { getCleanDomain } from "../../utils/domain";
 /* COMPONENTS */
 import StoreNavbar from "./StoreNavbar";
-import StoreHeroSection from "./StoreHeroSection";
 import ProductsSection from "./ProductsSection";
 import TrustSection from "./TrustSection";
 import TestimonialsSection from "./TestimonialsSection";
 import CollectionsSection from "./CollectionsSection";
+import { HERO_LAYOUTS } from "../storefront/heroes/HeroRegistry";
 const StoreHomepage = () => {
 
     const [homepage, setHomepage] = useState(null);
     const [loading, setLoading] = useState(true);
-
+  const HeroComponent =
+  HERO_LAYOUTS[homepage?.hero?.layout] || HERO_LAYOUTS.split;
     /* ================= LOAD STORE ================= */
     useEffect(() => {
 
@@ -117,12 +118,12 @@ const StoreHomepage = () => {
             />
 
             {/* 🔥 HERO */}
-            {homepage?.hero && (
-    <StoreHeroSection
-        data={homepage.hero}
-        theme={theme}
-    />
-)}
+ 
+
+<HeroComponent
+  data={homepage.hero}
+  theme={theme}
+/>
 
             {/* 🔥 OTHER SECTIONS */}
             {homepage?.sections?.map((sec) => {
