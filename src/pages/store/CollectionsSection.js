@@ -42,7 +42,7 @@ const CollectionsSection = ({ data, theme }) => {
 
           <CollectionCard
             key={col.id}
-            id={col.id}
+            id={col.openCollectionId}
             title={col.title}
             image={col.image}
             additionalImages={col.additionalImages}
@@ -50,7 +50,7 @@ const CollectionsSection = ({ data, theme }) => {
             onClick={() => {
               navigate("/store", {
                 state: {
-                  collectionId: col.id,
+                  collectionId: col.openCollectionId,
                   storeDomain: getCleanDomain()
                 }
               });

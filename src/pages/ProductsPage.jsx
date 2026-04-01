@@ -820,7 +820,12 @@ const handleAddToCart = (product, variation) => {
 
       // 2. Fetch all image data URLs concurrently
       const imagePromises = snapshot.docs.map(async (productDoc, index) => {
-        const product = productDoc.data();
+  const product = productDoc.data();
+
+  // 🚫 Skip products with quantity 0
+  if (!product.quantity || Number(product.quantity) <= 0) {
+    return null;
+  }
         if (product.image) {
           try {
             const storageInstance = getStorage();

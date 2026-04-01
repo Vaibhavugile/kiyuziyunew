@@ -29,8 +29,11 @@ const SellerStore = () => {
 
   const [collections, setCollections] = useState([]);
   const [subcollectionsMap, setSubcollectionsMap] = useState({});
-
-  const [selectedCollection, setSelectedCollection] = useState("");
+ const initialCollection =
+    location.state?.collectionId ||
+    localStorage.getItem("selectedCollection") ||
+    "";
+const [selectedCollection, setSelectedCollection] = useState(initialCollection || "");
   const [selectedSubcollection, setSelectedSubcollection] = useState("");
 
   const [loading, setLoading] = useState(true);
@@ -42,10 +45,7 @@ const SellerStore = () => {
   NAVIGATION DATA
   =============================== */
 
-  const initialCollection =
-    location.state?.collectionId ||
-    localStorage.getItem("selectedCollection") ||
-    "";
+ 
 
   const passedDomain =
     location.state?.storeDomain || getCleanDomain();
@@ -363,9 +363,9 @@ const SellerStore = () => {
   UI
   =============================== */
 
-  if (!seller && loading) {
-    return <p style={{ padding: "40px" }}>Loading store...</p>;
-  }
+  if (loading) {
+  return <p style={{ padding: "40px" }}>Loading store...</p>;
+}
 
   if (!seller) {
     return <p style={{ padding: "40px" }}>Store not found</p>;
@@ -374,7 +374,7 @@ const SellerStore = () => {
   return (
     <div className="products-page-container">
 
-      <h1>{seller.name}'s Store</h1>
+      {/* <h1>{seller.name}'s Store</h1> */}
 
       {/* FILTERS */}
       <div className="product-controls">

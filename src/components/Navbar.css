@@ -249,9 +249,3 @@ padding:0;
     height: 60px;
   }
 }
-
-/* ================= GLOBAL FIX ================= */
-
-body {
-  padding-top: 84px; /* 🔒 prevents content jump */
-}
