@@ -79,10 +79,18 @@ const ProductCard = ({
   /* =====================
      CART HELPERS
   ===================== */
-  const productWithVariation = {
-    ...product,
-    variation: selectedVariation,
-  };
+const cleanVariation = selectedVariation
+  ? Object.fromEntries(
+      Object.entries(selectedVariation).filter(
+        ([key]) => key !== "quantity"
+      )
+    )
+  : null;
+
+const productWithVariation = {
+  ...product,
+  variation: cleanVariation,
+};
   const tiers =
     tieredPricing?.[pricingKey] && Array.isArray(tieredPricing[pricingKey])
       ? [...tieredPricing[pricingKey]].sort(
