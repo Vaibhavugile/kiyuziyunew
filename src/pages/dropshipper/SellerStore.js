@@ -11,6 +11,7 @@ import {
 import { db } from "../../firebase";
 import { Link, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
+import { FaShoppingCart, FaArrowLeft, FaFilter, FaTimes, FaSpinner, FaDownload } from 'react-icons/fa';
 
 import ProductCard from "../../components/ProductCard";
 import { useStoreCart } from "../store/StoreCartContext";
@@ -20,6 +21,7 @@ const SellerStore = () => {
   const location = useLocation();
 const [homepage, setHomepage] = useState(null);
   const { cart, addToCart, removeFromCart, cartItemsCount } = useStoreCart();
+  const [isControlsVisible, setIsControlsVisible] = useState(false);
 
   /* ===============================
   STATE
@@ -419,9 +421,29 @@ const description =
 
 </Helmet>
       {/* <h1>{seller.name}'s Store</h1> */}
+      <div className="page-header-container">
+                <Link
+                  to="/"
+                  className="back-to-collections-icon"
+                  aria-label="Back to Collections"
+                >
+                  <FaArrowLeft />
+                </Link>
+      
+                <div className="title-and-toggle-wrapper">
+      
+                  <button
+                    className="mobile-controls-toggle"
+                    onClick={() => setIsControlsVisible(!isControlsVisible)}
+                    aria-label={isControlsVisible ? "Close filters and search" : "Open filters and search"}
+                  >
+                    {isControlsVisible ? <FaTimes /> : <FaFilter />}
+                  </button>
+                </div>
+              </div>
 
       {/* FILTERS */}
-      <div className="product-controls">
+        <div className={`product-controls ${isControlsVisible ? 'open' : ''}`}>
 
         <select
           value={selectedCollection}
