@@ -622,6 +622,16 @@ const [previewDevice, setPreviewDevice] = useState("desktop");
                 setSections(updated);
               }}
             />
+            <button
+  className="secondary"
+  onClick={() =>
+    setSections(prev =>
+      prev.filter((_, i) => i !== secIndex)
+    )
+  }
+>
+  Remove Section
+</button>
 
             <button
               className="secondary"
@@ -665,6 +675,25 @@ const [previewDevice, setPreviewDevice] = useState("desktop");
                     )
                   }
                 />
+                <button
+  className="secondary"
+  onClick={() =>
+    setSections(prev =>
+      prev.map((sec, i) =>
+        i === secIndex
+          ? {
+              ...sec,
+              collections: sec.collections.filter(
+                (_, ci) => ci !== colIndex
+              )
+            }
+          : sec
+      )
+    )
+  }
+>
+  Remove Collection
+</button>
 
                 <select
                   value={col.openCollectionId || ""}

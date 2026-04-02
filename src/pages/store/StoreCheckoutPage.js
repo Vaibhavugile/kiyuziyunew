@@ -65,7 +65,7 @@ const StoreCheckoutPage = () => {
 
     const [error, setError] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
-const { user } = useStoreAuth();
+    const { user } = useStoreAuth();
     /* =========================
     FORM CHANGE
     ========================= */
@@ -106,304 +106,309 @@ const { user } = useStoreAuth();
 
     const handleSubmitOrder = async (e) => {
 
-e.preventDefault();
+        e.preventDefault();
 
-setIsProcessing(true);
-setError(null);
+        setIsProcessing(true);
+        setError(null);
 
-if (items.length === 0) {
-setError("Your cart is empty.");
-setIsProcessing(false);
-return;
-}
+        if (items.length === 0) {
+            setError("Your cart is empty.");
+            setIsProcessing(false);
+            return;
+        }
 
-if (!user) {
+        if (!user) {
 
-navigate("/store/login", {
-state: { redirectTo: "/store/checkout" }
-});
+            navigate("/store/login", {
+                state: { redirectTo: "/store/checkout" }
+            });
 
-return;
-}
+            return;
+        }
 
-const {
-fullName,
-email,
-phoneNumber,
-addressLine1,
-city,
-state,
-pincode
-} = formData;
+        const {
+            fullName,
+            email,
+            phoneNumber,
+            addressLine1,
+            city,
+            state,
+            pincode
+        } = formData;
 
-if (!fullName || !email || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
+        if (!fullName || !email || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
 
-setError("Please fill all required shipping details.");
-setIsProcessing(false);
-return;
+            setError("Please fill all required shipping details.");
+            setIsProcessing(false);
+            return;
 
-}
+        }
 
-try {
+        try {
 
-await runTransaction(db, async (transaction) => {
+            await runTransaction(db, async (transaction) => {
 
-const productDocs = [];
+                const productDocs = [];
 
-/* =========================
-READ PRODUCTS
-========================= */
+                /* =========================
+                READ PRODUCTS
+                ========================= */
 
-for (const item of items) {
+                for (const item of items) {
 
-const ref = doc(
-db,
-"collections",
-item.collectionId,
-"subcollections",
-item.subcollectionId,
-"products",
-item.productId
-);
+                    const ref = doc(
+                        db,
+                        "collections",
+                        item.collectionId,
+                        "subcollections",
+                        item.subcollectionId,
+                        "products",
+                        item.productId
+                    );
 
-const snap = await transaction.get(ref);
+                    const snap = await transaction.get(ref);
 
-if (!snap.exists()) {
-throw new Error(`${item.productName} no longer exists`);
-}
+                    if (!snap.exists()) {
+                        throw new Error(`${item.productName} no longer exists`);
+                    }
 
-productDocs.push({
-ref,
-data: snap.data(),
-item
-});
+                    productDocs.push({
+                        ref,
+                        data: snap.data(),
+                        item
+                    });
 
-}
+                }
 
-/* =========================
-GROUP ITEMS BY PRODUCT
-========================= */
+                /* =========================
+                GROUP ITEMS BY PRODUCT
+                ========================= */
 
-const groupedProducts = {};
+                const groupedProducts = {};
 
-productDocs.forEach(p => {
+                productDocs.forEach(p => {
 
-const key = p.ref.path;
+                    const key = p.ref.path;
 
-if (!groupedProducts[key]) {
-groupedProducts[key] = {
-ref: p.ref,
-data: JSON.parse(JSON.stringify(p.data)),
-items: []
-};
-}
+                    if (!groupedProducts[key]) {
+                        groupedProducts[key] = {
+                            ref: p.ref,
+                            data: JSON.parse(JSON.stringify(p.data)),
+                            items: []
+                        };
+                    }
 
-groupedProducts[key].items.push(p.item);
+                    groupedProducts[key].items.push(p.item);
 
-});
+                });
 
-/* =========================
-VALIDATE + UPDATE STOCK
-========================= */
+                /* =========================
+                VALIDATE + UPDATE STOCK
+                ========================= */
 
-for (const group of Object.values(groupedProducts)) {
+                for (const group of Object.values(groupedProducts)) {
 
-const { ref, data, items } = group;
+                    const { ref, data, items } = group;
 
-/* ===== VARIANT PRODUCT ===== */
+                    /* ===== VARIANT PRODUCT ===== */
 
-if (data.variations) {
+                    if (data.variations) {
 
-let updatedVariations = [...data.variations];
+                        let updatedVariations = [...data.variations];
 
-items.forEach(item => {
+                        items.forEach(item => {
 
-const matchIndex = updatedVariations.findIndex(v => {
+                            const matchIndex = updatedVariations.findIndex(v => {
 
-return Object.keys(item.variation || {})
-.filter(k => k !== "quantity")
-.every(key => {
+  const variantKeys = Object.keys(v).filter(k => k !== "quantity");
 
-const cartValue = String(item.variation[key]).trim().toLowerCase();
-const dbValue = String(v[key]).trim().toLowerCase();
+  return variantKeys.every(key => {
 
-return cartValue === dbValue;
+    const cartValue = String(item.variation?.[key] || "")
+      .trim()
+      .toLowerCase();
 
-});
+    const dbValue = String(v?.[key] || "")
+      .trim()
+      .toLowerCase();
 
-});
+    return cartValue === dbValue;
 
-if (matchIndex === -1) {
-
-console.error("VARIANT MISMATCH", {
-cartVariation: item.variation,
-availableVariations: updatedVariations
-});
-
-throw new Error(`${item.productName}${item.productCode} variant not found`);
-
-}
-
-const currentQty = updatedVariations[matchIndex].quantity || 0;
-
-if (item.quantity > currentQty) {
-throw new Error(`${item.productName} only has ${currentQty} available`);
-}
-
-updatedVariations[matchIndex] = {
-...updatedVariations[matchIndex],
-quantity: currentQty - item.quantity
-};
+  });
 
 });
 
-transaction.update(ref, {
-variations: updatedVariations
-});
+                            if (matchIndex === -1) {
 
-}
+                                console.error("VARIANT MISMATCH", {
+                                    cartVariation: item.variation,
+                                    availableVariations: updatedVariations
+                                });
 
-/* ===== NORMAL PRODUCT ===== */
+                                throw new Error(`${item.productName}${item.productCode} variant not found`);
 
-else {
+                            }
 
-let newStock = data.quantity || 0;
+                            const currentQty = updatedVariations[matchIndex].quantity || 0;
 
-items.forEach(item => {
+                            if (item.quantity > currentQty) {
+                                throw new Error(`${item.productName} only has ${currentQty} available`);
+                            }
 
-if (item.quantity > newStock) {
-throw new Error(`${item.productName} only has ${newStock} available`);
-}
+                            updatedVariations[matchIndex] = {
+                                ...updatedVariations[matchIndex],
+                                quantity: currentQty - item.quantity
+                            };
 
-newStock -= item.quantity;
+                        });
 
-});
+                        transaction.update(ref, {
+                            variations: updatedVariations
+                        });
 
-transaction.update(ref, {
-quantity: newStock
-});
+                    }
 
-}
+                    /* ===== NORMAL PRODUCT ===== */
 
-}
+                    else {
 
-/* =========================
-CREATE ORDER ITEMS
-========================= */
+                        let newStock = data.quantity || 0;
 
-const sanitizedItems = items.map(item => {
+                        items.forEach(item => {
 
-const subQty = getSubcollectionQty(item.subcollectionId);
+                            if (item.quantity > newStock) {
+                                throw new Error(`${item.productName} only has ${newStock} available`);
+                            }
 
-const { price, costPrice } = getTierData(
-item.tieredPricing?.retail ?? [],
-subQty
-);
+                            newStock -= item.quantity;
 
-const quantity = Number(item.quantity) || 0;
+                        });
 
-const profitPerUnit = price - costPrice;
-const totalProfit = profitPerUnit * quantity;
+                        transaction.update(ref, {
+                            quantity: newStock
+                        });
 
-return {
+                    }
 
-productId: item.productId ?? null,
-productName: item.productName ?? "",
-productCode: item.productCode ?? "",
+                }
 
-variation: item.variation ?? null,
+                /* =========================
+                CREATE ORDER ITEMS
+                ========================= */
 
-variationLabel: item.variation
-? Object.entries(item.variation)
-.map(([k,v]) => `${k}: ${v}`)
-.join(" / ")
-: null,
+                const sanitizedItems = items.map(item => {
 
-cartId: item.cartId ?? null,
+                    const subQty = getSubcollectionQty(item.subcollectionId);
 
-image: item.image ?? "",
-images: item.images ?? [],
+                    const { price, costPrice } = getTierData(
+                        item.tieredPricing?.retail ?? [],
+                        subQty
+                    );
 
-quantity,
+                    const quantity = Number(item.quantity) || 0;
 
-priceAtTimeOfOrder: price,
-costPrice,
+                    const profitPerUnit = price - costPrice;
+                    const totalProfit = profitPerUnit * quantity;
 
-profitPerUnit,
-profit: totalProfit,
+                    return {
 
-collectionId: item.collectionId ?? "",
-subcollectionId: item.subcollectionId ?? ""
+                        productId: item.productId ?? null,
+                        productName: item.productName ?? "",
+                        productCode: item.productCode ?? "",
 
-};
+                        variation: item.variation ?? null,
 
-});
+                        variationLabel: item.variation
+                            ? Object.entries(item.variation)
+                                .map(([k, v]) => `${k}: ${v}`)
+                                .join(" / ")
+                            : null,
 
-/* =========================
-TOTAL PROFIT
-========================= */
+                        cartId: item.cartId ?? null,
 
-const totalProfit = sanitizedItems.reduce(
-(sum,i)=> sum + (i.profit || 0),
-0
-);
+                        image: item.image ?? "",
+                        images: item.images ?? [],
 
-/* =========================
-CREATE ORDER DOCUMENT
-========================= */
+                        quantity,
 
-const orderRef = doc(collection(db,"storeOrders"));
+                        priceAtTimeOfOrder: price,
+                        costPrice,
 
-const orderData = {
+                        profitPerUnit,
+                        profit: totalProfit,
 
-sellerId: items[0]?.sellerId ?? null,
-customerId: user?.uid ?? null,
-customerEmail: user?.email ?? null,
+                        collectionId: item.collectionId ?? "",
+                        subcollectionId: item.subcollectionId ?? ""
 
-items: sanitizedItems,
+                    };
 
-subtotal: Number(subtotal) || 0,
-shippingFee: SHIPPING_FEE,
-totalAmount: Number(totalAmount) || 0,
+                });
 
-totalItems: sanitizedItems.length,
-totalUnits: sanitizedItems.reduce((s,i)=> s + i.quantity,0),
+                /* =========================
+                TOTAL PROFIT
+                ========================= */
 
-totalProfit,
+                const totalProfit = sanitizedItems.reduce(
+                    (sum, i) => sum + (i.profit || 0),
+                    0
+                );
 
-billingInfo:{
-fullName,
-email,
-phoneNumber,
-addressLine1,
-addressLine2: formData.addressLine2 ?? "",
-city,
-state,
-pincode
-},
+                /* =========================
+                CREATE ORDER DOCUMENT
+                ========================= */
 
-status:"Pending",
-createdAt: serverTimestamp()
+                const orderRef = doc(collection(db, "storeOrders"));
 
-};
+                const orderData = {
 
-transaction.set(orderRef,orderData);
+                    sellerId: items[0]?.sellerId ?? null,
+                    customerId: user?.uid ?? null,
+                    customerEmail: user?.email ?? null,
 
-});
+                    items: sanitizedItems,
 
-clearCart();
-navigate("/order-success");
+                    subtotal: Number(subtotal) || 0,
+                    shippingFee: SHIPPING_FEE,
+                    totalAmount: Number(totalAmount) || 0,
 
-} catch (err) {
+                    totalItems: sanitizedItems.length,
+                    totalUnits: sanitizedItems.reduce((s, i) => s + i.quantity, 0),
 
-console.error("Checkout failed:", err);
-setError(err.message || "Order failed.");
+                    totalProfit,
 
-}
+                    billingInfo: {
+                        fullName,
+                        email,
+                        phoneNumber,
+                        addressLine1,
+                        addressLine2: formData.addressLine2 ?? "",
+                        city,
+                        state,
+                        pincode
+                    },
 
-setIsProcessing(false);
+                    status: "Pending",
+                    createdAt: serverTimestamp()
 
-};
+                };
+
+                transaction.set(orderRef, orderData);
+
+            });
+
+            clearCart();
+            navigate("/order-success");
+
+        } catch (err) {
+
+            console.error("Checkout failed:", err);
+            setError(err.message || "Order failed.");
+
+        }
+
+        setIsProcessing(false);
+
+    };
     /* =========================
     UI
     ========================= */

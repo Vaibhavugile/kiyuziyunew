@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { getCleanDomain } from "../../utils/domain";
+import { Helmet } from "react-helmet-async";
+
 /* COMPONENTS */
 import StoreNavbar from "./StoreNavbar";
 import ProductsSection from "./ProductsSection";
@@ -9,167 +11,211 @@ import TrustSection from "./TrustSection";
 import TestimonialsSection from "./TestimonialsSection";
 import CollectionsSection from "./CollectionsSection";
 import { HERO_LAYOUTS } from "../storefront/heroes/HeroRegistry";
+
 const StoreHomepage = () => {
 
-    const [homepage, setHomepage] = useState(null);
-    const [loading, setLoading] = useState(true);
+  const [homepage, setHomepage] = useState(null);
+  const [loading, setLoading] = useState(true);
+
   const HeroComponent =
-  HERO_LAYOUTS[homepage?.hero?.layout] || HERO_LAYOUTS.split;
-    /* ================= LOAD STORE ================= */
-    useEffect(() => {
+    HERO_LAYOUTS[homepage?.hero?.layout] || HERO_LAYOUTS.split;
 
-        const loadStore = async () => {
-            try {
-                const domain = getCleanDomain();
+  /* ================= LOAD STORE ================= */
 
-                console.log("🌐 DOMAIN:", domain);
+  useEffect(() => {
 
-                const homepageRef = doc(db, "storeHomepages", domain);
-                const homepageSnap = await getDoc(homepageRef);
+    const loadStore = async () => {
+      try {
 
-                if (homepageSnap.exists()) {
-                    const data = homepageSnap.data();
+        const domain = getCleanDomain();
 
-                    console.log("✅ Homepage loaded:", data);
+        const homepageRef = doc(db, "storeHomepages", domain);
+        const homepageSnap = await getDoc(homepageRef);
 
-                    setHomepage(data);
-                } else {
-                    console.warn("❌ No homepage found for:", domain);
-                }
+        if (homepageSnap.exists()) {
 
-            } catch (err) {
-                console.error("❌ Load error:", err);
-            }
+          const data = homepageSnap.data();
 
-            setLoading(false);
-        };
+          setHomepage(data);
 
-        loadStore();
+        } else {
 
-    }, []);
+          console.warn("❌ No homepage found for:", domain);
 
-    /* ================= THEME ================= */
-    const theme = homepage?.theme || {
-        colors: {
-            primary: "#C9A34E",
-            background: "#ffffff",
-            text: "#111111"
-        },
-        font: "sans-serif"
+        }
+
+      } catch (err) {
+
+        console.error("❌ Load error:", err);
+
+      }
+
+      setLoading(false);
+
     };
 
-    /* ================= APPLY THEME GLOBALLY 🔥 ================= */
-    useEffect(() => {
-        if (!theme?.colors) return;
+    loadStore();
 
-        console.log("🎨 Applying theme globally:", theme);
+  }, []);
 
-        // HERO + GLOBAL CSS
-        document.documentElement.style.setProperty("--accent", theme.colors.primary);
-        document.documentElement.style.setProperty("--accent-2", theme.colors.primary + "80");
-        document.documentElement.style.setProperty("--text", theme.colors.text);
-        document.documentElement.style.setProperty("--bg-light", theme.colors.background);
-        document.documentElement.style.setProperty("--bg-soft", theme.colors.background);
+  /* ================= THEME ================= */
 
-        // NAVBAR CSS (your existing system)
-        document.documentElement.style.setProperty("--kj-gold", theme.colors.primary);
-        document.documentElement.style.setProperty("--kj-gold-2", theme.colors.primary);
-        document.documentElement.style.setProperty("--kj-bg", theme.colors.background);
+  const theme = homepage?.theme || {
+    colors: {
+      primary: "#C9A34E",
+      background: "#ffffff",
+      text: "#111111"
+    },
+    font: "sans-serif"
+  };
 
-    }, [theme]);
+  /* ================= APPLY THEME GLOBALLY ================= */
 
-    /* ================= LOADING ================= */
-    if (loading) {
-        return (
-            <div style={{ padding: "40px" }}>
-                Loading store...
-            </div>
-        );
-    }
+  useEffect(() => {
 
-    if (!homepage) {
-        return (
-            <div style={{ padding: "40px", color: "red" }}>
-                ❌ Store not found for this domain
-                <br />
-                Check console for DOMAIN mismatch
-            </div>
-        );
-    }
+    if (!theme?.colors) return;
 
-    /* ================= UI ================= */
+    document.documentElement.style.setProperty("--accent", theme.colors.primary);
+    document.documentElement.style.setProperty("--accent-2", theme.colors.primary + "80");
+    document.documentElement.style.setProperty("--text", theme.colors.text);
+    document.documentElement.style.setProperty("--bg-light", theme.colors.background);
+    document.documentElement.style.setProperty("--bg-soft", theme.colors.background);
 
+    document.documentElement.style.setProperty("--kj-gold", theme.colors.primary);
+    document.documentElement.style.setProperty("--kj-gold-2", theme.colors.primary);
+    document.documentElement.style.setProperty("--kj-bg", theme.colors.background);
+
+  }, [theme]);
+
+  /* ================= LOADING ================= */
+
+  if (loading) {
     return (
-        <div
-            style={{
-                background: theme.colors.background,
-                color: theme.colors.text,
-                fontFamily: theme.font,
-                minHeight: "100vh",
-                margin: 0,
-    padding: 0
-            }}
-        >
+      <div style={{ padding: "40px" }}>
+        Loading store...
+      </div>
+    );
+  }
 
-            {/* 🔥 NAVBAR */}
-            <StoreNavbar
-                data={homepage?.navbar}
+  if (!homepage) {
+    return (
+      <div style={{ padding: "40px", color: "red" }}>
+        ❌ Store not found for this domain
+        <br />
+        Check console for DOMAIN mismatch
+      </div>
+    );
+  }
+
+  /* ================= SEO ================= */
+
+  const storeName =
+    homepage?.navbar?.brandName || "Online Store";
+
+  const description =
+    homepage?.hero?.subtitle ||
+    `Shop premium products from ${storeName}`;
+
+  const domain = getCleanDomain();
+
+  /* ================= UI ================= */
+
+  return (
+    <div
+      style={{
+        background: theme.colors.background,
+        color: theme.colors.text,
+        fontFamily: theme.font,
+        minHeight: "100vh",
+        margin: 0,
+        padding: 0
+      }}
+    >
+
+      {/* ===== SEO TAGS ===== */}
+      <Helmet>
+  <title>{storeName}</title>
+
+  <meta
+    name="description"
+    content={description}
+  />
+
+  <meta property="og:title" content={storeName} />
+  <meta property="og:description" content={description} />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content={`https://${domain}`} />
+
+  <meta
+    property="og:image"
+    content={homepage?.hero?.images?.[0]?.src || "/default-og.jpg"}
+  />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={storeName} />
+  <meta name="twitter:description" content={description} />
+
+  <meta
+    name="twitter:image"
+    content={homepage?.hero?.images?.[0]?.src || "/default-og.jpg"}
+  />
+</Helmet>
+
+      {/* NAVBAR */}
+      <StoreNavbar
+        data={homepage?.navbar}
+        theme={theme}
+      />
+
+      {/* HERO */}
+      <HeroComponent
+        data={homepage.hero}
+        theme={theme}
+      />
+
+      {/* OTHER SECTIONS */}
+      {homepage?.sections?.map((sec) => {
+
+        switch (sec.type) {
+
+          case "collections":
+            return (
+              <CollectionsSection
+                key={sec.id}
+                data={sec}
                 theme={theme}
-            />
+              />
+            );
 
-            {/* 🔥 HERO */}
- 
+          case "products":
+            return (
+              <ProductsSection
+                key={sec.id}
+                products={sec.products || []}
+                theme={theme}
+              />
+            );
 
-<HeroComponent
-  data={homepage.hero}
-  theme={theme}
-/>
+          case "testimonials":
+            return (
+              <TestimonialsSection
+                key={sec.id}
+                data={sec}
+                theme={theme}
+              />
+            );
 
-            {/* 🔥 OTHER SECTIONS */}
-            {homepage?.sections?.map((sec) => {
+          default:
+            return null;
+        }
 
-                switch (sec.type) {
+      })}
 
-                   case "collections":
-    return (
-        <CollectionsSection
-            key={sec.id}
-            data={sec}
-            theme={theme}
-        />
-    );
+      {/* TRUST SECTION (optional) */}
+      {/* <TrustSection theme={theme} /> */}
 
-
-                    case "products":
-                        return (
-                            <ProductsSection
-                                key={sec.id}
-                                products={sec.products || []}
-                                theme={theme}
-                            />
-                        );
-
-
-                    case "testimonials":
-                        return (
-                            <TestimonialsSection
-                                key={sec.id}
-                                data={sec}
-                                theme={theme}
-                            />
-                        );
-
-                    default:
-                        return null;
-                }
-
-            })}
-
-            {/* 🔥 TRUST */}
-            {/* <TrustSection theme={theme} /> */}
-
-        </div>
-    );
+    </div>
+  );
 };
 
 export default StoreHomepage;
