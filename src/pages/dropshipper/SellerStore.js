@@ -5,11 +5,12 @@ import {
   query,
   where,
   doc,
-  onSnapshot
+  onSnapshot,getDoc
 } from "firebase/firestore";
 
 import { db } from "../../firebase";
 import { Link, useLocation } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 
 import ProductCard from "../../components/ProductCard";
 import { useStoreCart } from "../store/StoreCartContext";
@@ -17,7 +18,7 @@ import { getCleanDomain } from "../../utils/domain";
 const SellerStore = () => {
 
   const location = useLocation();
-
+const [homepage, setHomepage] = useState(null);
   const { cart, addToCart, removeFromCart, cartItemsCount } = useStoreCart();
 
   /* ===============================
@@ -65,7 +66,14 @@ const [selectedCollection, setSelectedCollection] = useState(initialCollection |
         /* ===============================
         FIND SELLER (DOMAIN BASED)
         =============================== */
+const domain = getCleanDomain();
 
+const homepageRef = doc(db, "storeHomepages", domain);
+const homepageSnap = await getDoc(homepageRef);
+
+if (homepageSnap.exists()) {
+  setHomepage(homepageSnap.data());
+}
         const sellerSnap = await getDocs(
           query(
             collection(db, "users"),
@@ -85,6 +93,7 @@ const [selectedCollection, setSelectedCollection] = useState(initialCollection |
           id: sellerId,
           ...sellerDoc.data()
         });
+
 
         /* ===============================
         LOAD PRICING
@@ -363,6 +372,16 @@ const [selectedCollection, setSelectedCollection] = useState(initialCollection |
   UI
   =============================== */
 
+ 
+const domain = getCleanDomain();
+
+const storeName =
+  homepage?.navbar?.brandName || seller?.storeName || "Online Store";
+
+const description =
+  homepage?.hero?.subtitle ||
+  `Shop premium products from ${storeName}`;
+
   if (loading) {
   return <p style={{ padding: "40px" }}>Loading store...</p>;
 }
@@ -373,7 +392,32 @@ const [selectedCollection, setSelectedCollection] = useState(initialCollection |
 
   return (
     <div className="products-page-container">
+<Helmet>
 
+<title>{storeName}</title>
+
+<meta name="description" content={description} />
+
+<meta property="og:title" content={storeName} />
+<meta property="og:description" content={description} />
+<meta property="og:type" content="website" />
+<meta property="og:url" content={`https://${domain}`} />
+
+<meta
+  property="og:image"
+  content={homepage?.hero?.images?.[0]?.src || "/default-og.jpg"}
+/>
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={storeName} />
+<meta name="twitter:description" content={description} />
+
+<meta
+  name="twitter:image"
+  content={homepage?.hero?.images?.[0]?.src || "/default-og.jpg"}
+/>
+
+</Helmet>
       {/* <h1>{seller.name}'s Store</h1> */}
 
       {/* FILTERS */}

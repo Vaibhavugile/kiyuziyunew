@@ -15,6 +15,7 @@ import StoreNavbar from "./StoreNavbar";
 import { StoreCartProvider } from "./StoreCartContext";
 import { getCleanDomain } from "../../utils/domain";
 import { doc, getDoc, } from "firebase/firestore";
+import { Helmet } from "react-helmet-async";
 const StoreLoader = () => {
 
     const [seller, setSeller] = useState(null);
@@ -47,7 +48,6 @@ id:snap.docs[0].id,
 setSeller(sellerData);
 
 /* ================= HOMEPAGE ================= */
-
 const homepageRef = doc(db,"storeHomepages",domain);
 const homepageSnap = await getDoc(homepageRef);
 
@@ -69,9 +69,17 @@ loadStore();
 
 },[]);
 
+
 /* load homepage config */
 
+const domain = getCleanDomain();
 
+const storeName =
+  homepage?.navbar?.brandName || seller?.storeName || "Online Store";
+
+const description =
+  homepage?.hero?.subtitle ||
+  `Shop premium products from ${storeName}`;
     if (loading) {
         return <h2 style={{ padding: "40px" }}>Loading store...</h2>;
     }
@@ -83,6 +91,32 @@ loadStore();
     return (
 
         <StoreAuthProvider sellerId={seller.id}>
+            <Helmet>
+
+<title>{storeName}</title>
+
+<meta name="description" content={description} />
+
+<meta property="og:title" content={storeName} />
+<meta property="og:description" content={description} />
+<meta property="og:type" content="website" />
+<meta property="og:url" content={`https://${domain}`} />
+
+<meta
+  property="og:image"
+  content={homepage?.hero?.images?.[0]?.src || "/default-og.jpg"}
+/>
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={storeName} />
+<meta name="twitter:description" content={description} />
+
+<meta
+  name="twitter:image"
+  content={homepage?.hero?.images?.[0]?.src || "/default-og.jpg"}
+/>
+
+</Helmet>
             <StoreCartProvider>
                <StoreNavbar
 data={homepage?.navbar}
