@@ -155,9 +155,7 @@ const StoreNavbar = ({ data, theme }) => {
                   {data?.brandName || "YOUR BRAND"}
                 </span>
 
-                <span className="snv-brand-sub">
-                  LUXURY COLLECTION
-                </span>
+                
 
               </div>
 

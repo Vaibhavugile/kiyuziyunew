@@ -212,83 +212,85 @@ const StoreCheckoutPage = () => {
 
                     /* ===== VARIANT PRODUCT ===== */
 
-                    if (data.variations) {
+                  /* ===== VARIANT PRODUCT ===== */
 
-                        let updatedVariations = [...data.variations];
+if (data.variations && data.variations.length > 0) {
 
-                        items.forEach(item => {
+    let updatedVariations = [...data.variations];
 
-                            const matchIndex = updatedVariations.findIndex(v => {
+    items.forEach(item => {
 
-  const variantKeys = Object.keys(v).filter(k => k !== "quantity");
+        const matchIndex = updatedVariations.findIndex(v => {
 
-  return variantKeys.every(key => {
+            const variantKeys = Object.keys(v).filter(k => k !== "quantity");
 
-    const cartValue = String(item.variation?.[key] || "")
-      .trim()
-      .toLowerCase();
+            return variantKeys.every(key => {
 
-    const dbValue = String(v?.[key] || "")
-      .trim()
-      .toLowerCase();
+                const cartValue = String(item.variation?.[key] || "")
+                    .trim()
+                    .toLowerCase();
 
-    return cartValue === dbValue;
+                const dbValue = String(v?.[key] || "")
+                    .trim()
+                    .toLowerCase();
 
-  });
+                return cartValue === dbValue;
 
-});
+            });
 
-                            if (matchIndex === -1) {
+        });
 
-                                console.error("VARIANT MISMATCH", {
-                                    cartVariation: item.variation,
-                                    availableVariations: updatedVariations
-                                });
+        if (matchIndex === -1) {
 
-                                throw new Error(`${item.productName}${item.productCode} variant not found`);
+            console.error("VARIANT MISMATCH", {
+                cartVariation: item.variation,
+                availableVariations: updatedVariations
+            });
 
-                            }
+            throw new Error(`${item.productName} ${item.productCode} variant not found`);
 
-                            const currentQty = updatedVariations[matchIndex].quantity || 0;
+        }
 
-                            if (item.quantity > currentQty) {
-                                throw new Error(`${item.productName} only has ${currentQty} available`);
-                            }
+        const currentQty = Number(updatedVariations[matchIndex].quantity || 0);
 
-                            updatedVariations[matchIndex] = {
-                                ...updatedVariations[matchIndex],
-                                quantity: currentQty - item.quantity
-                            };
+        if (item.quantity > currentQty) {
+            throw new Error(`${item.productName} only has ${currentQty} available`);
+        }
 
-                        });
+        updatedVariations[matchIndex] = {
+            ...updatedVariations[matchIndex],
+            quantity: currentQty - item.quantity
+        };
 
-                        transaction.update(ref, {
-                            variations: updatedVariations
-                        });
+    });
 
-                    }
+    transaction.update(ref, {
+        variations: updatedVariations
+    });
 
-                    /* ===== NORMAL PRODUCT ===== */
+}
 
-                    else {
+/* ===== NORMAL PRODUCT (NO VARIANTS) ===== */
 
-                        let newStock = data.quantity || 0;
+else {
 
-                        items.forEach(item => {
+    let newStock = Number(data.quantity || 0);
 
-                            if (item.quantity > newStock) {
-                                throw new Error(`${item.productName} only has ${newStock} available`);
-                            }
+    items.forEach(item => {
 
-                            newStock -= item.quantity;
+        if (item.quantity > newStock) {
+            throw new Error(`${item.productName} only has ${newStock} available`);
+        }
 
-                        });
+        newStock -= item.quantity;
 
-                        transaction.update(ref, {
-                            quantity: newStock
-                        });
+    });
 
-                    }
+    transaction.update(ref, {
+        quantity: newStock
+    });
+
+}
 
                 }
 
