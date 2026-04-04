@@ -23,7 +23,7 @@ const DropshipperProducts = () => {
 
     const [currentUser, setCurrentUser] = useState(null);
     const [pricingKey, setPricingKey] = useState(null);
-
+    const [pricingSaved, setPricingSaved] = useState(false);
     const [collections, setCollections] = useState([]);
     const [subcollections, setSubcollections] = useState([]);
     const [products, setProducts] = useState([]);
@@ -198,6 +198,7 @@ const DropshipperProducts = () => {
                             price: Number(t.price ?? t.costPrice ?? 0)
                         }))
                     );
+                    setPricingSaved(true);
 
                 } else {
 
@@ -207,6 +208,7 @@ const DropshipperProducts = () => {
                             price: t.costPrice
                         }))
                     );
+                    setPricingSaved(false);
 
                 }
 
@@ -248,12 +250,24 @@ const DropshipperProducts = () => {
 
                 const snap = await getDocs(q);
 
-                setProducts(
-                    snap.docs.map(d => ({
-                        id: d.id,
-                        ...d.data()
-                    }))
-                );
+                const allProducts = snap.docs.map(d => ({
+                    id: d.id,
+                    ...d.data()
+                }));
+
+                const availableProducts = allProducts.filter(p => {
+
+                    /* Variant products */
+                    if (p.variations && p.variations.length > 0) {
+                        return p.variations.some(v => Number(v.quantity || 0) > 0);
+                    }
+
+                    /* Normal products */
+                    return Number(p.quantity || 0) > 0;
+
+                });
+
+                setProducts(availableProducts);
 
             } catch (err) {
                 console.error(err);
@@ -307,87 +321,87 @@ const DropshipperProducts = () => {
     TOGGLE PRODUCT
     ================================ */
 
-   const toggleProduct = async (product) => {
+    const toggleProduct = async (product) => {
 
-if (!currentUser) return;
+        if (!currentUser) return;
 
-try {
+        try {
 
-const newValue = !enabledProducts[product.id];
+            const newValue = !enabledProducts[product.id];
 
-/* Update UI immediately */
+            /* Update UI immediately */
 
-setEnabledProducts(prev => ({
-...prev,
-[product.id]: newValue
-}));
+            setEnabledProducts(prev => ({
+                ...prev,
+                [product.id]: newValue
+            }));
 
-/* Use batch for atomic update */
+            /* Use batch for atomic update */
 
-const batch = writeBatch(db);
+            const batch = writeBatch(db);
 
-/* dropshipperProducts */
+            /* dropshipperProducts */
 
-const dropshipperRef = doc(
-db,
-"dropshipperProducts",
-currentUser.uid,
-"products",
-product.id
-);
+            const dropshipperRef = doc(
+                db,
+                "dropshipperProducts",
+                currentUser.uid,
+                "products",
+                product.id
+            );
 
-batch.set(dropshipperRef,{
-productId: product.id,
-collectionId: selectedCollection,
-subcollectionId: selectedSubcollection,
-enabled: newValue,
-updatedAt: Date.now()
-},{merge:true});
+            batch.set(dropshipperRef, {
+                productId: product.id,
+                collectionId: selectedCollection,
+                subcollectionId: selectedSubcollection,
+                enabled: newValue,
+                updatedAt: Date.now()
+            }, { merge: true });
 
 
-/* storeProducts */
+            /* storeProducts */
 
-const storeRef = doc(
-db,
-"storeProducts",
-currentUser.uid,
-"products",
-product.id
-);
+            const storeRef = doc(
+                db,
+                "storeProducts",
+                currentUser.uid,
+                "products",
+                product.id
+            );
 
-if(newValue){
+            if (newValue) {
 
-batch.set(storeRef,{
-productId: product.id,
-productName: product.productName,
-productCode: product.productCode,
-image: product.image,
-collectionId: selectedCollection,
-subcollectionId: selectedSubcollection,
-enabled: true,
-updatedAt: Date.now()
-},{merge:true});
+                batch.set(storeRef, {
+                    productId: product.id,
+                    productName: product.productName,
+                    productCode: product.productCode,
+                    image: product.image,
+                    collectionId: selectedCollection,
+                    subcollectionId: selectedSubcollection,
+                    enabled: true,
+                    updatedAt: Date.now()
+                }, { merge: true });
 
-}else{
+            } else {
 
-batch.set(storeRef,{
-enabled:false,
-updatedAt: Date.now()
-},{merge:true});
+                batch.set(storeRef, {
+                    enabled: false,
+                    updatedAt: Date.now()
+                }, { merge: true });
 
-}
+            }
 
-/* commit both writes together */
+            /* commit both writes together */
 
-await batch.commit();
+            await batch.commit();
 
-} catch(err){
+        } catch (err) {
 
-console.error("Toggle product failed",err);
+            console.error("Toggle product failed", err);
 
-}
+        }
 
-};
+    };
 
 
     /* ===============================
@@ -438,11 +452,8 @@ console.error("Toggle product failed",err);
                 updatedAt: Date.now()
             }, { merge: true });
 
-
-            /* -----------------------------
-            UPDATE STORE PRODUCTS
-            ONLY ENABLED PRODUCTS
-            ------------------------------*/
+            /* pricing saved instantly in UI */
+            setPricingSaved(true);
 
             const enabledList = products.filter(p => enabledProducts[p.id]);
 
@@ -499,7 +510,7 @@ console.error("Toggle product failed",err);
             }
 
             await Promise.all(commits);
-
+            setPricingSaved(true);
 
             alert("Pricing saved successfully");
 
@@ -513,101 +524,101 @@ console.error("Toggle product failed",err);
     };
     const toggleAllProducts = async () => {
 
-if(!currentUser) return;
+        if (!currentUser) return;
 
-const allEnabled = products.every(p => enabledProducts[p.id]);
-const newValue = !allEnabled;
+        const allEnabled = products.every(p => enabledProducts[p.id]);
+        const newValue = !allEnabled;
 
-const updates = {};
+        const updates = {};
 
-const commits = [];
-let batch = writeBatch(db);
-let opCount = 0;
+        const commits = [];
+        let batch = writeBatch(db);
+        let opCount = 0;
 
-for(const product of products){
+        for (const product of products) {
 
-updates[product.id] = newValue;
+            updates[product.id] = newValue;
 
-/* dropshipperProducts */
+            /* dropshipperProducts */
 
-const ref = doc(
-db,
-"dropshipperProducts",
-currentUser.uid,
-"products",
-product.id
-);
+            const ref = doc(
+                db,
+                "dropshipperProducts",
+                currentUser.uid,
+                "products",
+                product.id
+            );
 
-batch.set(ref,{
-productId:product.id,
-collectionId:selectedCollection,
-subcollectionId:selectedSubcollection,
-enabled:newValue,
-updatedAt:Date.now()
-},{merge:true});
+            batch.set(ref, {
+                productId: product.id,
+                collectionId: selectedCollection,
+                subcollectionId: selectedSubcollection,
+                enabled: newValue,
+                updatedAt: Date.now()
+            }, { merge: true });
 
-opCount++;
-
-
-/* storeProducts */
-
-const storeRef = doc(
-db,
-"storeProducts",
-currentUser.uid,
-"products",
-product.id
-);
-
-if(newValue){
-
-batch.set(storeRef,{
-productId:product.id,
-productName:product.productName,
-productCode:product.productCode,
-image:product.image,
-collectionId:selectedCollection,
-subcollectionId:selectedSubcollection,
-enabled:true,
-updatedAt:Date.now()
-},{merge:true});
-
-}else{
-
-batch.set(storeRef,{
-enabled:false
-},{merge:true});
-
-}
-
-opCount++;
+            opCount++;
 
 
-/* protect batch limit */
+            /* storeProducts */
 
-if(opCount >= 450){
+            const storeRef = doc(
+                db,
+                "storeProducts",
+                currentUser.uid,
+                "products",
+                product.id
+            );
 
-commits.push(batch.commit());
+            if (newValue) {
 
-batch = writeBatch(db);
-opCount = 0;
+                batch.set(storeRef, {
+                    productId: product.id,
+                    productName: product.productName,
+                    productCode: product.productCode,
+                    image: product.image,
+                    collectionId: selectedCollection,
+                    subcollectionId: selectedSubcollection,
+                    enabled: true,
+                    updatedAt: Date.now()
+                }, { merge: true });
 
-}
+            } else {
 
-}
+                batch.set(storeRef, {
+                    enabled: false
+                }, { merge: true });
 
-if(opCount > 0){
-commits.push(batch.commit());
-}
+            }
 
-await Promise.all(commits);
+            opCount++;
 
-setEnabledProducts(prev=>({
-...prev,
-...updates
-}));
 
-};
+            /* protect batch limit */
+
+            if (opCount >= 450) {
+
+                commits.push(batch.commit());
+
+                batch = writeBatch(db);
+                opCount = 0;
+
+            }
+
+        }
+
+        if (opCount > 0) {
+            commits.push(batch.commit());
+        }
+
+        await Promise.all(commits);
+
+        setEnabledProducts(prev => ({
+            ...prev,
+            ...updates
+        }));
+
+    };
 
 
     /* ===============================
@@ -736,14 +747,37 @@ setEnabledProducts(prev=>({
 
                 <div style={{ marginTop: "20px" }}>
 
-                    <button onClick={toggleAllProducts}>
+                    {pricingSaved && products.length > 0 && (
 
-                        {products.every(p => enabledProducts[p.id])
-                            ? "Disable All Products"
-                            : "Enable All Products"}
+                        <div style={{ marginTop: "20px" }}>
 
-                    </button>
+                            <button onClick={toggleAllProducts}>
 
+                                {products.every(p => enabledProducts[p.id])
+                                    ? "Disable All Products"
+                                    : "Enable All Products"}
+
+                            </button>
+
+                        </div>
+
+                    )}
+
+                </div>
+
+            )}
+            {!pricingSaved && selectedSubcollection && (
+
+                <div style={{
+                    marginTop: "20px",
+                    padding: "12px",
+                    background: "#fff3cd",
+                    border: "1px solid #ffeeba",
+                    borderRadius: "6px",
+                    color: "#856404",
+                    fontWeight: "500"
+                }}>
+                    ⚠ Save pricing first to enable products in your store
                 </div>
 
             )}
@@ -781,25 +815,25 @@ setEnabledProducts(prev=>({
 
                             {p.variations && p.variations.length > 0 ? (
 
-<div style={{fontSize:"13px",color:"#666"}}>
+                                <div style={{ fontSize: "13px", color: "#666" }}>
 
-<p>Variants:</p>
+                                    <p>Variants:</p>
 
-{p.variations.map((v,i)=>(
-<div key={i}>
-{v.color} {v.size} — {v.quantity}
-</div>
-))}
+                                    {p.variations.map((v, i) => (
+                                        <div key={i}>
+                                            {v.color} {v.size} — {v.quantity}
+                                        </div>
+                                    ))}
 
-</div>
+                                </div>
 
-) : (
+                            ) : (
 
-<p style={{fontSize:"13px",color:"#666"}}>
-Stock: {p.quantity ?? 0}
-</p>
+                                <p style={{ fontSize: "13px", color: "#666" }}>
+                                    Stock: {p.quantity ?? 0}
+                                </p>
 
-)}
+                            )}
 
                             <label style={{
                                 display: "flex",
