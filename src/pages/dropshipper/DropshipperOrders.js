@@ -158,44 +158,40 @@ console.log("📦 Updating grouped product:", ref.path);
 
 /* ===== VARIANT PRODUCT ===== */
 
-if (data.variations) {
+/* ===== VARIANT PRODUCT ===== */
 
-let updatedVariations = [...data.variations];
+if (data.variations && data.variations.length > 0) {
 
-items.forEach(item => {
+  let updatedVariations = [...data.variations];
 
-const matchIndex = updatedVariations.findIndex(v => {
+  items.forEach(item => {
 
-return Object.keys(item.variation || {})
-.filter(k => k !== "quantity")
-.every(key => v[key] === item.variation[key]);
+    if (!item.variation) return;
 
-});
+    const matchIndex = updatedVariations.findIndex(v =>
+      Object.keys(item.variation)
+        .filter(k => k !== "quantity")
+        .every(key => v[key] === item.variation[key])
+    );
 
-if (matchIndex === -1) {
-console.log("❌ Variant not found", item.variation);
-return;
-}
+    if (matchIndex === -1) {
+      console.log("❌ Variant not found", item.variation);
+      return;
+    }
 
-const currentQty = updatedVariations[matchIndex].quantity || 0;
-const newQty = currentQty + item.quantity;
+    const currentQty = updatedVariations[matchIndex].quantity || 0;
+    const newQty = currentQty + item.quantity;
 
-console.log(
-`📈 Variant stock: ${currentQty} + ${item.quantity} = ${newQty}`
-);
+    updatedVariations[matchIndex] = {
+      ...updatedVariations[matchIndex],
+      quantity: newQty
+    };
 
-updatedVariations[matchIndex] = {
-...updatedVariations[matchIndex],
-quantity: newQty
-};
+  });
 
-});
-
-console.log("📦 Updated variations:", updatedVariations);
-
-transaction.update(ref, {
-variations: updatedVariations
-});
+  transaction.update(ref, {
+    variations: updatedVariations
+  });
 
 }
 
@@ -203,19 +199,17 @@ variations: updatedVariations
 
 else {
 
-let newStock = data.quantity || 0;
+  let newStock = data.quantity || 0;
 
-items.forEach(item => {
-newStock += item.quantity;
-});
+  items.forEach(item => {
+    newStock += item.quantity;
+  });
 
-console.log(
-`📈 Normal stock updated to: ${newStock}`
-);
+  console.log(`📈 Normal stock updated to: ${newStock}`);
 
-transaction.update(ref, {
-quantity: newStock
-});
+  transaction.update(ref, {
+    quantity: newStock
+  });
 
 }
 

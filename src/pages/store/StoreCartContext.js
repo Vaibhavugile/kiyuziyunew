@@ -4,6 +4,26 @@ import { db } from "../../firebase";
 
 const StoreCartContext = createContext();
 
+export const getCartItemId = (product) => {
+
+let id = product.productId || product.id;
+
+if(product.variation){
+
+const variationKey = Object.keys(product.variation)
+.sort()
+.map(key=>`${key}-${product.variation[key]}`)
+.join("_");
+
+id += "_" + variationKey;
+
+}
+
+return id;
+
+};
+
+
 export const StoreCartProvider = ({ children }) => {
 
 /* =========================
@@ -50,25 +70,6 @@ attachInventoryListener(item);
 /* =========================
 CREATE CART ID
 ========================= */
-
-const getCartItemId = (product)=>{
-
-let id = product.productId || product.id;
-
-if(product.variation){
-
-const variationKey = Object.keys(product.variation)
-.sort()
-.map(key=>`${key}-${product.variation[key]}`)
-.join("_");
-
-id += "_" + variationKey;
-
-}
-
-return id;
-
-};
 
 /* =========================
 ATTACH INVENTORY LISTENER

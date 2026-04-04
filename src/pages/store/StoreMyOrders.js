@@ -5,7 +5,7 @@ import {
     where,
     orderBy,
     getDocs,
-    doc,runTransaction
+    doc, runTransaction
 
 } from "firebase/firestore";
 
@@ -76,188 +76,182 @@ const StoreMyOrders = () => {
         }
 
     };
-     const cancelOrder = async (order) => {
+    const cancelOrder = async (order) => {
 
-console.log("🚨 Cancel order clicked:", order);
+        console.log("🚨 Cancel order clicked:", order);
 
-try {
+        try {
 
-await runTransaction(db, async (transaction) => {
+            await runTransaction(db, async (transaction) => {
 
-/* =====================
-READ PRODUCTS
-===================== */
+                /* =====================
+                READ PRODUCTS
+                ===================== */
 
-const productDocs = [];
+                const productDocs = [];
 
-for (const item of order.items) {
+                for (const item of order.items) {
 
-console.log("📦 Processing item:", item);
+                    console.log("📦 Processing item:", item);
 
-const ref = doc(
-db,
-"collections",
-item.collectionId,
-"subcollections",
-item.subcollectionId,
-"products",
-item.productId
-);
+                    const ref = doc(
+                        db,
+                        "collections",
+                        item.collectionId,
+                        "subcollections",
+                        item.subcollectionId,
+                        "products",
+                        item.productId
+                    );
 
-const snap = await transaction.get(ref);
+                    const snap = await transaction.get(ref);
 
-if (!snap.exists()) {
-console.log("❌ Product not found:", item.productId);
-continue;
-}
+                    if (!snap.exists()) {
+                        console.log("❌ Product not found:", item.productId);
+                        continue;
+                    }
 
-productDocs.push({
-ref,
-data: snap.data(),
-item
-});
+                    productDocs.push({
+                        ref,
+                        data: snap.data(),
+                        item
+                    });
 
-}
+                }
 
-/* =====================
-GROUP ITEMS BY PRODUCT
-===================== */
+                /* =====================
+                GROUP ITEMS BY PRODUCT
+                ===================== */
 
-const groupedProducts = {};
+                const groupedProducts = {};
 
-productDocs.forEach(p => {
+                productDocs.forEach(p => {
 
-const key = p.ref.path;
+                    const key = p.ref.path;
 
-if (!groupedProducts[key]) {
-groupedProducts[key] = {
-ref: p.ref,
-data: JSON.parse(JSON.stringify(p.data)),
-items: []
-};
-}
+                    if (!groupedProducts[key]) {
+                        groupedProducts[key] = {
+                            ref: p.ref,
+                            data: JSON.parse(JSON.stringify(p.data)),
+                            items: []
+                        };
+                    }
 
-groupedProducts[key].items.push(p.item);
+                    groupedProducts[key].items.push(p.item);
 
-});
+                });
 
-/* =====================
-UPDATE STOCK
-===================== */
+                /* =====================
+                UPDATE STOCK
+                ===================== */
 
-for (const group of Object.values(groupedProducts)) {
+                for (const group of Object.values(groupedProducts)) {
 
-const { ref, data, items } = group;
+                    const { ref, data, items } = group;
 
-console.log("📦 Updating grouped product:", ref.path);
+                    console.log("📦 Updating grouped product:", ref.path);
 
-/* ===== VARIANT PRODUCT ===== */
+                    /* ===== VARIANT PRODUCT ===== */
 
-if (data.variations) {
+                    /* ===== VARIANT PRODUCT ===== */
 
-let updatedVariations = [...data.variations];
+                    if (data.variations && data.variations.length > 0) {
 
-items.forEach(item => {
+                        let updatedVariations = [...data.variations];
 
-const matchIndex = updatedVariations.findIndex(v => {
+                        items.forEach(item => {
 
-return Object.keys(item.variation || {})
-.filter(k => k !== "quantity")
-.every(key => v[key] === item.variation[key]);
+                            if (!item.variation) return;
 
-});
+                            const matchIndex = updatedVariations.findIndex(v =>
+                                Object.keys(item.variation)
+                                    .filter(k => k !== "quantity")
+                                    .every(key => v[key] === item.variation[key])
+                            );
 
-if (matchIndex === -1) {
-console.log("❌ Variant not found", item.variation);
-return;
-}
+                            if (matchIndex === -1) {
+                                console.log("❌ Variant not found", item.variation);
+                                return;
+                            }
 
-const currentQty = updatedVariations[matchIndex].quantity || 0;
-const newQty = currentQty + item.quantity;
+                            const currentQty = updatedVariations[matchIndex].quantity || 0;
+                            const newQty = currentQty + item.quantity;
 
-console.log(
-`📈 Variant stock: ${currentQty} + ${item.quantity} = ${newQty}`
-);
+                            updatedVariations[matchIndex] = {
+                                ...updatedVariations[matchIndex],
+                                quantity: newQty
+                            };
 
-updatedVariations[matchIndex] = {
-...updatedVariations[matchIndex],
-quantity: newQty
-};
+                        });
 
-});
+                        transaction.update(ref, {
+                            variations: updatedVariations
+                        });
 
-console.log("📦 Updated variations:", updatedVariations);
+                    }
 
-transaction.update(ref, {
-variations: updatedVariations
-});
+                    /* ===== NORMAL PRODUCT ===== */
 
-}
+                    else {
 
-/* ===== NORMAL PRODUCT ===== */
+                        let newStock = data.quantity || 0;
 
-else {
+                        items.forEach(item => {
+                            newStock += item.quantity;
+                        });
 
-let newStock = data.quantity || 0;
+                        console.log(`📈 Normal stock updated to: ${newStock}`);
 
-items.forEach(item => {
-newStock += item.quantity;
-});
+                        transaction.update(ref, {
+                            quantity: newStock
+                        });
 
-console.log(
-`📈 Normal stock updated to: ${newStock}`
-);
+                    }
 
-transaction.update(ref, {
-quantity: newStock
-});
+                }
 
-}
+                /* =====================
+                UPDATE ORDER STATUS
+                ===================== */
 
-}
+                const orderRef = doc(db, "storeOrders", order.id);
 
-/* =====================
-UPDATE ORDER STATUS
-===================== */
+                console.log("🧾 Updating order status → Cancelled");
 
-const orderRef = doc(db, "storeOrders", order.id);
+                transaction.update(orderRef, {
+                    status: "Cancelled",
+                    cancelledAt: Date.now()
+                });
 
-console.log("🧾 Updating order status → Cancelled");
+            });
 
-transaction.update(orderRef, {
-status: "Cancelled",
-cancelledAt: Date.now()
-});
+            console.log("✅ Transaction finished");
 
-});
+            /* =====================
+            UPDATE UI STATE
+            ===================== */
 
-console.log("✅ Transaction finished");
+            setOrders(prev =>
+                prev.map(o =>
+                    o.id === order.id
+                        ? { ...o, status: "Cancelled" }
+                        : o
+                )
+            );
 
-/* =====================
-UPDATE UI STATE
-===================== */
+            setSelectedOrder(prev =>
+                prev?.id === order.id
+                    ? { ...prev, status: "Cancelled" }
+                    : prev
+            );
 
-setOrders(prev =>
-prev.map(o =>
-o.id === order.id
-? { ...o, status: "Cancelled" }
-: o
-)
-);
+        } catch (err) {
 
-setSelectedOrder(prev =>
-prev?.id === order.id
-? { ...prev, status: "Cancelled" }
-: prev
-);
+            console.error("❌ Cancel order failed:", err);
 
-} catch (err) {
+        }
 
-console.error("❌ Cancel order failed:", err);
-
-}
-
-};
+    };
 
     /* ================= LOADING ================= */
 
@@ -304,7 +298,7 @@ console.error("❌ Cancel order failed:", err);
                                 <div className={`order-status status-${(order.status || "pending").toLowerCase()}`}>
                                     {order.status || "Pending"}
                                 </div>
-                
+
 
                             </div>
 
@@ -327,7 +321,7 @@ console.error("❌ Cancel order failed:", err);
                                         alt=""
                                     />
                                 ))}
-                                
+
 
                             </div>
 
@@ -439,16 +433,16 @@ console.error("❌ Cancel order failed:", err);
                             <div className="modal-total-final">
                                 Total: ₹{selectedOrder.totalAmount}
                             </div>
-                {selectedOrder?.status === "Pending" && (
+                            {selectedOrder?.status === "Pending" && (
 
-<button
-className="cancel-order-btn"
-onClick={()=>cancelOrder(selectedOrder)}
->
-Cancel Order
-</button>
+                                <button
+                                    className="cancel-order-btn"
+                                    onClick={() => cancelOrder(selectedOrder)}
+                                >
+                                    Cancel Order
+                                </button>
 
-)}
+                            )}
                         </div>
 
                     </div>
