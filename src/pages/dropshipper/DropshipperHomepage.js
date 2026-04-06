@@ -34,6 +34,16 @@ const [about, setAbout] = useState({
     }
   ]
 });
+const [testimonials, setTestimonials] = useState({
+  title: "What Our Customers Say",
+  items: [
+    {
+      name: "Sophia",
+      text: "Absolutely beautiful jewelry. The quality exceeded my expectations!",
+      rating: 5
+    }
+  ]
+});
   /* ================= STATES ================= */
 
   const [navbar, setNavbar] = useState({
@@ -113,6 +123,10 @@ const [about, setAbout] = useState({
   title: "",
   description: "",
   image: ""
+});
+setTestimonials(data.testimonials || {
+  title: "What Our Customers Say",
+  items: []
 });
         }
       } catch (err) {
@@ -329,6 +343,7 @@ const [about, setAbout] = useState({
           theme,
           sections,
           about,
+          testimonials,
         },
         { merge: true }
       );
@@ -909,7 +924,63 @@ const [about, setAbout] = useState({
 
 ))}
 </div>
-      
+      <div className="section-card">
+
+<h3>Testimonials</h3>
+
+<input
+  placeholder="Section Title"
+  value={testimonials.title}
+  onChange={(e)=>
+    setTestimonials(prev=>({
+      ...prev,
+      title:e.target.value
+    }))
+  }
+/>
+
+<button
+  className="add-btn"
+  onClick={() =>
+    setTestimonials(prev => ({
+      ...prev,
+      items: [
+        ...prev.items,
+        { name:"", text:"", rating:5 }
+      ]
+    }))
+  }
+>
++ Add Testimonial
+</button>
+
+{testimonials.items.map((t,i)=>(
+<div key={i} className="feature-row">
+
+<input
+placeholder="Customer Name"
+value={t.name}
+onChange={(e)=>{
+const updated=[...testimonials.items]
+updated[i].name=e.target.value
+setTestimonials(prev=>({...prev,items:updated}))
+}}
+/>
+
+<textarea
+placeholder="Review"
+value={t.text}
+onChange={(e)=>{
+const updated=[...testimonials.items]
+updated[i].text=e.target.value
+setTestimonials(prev=>({...prev,items:updated}))
+}}
+/>
+
+</div>
+))}
+
+</div>
       <div className="section-card theme-section">
 
         <h3>Theme</h3>
@@ -1033,6 +1104,7 @@ const [about, setAbout] = useState({
         theme={theme}
         sections={sections}
         about={about}
+          testimonials={testimonials}
       />
 
     </div>

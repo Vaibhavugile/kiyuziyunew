@@ -3,7 +3,8 @@ import StoreNavbar from "./StoreNavbar";
 import CollectionsSection from "./CollectionsSection";
 import { HERO_LAYOUTS } from "../storefront/heroes/HeroRegistry";
 import AboutSection from "./AboutSection";
-const StorePreview = ({ navbar, hero, theme, sections,about }) => {
+import TestimonialsSection from "./TestimonialsSection";
+const StorePreview = ({ navbar, hero, theme, sections,about ,testimonials}) => {
 
   const HeroComponent =
     HERO_LAYOUTS[hero?.layout] || HERO_LAYOUTS.split;
@@ -53,6 +54,10 @@ const StorePreview = ({ navbar, hero, theme, sections,about }) => {
       })}
       <AboutSection
     data={about}
+    theme={theme}
+  />
+    <TestimonialsSection
+    data={testimonials}
     theme={theme}
   />
 

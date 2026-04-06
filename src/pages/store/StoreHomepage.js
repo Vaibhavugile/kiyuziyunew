@@ -9,6 +9,7 @@ import StoreNavbar from "./StoreNavbar";
 import CollectionsSection from "./CollectionsSection";
 import { HERO_LAYOUTS } from "../storefront/heroes/HeroRegistry";
 import AboutSection from "./AboutSection";
+import TestimonialsSection from "./TestimonialsSection";
 const StoreHomepage = () => {
 
   const [homepage, setHomepage] = useState(null);
@@ -193,6 +194,10 @@ const StoreHomepage = () => {
       })}
        <AboutSection
     data={homepage.about}
+    theme={theme}
+  />
+    <TestimonialsSection
+    data={homepage.testimonials}
     theme={theme}
   />
 
