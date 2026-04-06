@@ -5,11 +5,11 @@ import React, { useState, useEffect } from 'react';
 import './ProductCard.css';
 import Zoom from 'react-medium-image-zoom';
 import 'react-medium-image-zoom/dist/styles.css';
-import { getCartItemId } from './CartContext';
+import { getCartItemId } from "../pages/store/StoreCartContext";
 import ProgressiveImage from "./ProgressiveImage";
 import { useAuth } from './AuthContext';
 
-const ProductCard = ({
+const StoreProductCard = ({
   product,
   onIncrement,
   onDecrement,
@@ -259,10 +259,14 @@ const getTierPrice = (tiers, qty) => {
         {variations && variations.length > 0 && (
           <div className="variations-selector">
             {variations.map((v, i) => {
-              const idForVar = getCartItemId({
-                ...product,
-                variation: v,
-              });
+              const cleanVar = Object.fromEntries(
+  Object.entries(v).filter(([k]) => k !== "quantity")
+);
+
+const idForVar = getCartItemId({
+  ...product,
+  variation: cleanVar,
+});
 
               const qtyInCart = cart?.[idForVar]?.quantity || 0;
 
@@ -314,4 +318,4 @@ const getTierPrice = (tiers, qty) => {
   );
 };
 
-export default ProductCard;
+export default StoreProductCard;

@@ -71,8 +71,8 @@ const ProductsPage = () => {
   const [zipProgress, setZipProgress] = useState(0); // 0..100
 
 
-const { cart, addToCart, removeFromCart, pricingKey } = useCart();
-const { currentUser } = useAuth();
+  const { cart, addToCart, removeFromCart, pricingKey } = useCart();
+  const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('default');
   const [isControlsVisible, setIsControlsVisible] = useState(false);
@@ -90,12 +90,12 @@ const { currentUser } = useAuth();
     total: 0,
     completed: 0
   });
-const getPreviewImage = (url) => {
-  if (!url) return null;
+  const getPreviewImage = (url) => {
+    if (!url) return null;
 
-  // Low-cost preview (small size)
-  return `${url}&w=200&quality=40`;
-};
+    // Low-cost preview (small size)
+    return `${url}&w=200&quality=40`;
+  };
 
 
   // ---------------------------------------------------------------------
@@ -230,21 +230,21 @@ const getPreviewImage = (url) => {
     return Array.from(new Set(urls));
   };
   const prefetchProductImages = useCallback((productsToPrefetch = []) => {
-  productsToPrefetch.forEach((product) => {
-    const mainImage =
-      product?.image || product?.images?.[0] || null;
+    productsToPrefetch.forEach((product) => {
+      const mainImage =
+        product?.image || product?.images?.[0] || null;
 
-    if (!mainImage) return;
+      if (!mainImage) return;
 
-    const previewUrl = getPreviewImage(mainImage);
+      const previewUrl = getPreviewImage(mainImage);
 
-    if (!prefetchedImagesRef.current.has(previewUrl)) {
-      const img = new Image();
-      img.src = previewUrl; // ✅ small preview only
-      prefetchedImagesRef.current.add(previewUrl);
-    }
-  });
-}, []);
+      if (!prefetchedImagesRef.current.has(previewUrl)) {
+        const img = new Image();
+        img.src = previewUrl; // ✅ small preview only
+        prefetchedImagesRef.current.add(previewUrl);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (!products.length) return;
@@ -531,86 +531,86 @@ const getPreviewImage = (url) => {
   // ---------------------------------------------------------------------
   // ---------------------------------------------------------------------
 
-const sortedProducts = useMemo(() => {
-  let currentProducts = [...products];
-  const searchUpper = debouncedSearchTerm.toUpperCase();
+  const sortedProducts = useMemo(() => {
+    let currentProducts = [...products];
+    const searchUpper = debouncedSearchTerm.toUpperCase();
 
-  // 1️⃣ Client-side filtering
-  if (searchUpper) {
-    currentProducts = currentProducts.filter(product => {
-      const codeMatch =
-        product.productCode &&
-        product.productCode.toUpperCase().includes(searchUpper);
+    // 1️⃣ Client-side filtering
+    if (searchUpper) {
+      currentProducts = currentProducts.filter(product => {
+        const codeMatch =
+          product.productCode &&
+          product.productCode.toUpperCase().includes(searchUpper);
 
-      const nameMatch =
-        product.productName &&
-        product.productName.toUpperCase().includes(searchUpper);
+        const nameMatch =
+          product.productName &&
+          product.productName.toUpperCase().includes(searchUpper);
 
-      return codeMatch || nameMatch;
-    });
-  }
+        return codeMatch || nameMatch;
+      });
+    }
 
-  // 2️⃣ Client-side price sorting (ROLE-FREE)
-  if (sortBy === 'price-asc') {
-    currentProducts.sort((a, b) => {
-      const priceA = getProductPrice(a, subcollectionsMap, pricingKey);
-      const priceB = getProductPrice(b, subcollectionsMap, pricingKey);
-      return (priceA ?? Infinity) - (priceB ?? Infinity);
-    });
-  } else if (sortBy === 'price-desc') {
-    currentProducts.sort((a, b) => {
-      const priceA = getProductPrice(a, subcollectionsMap, pricingKey);
-      const priceB = getProductPrice(b, subcollectionsMap, pricingKey);
-      return (priceB ?? -Infinity) - (priceA ?? -Infinity);
-    });
-  }
+    // 2️⃣ Client-side price sorting (ROLE-FREE)
+    if (sortBy === 'price-asc') {
+      currentProducts.sort((a, b) => {
+        const priceA = getProductPrice(a, subcollectionsMap, pricingKey);
+        const priceB = getProductPrice(b, subcollectionsMap, pricingKey);
+        return (priceA ?? Infinity) - (priceB ?? Infinity);
+      });
+    } else if (sortBy === 'price-desc') {
+      currentProducts.sort((a, b) => {
+        const priceA = getProductPrice(a, subcollectionsMap, pricingKey);
+        const priceB = getProductPrice(b, subcollectionsMap, pricingKey);
+        return (priceB ?? -Infinity) - (priceA ?? -Infinity);
+      });
+    }
 
-  return currentProducts;
-}, [
-  products,
-  sortBy,
-  subcollectionsMap,
-  pricingKey,
-  debouncedSearchTerm
-]);
-const handleAddToCart = (product, variation) => {
-  if (!currentUser) {
-    alert("To Add Products To Cart Please Log in");
-    navigate('/login');
-    return;
-  }
+    return currentProducts;
+  }, [
+    products,
+    sortBy,
+    subcollectionsMap,
+    pricingKey,
+    debouncedSearchTerm
+  ]);
+  const handleAddToCart = (product, variation) => {
+    if (!currentUser) {
+      alert("To Add Products To Cart Please Log in");
+      navigate('/login');
+      return;
+    }
 
-  const subcollection = subcollectionsMap[product.subcollectionId];
-  if (!subcollection?.tieredPricing) {
-    console.error('Pricing information is missing for this product.');
-    return;
-  }
+    const subcollection = subcollectionsMap[product.subcollectionId];
+    if (!subcollection?.tieredPricing) {
+      console.error('Pricing information is missing for this product.');
+      return;
+    }
 
-  const tieredPricingData = subcollection.tieredPricing;
-  const roleBasedTiers = tieredPricingData[pricingKey];
+    const tieredPricingData = subcollection.tieredPricing;
+    const roleBasedTiers = tieredPricingData[pricingKey];
 
-  if (!roleBasedTiers) {
-    console.error(`No pricing tiers found for pricingKey: ${pricingKey}`);
-    return;
-  }
+    if (!roleBasedTiers) {
+      console.error(`No pricing tiers found for pricingKey: ${pricingKey}`);
+      return;
+    }
 
-  const pricingId = createStablePricingId(roleBasedTiers);
+    const pricingId = createStablePricingId(roleBasedTiers);
 
-  const productData = {
-    id: product.id,
-    productName: product.productName,
-    productCode: product.productCode,
-    image: product.image,
-    images: product.images,
-    tieredPricing: tieredPricingData,
-    subcollectionId: product.subcollectionId,
-    collectionId,
-    pricingId,
-    variation
+    const productData = {
+      id: product.id,
+      productName: product.productName,
+      productCode: product.productCode,
+      image: product.image,
+      images: product.images,
+      tieredPricing: tieredPricingData,
+      subcollectionId: product.subcollectionId,
+      collectionId,
+      pricingId,
+      variation
+    };
+
+    addToCart(productData);
   };
-
-  addToCart(productData);
-};
 
   const fetchAllProductsForDownload = async () => {
     const q = query(
@@ -634,48 +634,48 @@ const handleAddToCart = (product, variation) => {
     });
   };
   const fetchProductsForImageDownload = async () => {
-  // 🔥 CASE 1 — ALL PRODUCTS
-  if (selectedSubcollectionId === "all") {
-    const q = query(
-      collectionGroup(db, "products"),
-      where("mainCollection", "==", collectionId),
-      orderBy("productCode")
+    // 🔥 CASE 1 — ALL PRODUCTS
+    if (selectedSubcollectionId === "all") {
+      const q = query(
+        collectionGroup(db, "products"),
+        where("mainCollection", "==", collectionId),
+        orderBy("productCode")
+      );
+
+      const snap = await getDocs(q);
+
+      return snap.docs.map(d => {
+        const pathParts = d.ref.path.split("/");
+        const subcollectionId =
+          pathParts[pathParts.indexOf("subcollections") + 1];
+
+        return {
+          id: d.id,
+          ...d.data(),
+          subcollectionId
+        };
+      });
+    }
+
+    // 🔥 CASE 2 — SINGLE SUBCOLLECTION
+    const productsCollectionPath = collection(
+      db,
+      "collections",
+      collectionId,
+      "subcollections",
+      selectedSubcollectionId,
+      "products"
     );
 
+    const q = query(productsCollectionPath, orderBy("productCode"));
     const snap = await getDocs(q);
 
-    return snap.docs.map(d => {
-      const pathParts = d.ref.path.split("/");
-      const subcollectionId =
-        pathParts[pathParts.indexOf("subcollections") + 1];
-
-      return {
-        id: d.id,
-        ...d.data(),
-        subcollectionId
-      };
-    });
-  }
-
-  // 🔥 CASE 2 — SINGLE SUBCOLLECTION
-  const productsCollectionPath = collection(
-    db,
-    "collections",
-    collectionId,
-    "subcollections",
-    selectedSubcollectionId,
-    "products"
-  );
-
-  const q = query(productsCollectionPath, orderBy("productCode"));
-  const snap = await getDocs(q);
-
-  return snap.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-    subcollectionId: selectedSubcollectionId
-  }));
-};
+    return snap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      subcollectionId: selectedSubcollectionId
+    }));
+  };
 
 
   const handleDownloadCollectionImagesDirect = async () => {
@@ -700,10 +700,17 @@ const handleAddToCart = (product, variation) => {
 
       for (const product of allProducts) {
 
-  // 🚫 Skip products with quantity 0
-  if (!product.quantity || Number(product.quantity) <= 0) {
-    continue;
+  let hasStock = false;
+
+  if (Array.isArray(product.variations) && product.variations.length > 0) {
+    hasStock = product.variations.some(
+      (v) => Number(v.quantity) > 0
+    );
+  } else {
+    hasStock = Number(product.quantity) > 0;
   }
+
+  if (!hasStock) continue;
 
   const paths = getAllImagePathsForProduct(product);
 
@@ -820,12 +827,12 @@ const handleAddToCart = (product, variation) => {
 
       // 2. Fetch all image data URLs concurrently
       const imagePromises = snapshot.docs.map(async (productDoc, index) => {
-  const product = productDoc.data();
+        const product = productDoc.data();
 
-  // 🚫 Skip products with quantity 0
-  if (!product.quantity || Number(product.quantity) <= 0) {
-    return null;
-  }
+        // 🚫 Skip products with quantity 0
+        if (!product.quantity || Number(product.quantity) <= 0) {
+          return null;
+        }
         if (product.image) {
           try {
             const storageInstance = getStorage();
@@ -918,7 +925,7 @@ const handleAddToCart = (product, variation) => {
 
   // Helper function to get the image URL (must be defined or imported)
   // Ensure this helper is available in your component scope or is defined globally
-  
+
 
 
 
@@ -950,7 +957,7 @@ const handleAddToCart = (product, variation) => {
     // de-dupe just in case
     return Array.from(new Set(paths));
   };
- 
+
 
   // --- JSX RENDER (UNCHANGED) ---
   return (
@@ -1018,41 +1025,41 @@ const handleAddToCart = (product, variation) => {
               </button>
             </div>
           )}
-         <div className="filter-group">
-  <button
-    onClick={handleDownloadCollectionImagesDirect}
-    className="download-btn"
-  >
-    <FaDownload />
-    {selectedSubcollectionId === "all"
-      ? "Download All Images"
-      : "Download Category Images"}
-  </button>
+          <div className="filter-group">
+            <button
+              onClick={handleDownloadCollectionImagesDirect}
+              className="download-btn"
+            >
+              <FaDownload />
+              {selectedSubcollectionId === "all"
+                ? "Download All Images"
+                : "Download Category Images"}
+            </button>
 
-  {isDownloadingImages && (
-    <div className="download-progress-card">
-      <div className="progress-header">
-        <span>
-          {selectedSubcollectionId === "all"
-            ? "Downloading Collection Images"
-            : "Downloading Category Images"}
-        </span>
-        <span>{downloadProgress}%</span>
-      </div>
+            {isDownloadingImages && (
+              <div className="download-progress-card">
+                <div className="progress-header">
+                  <span>
+                    {selectedSubcollectionId === "all"
+                      ? "Downloading Collection Images"
+                      : "Downloading Category Images"}
+                  </span>
+                  <span>{downloadProgress}%</span>
+                </div>
 
-      <div className="progress-bar">
-        <div
-          className="progress-fill"
-          style={{ width: `${downloadProgress}%` }}
-        />
-      </div>
+                <div className="progress-bar">
+                  <div
+                    className="progress-fill"
+                    style={{ width: `${downloadProgress}%` }}
+                  />
+                </div>
 
-      <div className="progress-meta">
-        {downloadStats.completed} / {downloadStats.total} images
-      </div>
-    </div>
-  )}
-</div>
+                <div className="progress-meta">
+                  {downloadStats.completed} / {downloadStats.total} images
+                </div>
+              </div>
+            )}
+          </div>
 
 
           {/* Sort by */}
@@ -1090,32 +1097,32 @@ const handleAddToCart = (product, variation) => {
         ) : (
           <div className="products-grid collections-grid">
             {/* REAL PRODUCTS */}
-          {sortedProducts.map((product) => {
-  const price = getProductPrice(product, subcollectionsMap, pricingKey);
+            {sortedProducts.map((product) => {
+              const price = getProductPrice(product, subcollectionsMap, pricingKey);
 
-  const subcollection = subcollectionsMap[product.subcollectionId];
-  const tieredPricing = subcollection
-  ? subcollection.tieredPricing ?? null
-  : null;
+              const subcollection = subcollectionsMap[product.subcollectionId];
+              const tieredPricing = subcollection
+                ? subcollection.tieredPricing ?? null
+                : null;
 
 
 
-  return (
-    <ProductCard
-  key={`${product.id}-${product.subcollectionId || "all"}`}
-  product={{
-    ...product,
-    tieredPricing
-  }}
-  onIncrement={(productData) =>
-    handleAddToCart(productData, productData.variation)
-  }
-  onDecrement={(cartItemId) => removeFromCart(cartItemId)}
-  cart={cart}
-/>
+              return (
+                <ProductCard
+                  key={`${product.id}-${product.subcollectionId || "all"}`}
+                  product={{
+                    ...product,
+                    tieredPricing
+                  }}
+                  onIncrement={(productData) =>
+                    handleAddToCart(productData, productData.variation)
+                  }
+                  onDecrement={(cartItemId) => removeFromCart(cartItemId)}
+                  cart={cart}
+                />
 
-  );
-})}
+              );
+            })}
 
 
             {/* 🔥 SKELETONS WHILE LOADING MORE */}

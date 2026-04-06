@@ -13,7 +13,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { FaShoppingCart, FaArrowLeft, FaFilter, FaTimes, FaSpinner, FaDownload } from 'react-icons/fa';
 
-import ProductCard from "../../components/ProductCard";
+import StoreProductCard from "../../components/StoreProductCard";
 import { useStoreCart } from "../store/StoreCartContext";
 import { getCleanDomain } from "../../utils/domain";
 const SellerStore = () => {
@@ -483,7 +483,7 @@ const description =
       <div className="products-grid collections-grid">
 
         {filteredProducts.map(product => (
-          <ProductCard
+          <StoreProductCard
             key={product.id}
             product={product}
             onIncrement={addToCart}
