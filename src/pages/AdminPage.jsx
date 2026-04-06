@@ -3449,14 +3449,13 @@ localStorage.removeItem("offlineBillingDraft");
         )}
 
         {ROLE_PERMISSIONS[currentUserRole]?.includes("lowStock") && (
-          <button
-            className={activeTab === "lowStock" ? "active" : ""}
-            onClick={() => setActiveTab("lowStock")}
+             <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/productsale/view")}
           >
-            Low Stock Alerts ({lowStockProducts.length})
+            Stock Summary
           </button>
         )}
-
         {ROLE_PERMISSIONS[currentUserRole]?.includes("reports") && (
           <button
             className="admin-menu-item"

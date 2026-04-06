@@ -99,7 +99,7 @@ function App() {
             <Route path="/admin/seller-profits" element={<AdminSellerProfits />} />
 
 <Route path="/inventory/stock" element={<InventorySummaryPage />} />
-<Route path="/productsale" element={<ProductSalesPage />} />
+<Route path="/admin/productsale/view" element={<ProductSalesPage />} />
 
             <Route
               path="/admin/barcode-printing"
