@@ -1,12 +1,9 @@
 import React from "react";
 import StoreNavbar from "./StoreNavbar";
-import ProductsSection from "./ProductsSection";
-import TrustSection from "./TrustSection";
-import TestimonialsSection from "./TestimonialsSection";
 import CollectionsSection from "./CollectionsSection";
 import { HERO_LAYOUTS } from "../storefront/heroes/HeroRegistry";
-
-const StorePreview = ({ navbar, hero, theme, sections }) => {
+import AboutSection from "./AboutSection";
+const StorePreview = ({ navbar, hero, theme, sections,about }) => {
 
   const HeroComponent =
     HERO_LAYOUTS[hero?.layout] || HERO_LAYOUTS.split;
@@ -47,29 +44,17 @@ const StorePreview = ({ navbar, hero, theme, sections }) => {
               />
             );
 
-          case "products":
-            return (
-              <ProductsSection
-                key={sec.id}
-                products={sec.products || []}
-                theme={theme}
-              />
-            );
-
-          case "testimonials":
-            return (
-              <TestimonialsSection
-                key={sec.id}
-                data={sec}
-                theme={theme}
-              />
-            );
+         
 
           default:
             return null;
         }
 
       })}
+      <AboutSection
+    data={about}
+    theme={theme}
+  />
 
     </div>
   );

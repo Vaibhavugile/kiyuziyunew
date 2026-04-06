@@ -14,7 +14,26 @@ const DropshipperHomepage = () => {
 const [previewDevice, setPreviewDevice] = useState("desktop");
   /* 🔥 NEW: COLLECTION LIST */
   const [collectionsList, setCollectionsList] = useState([]);
-
+  
+const [about, setAbout] = useState({
+  title: "",
+  description: "",
+  image: "",
+  features: [
+    {
+      title: "Premium Materials",
+      text: "Crafted with high quality metals & stones."
+    },
+    {
+      title: "Timeless Design",
+      text: "Elegant jewelry made for everyday luxury."
+    },
+    {
+      title: "Trusted Quality",
+      text: "Loved by customers worldwide."
+    }
+  ]
+});
   /* ================= STATES ================= */
 
   const [navbar, setNavbar] = useState({
@@ -90,6 +109,11 @@ const [previewDevice, setPreviewDevice] = useState("desktop");
           setHero(prev => ({ ...prev, ...data.hero }));
           setTheme(data.theme || theme);
           setSections(data.sections || []);
+          setAbout(data.about || {
+  title: "",
+  description: "",
+  image: ""
+});
         }
       } catch (err) {
         console.error("❌ Load error:", err);
@@ -303,7 +327,8 @@ const [previewDevice, setPreviewDevice] = useState("desktop");
           navbar,
           hero,
           theme,
-          sections
+          sections,
+          about,
         },
         { merge: true }
       );
@@ -764,6 +789,127 @@ const [previewDevice, setPreviewDevice] = useState("desktop");
           </div>
         ))}
       </div>
+      <div className="section-card">
+  <h3>About Section</h3>
+
+  <input
+    placeholder="Title"
+    value={about.title}
+    onChange={(e)=>
+      setAbout(prev=>({
+        ...prev,
+        title:e.target.value
+      }))
+    }
+  />
+
+  <textarea
+    placeholder="Description"
+    value={about.description}
+    onChange={(e)=>
+      setAbout(prev=>({
+        ...prev,
+        description:e.target.value
+      }))
+    }
+  />
+
+  <input
+    type="file"
+    onChange={async(e)=>{
+
+      const url = await uploadImage(
+        e.target.files[0],
+        "about"
+      )
+
+      setAbout(prev=>({
+        ...prev,
+        image:url
+      }))
+
+    }}
+  />
+
+  {about.image && (
+    <div className="image-preview">
+      <img src={about.image} alt="" />
+    </div>
+  )}
+  <h4>Features</h4>
+
+<button
+  className="add-btn"
+  onClick={() =>
+    setAbout(prev => ({
+      ...prev,
+      features: [
+        ...(prev.features || []),
+        { title: "", text: "" }
+      ]
+    }))
+  }
+>
+  + Add Feature
+</button>
+
+{about.features?.map((f, i) => (
+
+  <div key={i} className="feature-row">
+
+    <input
+      placeholder="Feature title"
+      value={f.title}
+      onChange={(e) => {
+
+        const updated = [...about.features];
+        updated[i].title = e.target.value;
+
+        setAbout(prev => ({
+          ...prev,
+          features: updated
+        }));
+
+      }}
+    />
+
+    <input
+      placeholder="Feature description"
+      value={f.text}
+      onChange={(e) => {
+
+        const updated = [...about.features];
+        updated[i].text = e.target.value;
+
+        setAbout(prev => ({
+          ...prev,
+          features: updated
+        }));
+
+      }}
+    />
+
+    <button
+      className="secondary"
+      onClick={() => {
+
+        const updated = about.features.filter((_, index) => index !== i);
+
+        setAbout(prev => ({
+          ...prev,
+          features: updated
+        }));
+
+      }}
+    >
+      Remove
+    </button>
+
+  </div>
+
+))}
+</div>
+      
       <div className="section-card theme-section">
 
         <h3>Theme</h3>
@@ -886,6 +1032,7 @@ const [previewDevice, setPreviewDevice] = useState("desktop");
         hero={hero}
         theme={theme}
         sections={sections}
+        about={about}
       />
 
     </div>

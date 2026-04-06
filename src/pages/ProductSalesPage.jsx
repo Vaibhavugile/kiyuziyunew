@@ -164,14 +164,19 @@ const ProductSalesPage = () => {
                         console.log(item.productId, selectedProduct);
                         const total = item.quantity * item.priceAtTimeOfOrder;
 
-                        rows.push({
-                            orderId: docSnap.id,
-                            customerName: order.billingInfo?.fullName || "Unknown",
-                            date: order.createdAt?.toDate(),
-                            qty: item.quantity,
-                            price: item.priceAtTimeOfOrder,
-                            total
-                        });
+                      rows.push({
+  orderId: docSnap.id,
+  customerName: order.billingInfo?.fullName || "Unknown",
+  date: order.createdAt?.toDate(),
+  productCode: item.productCode,
+  variant: {
+    color: item.variation?.color || "",
+    size: item.variation?.size || ""
+  },
+  qty: item.quantity,
+  price: item.priceAtTimeOfOrder,
+  total: item.quantity * item.priceAtTimeOfOrder
+});
                         qty += item.quantity;
                         value += total;
 
@@ -337,11 +342,12 @@ setShowProductDropdown(false);
 
                     <tr>
                         <th>Date</th>
-                        <th>Order</th>
-                        <th>Customer</th>
-                        <th>Qty</th>
-                        <th>Price</th>
-                        <th>Total</th>
+<th>Order</th>
+<th>Customer</th>
+<th>Variant</th>
+<th>Qty</th>
+<th>Price</th>
+<th>Total</th>
                     </tr>
                 </thead>
 
@@ -356,6 +362,9 @@ setShowProductDropdown(false);
                             <td>{s.orderId}</td>
 
                             <td>{s.customerName}</td>
+                            <td>
+{s.variant?.color} {s.variant?.size}
+</td>
 
                             <td>{s.qty}</td>
 

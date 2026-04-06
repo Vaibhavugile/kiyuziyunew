@@ -6,12 +6,9 @@ import { Helmet } from "react-helmet-async";
 
 /* COMPONENTS */
 import StoreNavbar from "./StoreNavbar";
-import ProductsSection from "./ProductsSection";
-import TrustSection from "./TrustSection";
-import TestimonialsSection from "./TestimonialsSection";
 import CollectionsSection from "./CollectionsSection";
 import { HERO_LAYOUTS } from "../storefront/heroes/HeroRegistry";
-
+import AboutSection from "./AboutSection";
 const StoreHomepage = () => {
 
   const [homepage, setHomepage] = useState(null);
@@ -187,29 +184,17 @@ const StoreHomepage = () => {
               />
             );
 
-          case "products":
-            return (
-              <ProductsSection
-                key={sec.id}
-                products={sec.products || []}
-                theme={theme}
-              />
-            );
-
-          case "testimonials":
-            return (
-              <TestimonialsSection
-                key={sec.id}
-                data={sec}
-                theme={theme}
-              />
-            );
+          
 
           default:
             return null;
         }
 
       })}
+       <AboutSection
+    data={homepage.about}
+    theme={theme}
+  />
 
       {/* TRUST SECTION (optional) */}
       {/* <TrustSection theme={theme} /> */}
