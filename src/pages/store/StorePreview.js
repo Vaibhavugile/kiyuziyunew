@@ -4,7 +4,8 @@ import CollectionsSection from "./CollectionsSection";
 import { HERO_LAYOUTS } from "../storefront/heroes/HeroRegistry";
 import AboutSection from "./AboutSection";
 import TestimonialsSection from "./TestimonialsSection";
-const StorePreview = ({ navbar, hero, theme, sections,about ,testimonials}) => {
+import FooterSection from "./FooterSection";
+const StorePreview = ({ navbar, hero, theme, sections,about ,testimonials,footer}) => {
 
   const HeroComponent =
     HERO_LAYOUTS[hero?.layout] || HERO_LAYOUTS.split;
@@ -60,6 +61,11 @@ const StorePreview = ({ navbar, hero, theme, sections,about ,testimonials}) => {
     data={testimonials}
     theme={theme}
   />
+  <FooterSection
+  data={footer}
+  theme={theme}
+/>
+  
 
     </div>
   );

@@ -11,39 +11,65 @@ const DropshipperHomepage = () => {
   const [userData, setUserData] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
-const [previewDevice, setPreviewDevice] = useState("desktop");
+  const [previewDevice, setPreviewDevice] = useState("desktop");
   /* 🔥 NEW: COLLECTION LIST */
   const [collectionsList, setCollectionsList] = useState([]);
-  
-const [about, setAbout] = useState({
-  title: "",
-  description: "",
-  image: "",
-  features: [
-    {
-      title: "Premium Materials",
-      text: "Crafted with high quality metals & stones."
+
+  const [about, setAbout] = useState({
+    title: "",
+    description: "",
+    image: "",
+    features: [
+      {
+        title: "Premium Materials",
+        text: "Crafted with high quality metals & stones."
+      },
+      {
+        title: "Timeless Design",
+        text: "Elegant jewelry made for everyday luxury."
+      },
+      {
+        title: "Trusted Quality",
+        text: "Loved by customers worldwide."
+      }
+    ]
+  });
+  const [footer, setFooter] = useState({
+    brand: "",
+    description: "",
+    address: "",
+    phone: "",
+    email: "",
+    hours: "",
+
+    links: [
+      { label: "Shop", url: "/collections" },
+      { label: "About", url: "/about" },
+      { label: "Contact", url: "/contact" }
+    ],
+
+    socials: {
+      instagram: "",
+      facebook: "",
+      twitter: ""
     },
-    {
-      title: "Timeless Design",
-      text: "Elegant jewelry made for everyday luxury."
-    },
-    {
-      title: "Trusted Quality",
-      text: "Loved by customers worldwide."
+
+    colors: {
+      background: "#111111",
+      text: "#ffffff",
+      accent: "#C9A34E"
     }
-  ]
-});
-const [testimonials, setTestimonials] = useState({
-  title: "What Our Customers Say",
-  items: [
-    {
-      name: "Sophia",
-      text: "Absolutely beautiful jewelry. The quality exceeded my expectations!",
-      rating: 5
-    }
-  ]
-});
+  });
+  const [testimonials, setTestimonials] = useState({
+    title: "What Our Customers Say",
+    items: [
+      {
+        name: "Sophia",
+        text: "Absolutely beautiful jewelry. The quality exceeded my expectations!",
+        rating: 5
+      }
+    ]
+  });
   /* ================= STATES ================= */
 
   const [navbar, setNavbar] = useState({
@@ -120,14 +146,36 @@ const [testimonials, setTestimonials] = useState({
           setTheme(data.theme || theme);
           setSections(data.sections || []);
           setAbout(data.about || {
-  title: "",
-  description: "",
-  image: ""
-});
-setTestimonials(data.testimonials || {
-  title: "What Our Customers Say",
-  items: []
-});
+            title: "",
+            description: "",
+            image: ""
+          });
+          setTestimonials(data.testimonials || {
+            title: "What Our Customers Say",
+            items: []
+          });
+          setFooter({
+            brand: data.footer?.brand || "",
+            description: data.footer?.description || "",
+            address: data.footer?.address || "",
+            phone: data.footer?.phone || "",
+            email: data.footer?.email || "",
+            hours: data.footer?.hours || "",
+
+            links: data.footer?.links || [],
+
+            socials: data.footer?.socials || {
+              instagram: "",
+              facebook: "",
+              twitter: ""
+            },
+
+            colors: data.footer?.colors || {
+              background: "#111111",
+              text: "#ffffff",
+              accent: "#C9A34E"
+            }
+          });
         }
       } catch (err) {
         console.error("❌ Load error:", err);
@@ -344,6 +392,7 @@ setTestimonials(data.testimonials || {
           sections,
           about,
           testimonials,
+          footer,
         },
         { merge: true }
       );
@@ -366,755 +415,893 @@ setTestimonials(data.testimonials || {
   return (
     <div className="builder-layout">
 
-  {/* LEFT SIDE — EDITOR */}
-  <div className="builder-editor">
+      {/* LEFT SIDE — EDITOR */}
+      <div className="builder-editor">
 
-    <div className="customization-container">
+        <div className="customization-container">
 
-      <h2>Store Customization</h2>
+          <h2>Store Customization</h2>
 
-      {/* NAVBAR */}
-      <div className="section-card">
-        <h3>Navbar</h3>
-
-        <input
-          placeholder="Brand Name"
-          value={navbar.brandName || ""}
-          onChange={(e) =>
-            setNavbar(prev => ({
-              ...prev,
-              brandName: e.target.value
-            }))
-          }
-        />
-
-        <input
-          type="file"
-          onChange={async (e) => {
-            const url = await uploadImage(e.target.files[0], "navbar");
-            if (url) {
-              setNavbar(prev => ({ ...prev, logo: url }));
-            }
-          }}
-        />
-
-        {navbar.logo && (
-          <div className="image-preview">
-            <img src={navbar.logo} alt="" />
-          </div>
-        )}
-      </div>
-
-
-      {/* HERO */}
-     <div className="section-card">
-
-  <h3>Hero</h3>
-
-  <h4>Hero Layout</h4>
-
-  <select
-    value={hero.layout}
-    onChange={(e)=>
-      setHero(prev=>({
-        ...prev,
-        layout:e.target.value
-      }))
-    }
-  >
-    <option value="split">Split Hero</option>
-    <option value="center">Centered Hero</option>
-    <option value="carousel">Carousel Hero</option>
-    <option value="minimal">Minimal Hero</option>
-  </select>
-
-
-  {/* TITLE + SUBTITLE (not for carousel) */}
-  {hero.layout !== "carousel" && (
-    <>
-      <input
-        placeholder="Title"
-        value={hero.title}
-        onChange={(e)=>
-          setHero(prev=>({
-            ...prev,
-            title:e.target.value
-          }))
-        }
-      />
-
-      <input
-        placeholder="Subtitle"
-        value={hero.subtitle}
-        onChange={(e)=>
-          setHero(prev=>({
-            ...prev,
-            subtitle:e.target.value
-          }))
-        }
-      />
-    </>
-  )}
-
-
-  {/* FEATURES (only for split hero) */}
-  {hero.layout === "split" && (
-    <>
-      <h4>Hero Features</h4>
-
-      <button className="add-btn" onClick={addFeature}>
-        + Add Feature
-      </button>
-
-      <div className="features-editor">
-
-        {hero.features?.map((f,i)=>(
-          <div key={i} className="feature-row">
+          {/* NAVBAR */}
+          <div className="section-card">
+            <h3>Navbar</h3>
 
             <input
-              placeholder="Feature text"
-              value={f}
-              onChange={(e)=>updateFeature(i,e.target.value)}
+              placeholder="Brand Name"
+              value={navbar.brandName || ""}
+              onChange={(e) =>
+                setNavbar(prev => ({
+                  ...prev,
+                  brandName: e.target.value
+                }))
+              }
             />
 
-            <button
-              className="secondary"
-              onClick={()=>removeFeature(i)}
-            >
-              Remove
-            </button>
-
-          </div>
-        ))}
-
-      </div>
-    </>
-  )}
-
-
-  {/* HERO IMAGES (not for carousel) */}
-  {hero.layout !== "carousel" && (
-    <>
-
-      <h4>Hero Images</h4>
-
-      <input
-        type="file"
-        multiple
-        onChange={(e)=>handleAddHeroImages(e.target.files)}
-      />
-
-      <div className="image-preview">
-
-        {hero.images?.map((img,i)=>(
-          <div key={i}>
-
-            <img src={img.src} alt="" />
-
-            <button
-              className="secondary"
-              onClick={()=>removeHeroImage(i)}
-            >
-              Remove
-            </button>
-
-          </div>
-        ))}
-
-      </div>
-
-    </>
-  )}
-
-
-  {/* CAROUSEL SLIDES */}
-  {hero.layout === "carousel" && (
-
-    <div className="carousel-editor">
-
-      <h4>Carousel Slides</h4>
-
-      <button className="add-btn" onClick={addSlide}>
-        + Add Slide
-      </button>
-
-
-      {hero.slides?.map((slide,i)=>(
-        <div key={i} className="carousel-slide-card">
-
-          <input
-            placeholder="Tagline"
-            value={slide.tagline || ""}
-            onChange={(e)=>
-              updateSlide(i,"tagline",e.target.value)
-            }
-          />
-
-          <input
-            placeholder="Title"
-            value={slide.title || ""}
-            onChange={(e)=>
-              updateSlide(i,"title",e.target.value)
-            }
-          />
-
-          <input
-            placeholder="Description"
-            value={slide.desc || ""}
-            onChange={(e)=>
-              updateSlide(i,"desc",e.target.value)
-            }
-          />
-
-          <input
-            placeholder="Button Text"
-            value={slide.buttonText || ""}
-            onChange={(e)=>
-              updateSlide(i,"buttonText",e.target.value)
-            }
-          />
-
-          <input
-            placeholder="Link"
-            value={slide.link || ""}
-            onChange={(e)=>
-              updateSlide(i,"link",e.target.value)
-            }
-          />
-
-
-          <label>Desktop Image</label>
-          <input
-            type="file"
-            onChange={(e)=>
-              uploadSlideImage(e.target.files[0],i,"image")
-            }
-          />
-
-          {slide.image && (
-            <div className="image-preview">
-              <img src={slide.image} alt="" />
-            </div>
-          )}
-
-
-          <label>Mobile Image</label>
-          <input
-            type="file"
-            onChange={(e)=>
-              uploadSlideImage(e.target.files[0],i,"mobileImage")
-            }
-          />
-
-          {slide.mobileImage && (
-            <div className="image-preview">
-              <img src={slide.mobileImage} alt="" />
-            </div>
-          )}
-
-
-          <button
-            className="secondary"
-            onClick={()=>removeSlide(i)}
-          >
-            Remove Slide
-          </button>
-
-        </div>
-      ))}
-
-    </div>
-
-  )}
-
-</div>
-
-
-      {/* COLLECTION SECTIONS */}
-      <div className="section-card">
-        <h3>Collections</h3>
-
-        <button
-          className="add-btn"
-          onClick={() =>
-            setSections(prev => [
-              ...prev,
-              {
-                id: Date.now(),
-                type: "collections",
-                title: "New Section",
-                collections: []
-              }
-            ])
-          }
-        >
-          + Add Section
-        </button>
-
-        {sections.map((sec, secIndex) => (
-          <div key={sec.id} className="collection-card">
-
             <input
-              value={sec.title}
-              onChange={(e) => {
-                const updated = [...sections];
-                updated[secIndex].title = e.target.value;
-                setSections(updated);
+              type="file"
+              onChange={async (e) => {
+                const url = await uploadImage(e.target.files[0], "navbar");
+                if (url) {
+                  setNavbar(prev => ({ ...prev, logo: url }));
+                }
               }}
             />
-            <button
-  className="secondary"
-  onClick={() =>
-    setSections(prev =>
-      prev.filter((_, i) => i !== secIndex)
-    )
-  }
->
-  Remove Section
-</button>
 
-            <button
-              className="secondary"
-              onClick={() =>
-                setSections(prev =>
-                  prev.map((s, i) =>
-                    i === secIndex
-                      ? {
-                        ...s,
-                        collections: [
-                          ...s.collections,
-                          {
-                            id: Date.now(),
-                            title: "",
-                            image: "",
-                            additionalImages: [],
-                            openCollectionId: ""
-                          }
-                        ]
-                      }
-                      : s
-                  )
-                )
+            {navbar.logo && (
+              <div className="image-preview">
+                <img src={navbar.logo} alt="" />
+              </div>
+            )}
+          </div>
+
+
+          {/* HERO */}
+          <div className="section-card">
+
+            <h3>Hero</h3>
+
+            <h4>Hero Layout</h4>
+
+            <select
+              value={hero.layout}
+              onChange={(e) =>
+                setHero(prev => ({
+                  ...prev,
+                  layout: e.target.value
+                }))
               }
             >
-              + Add Collection
-            </button>
+              <option value="split">Split Hero</option>
+              <option value="center">Centered Hero</option>
+              <option value="carousel">Carousel Hero</option>
+              <option value="minimal">Minimal Hero</option>
+            </select>
 
-            {sec.collections.map((col, colIndex) => (
-              <div key={col.id} className="collection-card">
 
+            {/* TITLE + SUBTITLE (not for carousel) */}
+            {hero.layout !== "carousel" && (
+              <>
                 <input
                   placeholder="Title"
-                  value={col.title}
+                  value={hero.title}
                   onChange={(e) =>
-                    updateCollection(
-                      secIndex,
-                      colIndex,
-                      "title",
-                      e.target.value
-                    )
+                    setHero(prev => ({
+                      ...prev,
+                      title: e.target.value
+                    }))
                   }
                 />
-                <button
-  className="secondary"
-  onClick={() =>
-    setSections(prev =>
-      prev.map((sec, i) =>
-        i === secIndex
-          ? {
-              ...sec,
-              collections: sec.collections.filter(
-                (_, ci) => ci !== colIndex
-              )
-            }
-          : sec
-      )
-    )
-  }
->
-  Remove Collection
-</button>
-
-                <select
-                  value={col.openCollectionId || ""}
-                  onChange={(e) =>
-                    updateCollection(
-                      secIndex,
-                      colIndex,
-                      "openCollectionId",
-                      e.target.value
-                    )
-                  }
-                >
-                  <option value="">Select Collection</option>
-                  {collectionsList.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.title}
-                    </option>
-                  ))}
-                </select>
 
                 <input
-                  type="file"
-                  onChange={async (e) => {
-                    const url = await uploadImage(
-                      e.target.files[0],
-                      "collections"
-                    );
-                    updateCollection(secIndex, colIndex, "image", url);
-                  }}
+                  placeholder="Subtitle"
+                  value={hero.subtitle}
+                  onChange={(e) =>
+                    setHero(prev => ({
+                      ...prev,
+                      subtitle: e.target.value
+                    }))
+                  }
                 />
+              </>
+            )}
 
-                {col.image && (
-                  <div className="image-preview">
-                    <img src={col.image} alt="" />
-                  </div>
-                )}
+
+            {/* FEATURES (only for split hero) */}
+            {hero.layout === "split" && (
+              <>
+                <h4>Hero Features</h4>
+
+                <button className="add-btn" onClick={addFeature}>
+                  + Add Feature
+                </button>
+
+                <div className="features-editor">
+
+                  {hero.features?.map((f, i) => (
+                    <div key={i} className="feature-row">
+
+                      <input
+                        placeholder="Feature text"
+                        value={f}
+                        onChange={(e) => updateFeature(i, e.target.value)}
+                      />
+
+                      <button
+                        className="secondary"
+                        onClick={() => removeFeature(i)}
+                      >
+                        Remove
+                      </button>
+
+                    </div>
+                  ))}
+
+                </div>
+              </>
+            )}
+
+
+            {/* HERO IMAGES (not for carousel) */}
+            {hero.layout !== "carousel" && (
+              <>
+
+                <h4>Hero Images</h4>
 
                 <input
                   type="file"
                   multiple
-                  onChange={(e) =>
-                    addCollectionImages(secIndex, colIndex, e.target.files)
-                  }
+                  onChange={(e) => handleAddHeroImages(e.target.files)}
                 />
 
                 <div className="image-preview">
-                  {col.additionalImages?.map((img, i) => (
+
+                  {hero.images?.map((img, i) => (
                     <div key={i}>
-                      <img src={img} alt="" />
+
+                      <img src={img.src} alt="" />
+
                       <button
                         className="secondary"
-                        onClick={() =>
-                          removeCollectionImage(
-                            secIndex,
-                            colIndex,
-                            i
-                          )
-                        }
+                        onClick={() => removeHeroImage(i)}
                       >
                         Remove
                       </button>
+
                     </div>
                   ))}
+
                 </div>
 
+              </>
+            )}
+
+
+            {/* CAROUSEL SLIDES */}
+            {hero.layout === "carousel" && (
+
+              <div className="carousel-editor">
+
+                <h4>Carousel Slides</h4>
+
+                <button className="add-btn" onClick={addSlide}>
+                  + Add Slide
+                </button>
+
+
+                {hero.slides?.map((slide, i) => (
+                  <div key={i} className="carousel-slide-card">
+
+                    <input
+                      placeholder="Tagline"
+                      value={slide.tagline || ""}
+                      onChange={(e) =>
+                        updateSlide(i, "tagline", e.target.value)
+                      }
+                    />
+
+                    <input
+                      placeholder="Title"
+                      value={slide.title || ""}
+                      onChange={(e) =>
+                        updateSlide(i, "title", e.target.value)
+                      }
+                    />
+
+                    <input
+                      placeholder="Description"
+                      value={slide.desc || ""}
+                      onChange={(e) =>
+                        updateSlide(i, "desc", e.target.value)
+                      }
+                    />
+
+                    <input
+                      placeholder="Button Text"
+                      value={slide.buttonText || ""}
+                      onChange={(e) =>
+                        updateSlide(i, "buttonText", e.target.value)
+                      }
+                    />
+
+                    <input
+                      placeholder="Link"
+                      value={slide.link || ""}
+                      onChange={(e) =>
+                        updateSlide(i, "link", e.target.value)
+                      }
+                    />
+
+
+                    <label>Desktop Image</label>
+                    <input
+                      type="file"
+                      onChange={(e) =>
+                        uploadSlideImage(e.target.files[0], i, "image")
+                      }
+                    />
+
+                    {slide.image && (
+                      <div className="image-preview">
+                        <img src={slide.image} alt="" />
+                      </div>
+                    )}
+
+
+                    <label>Mobile Image</label>
+                    <input
+                      type="file"
+                      onChange={(e) =>
+                        uploadSlideImage(e.target.files[0], i, "mobileImage")
+                      }
+                    />
+
+                    {slide.mobileImage && (
+                      <div className="image-preview">
+                        <img src={slide.mobileImage} alt="" />
+                      </div>
+                    )}
+
+
+                    <button
+                      className="secondary"
+                      onClick={() => removeSlide(i)}
+                    >
+                      Remove Slide
+                    </button>
+
+                  </div>
+                ))}
+
+              </div>
+
+            )}
+
+          </div>
+
+
+          {/* COLLECTION SECTIONS */}
+          <div className="section-card">
+            <h3>Collections</h3>
+
+            <button
+              className="add-btn"
+              onClick={() =>
+                setSections(prev => [
+                  ...prev,
+                  {
+                    id: Date.now(),
+                    type: "collections",
+                    title: "New Section",
+                    collections: []
+                  }
+                ])
+              }
+            >
+              + Add Section
+            </button>
+
+            {sections.map((sec, secIndex) => (
+              <div key={sec.id} className="collection-card">
+
+                <input
+                  value={sec.title}
+                  onChange={(e) => {
+                    const updated = [...sections];
+                    updated[secIndex].title = e.target.value;
+                    setSections(updated);
+                  }}
+                />
+                <button
+                  className="secondary"
+                  onClick={() =>
+                    setSections(prev =>
+                      prev.filter((_, i) => i !== secIndex)
+                    )
+                  }
+                >
+                  Remove Section
+                </button>
+
+                <button
+                  className="secondary"
+                  onClick={() =>
+                    setSections(prev =>
+                      prev.map((s, i) =>
+                        i === secIndex
+                          ? {
+                            ...s,
+                            collections: [
+                              ...s.collections,
+                              {
+                                id: Date.now(),
+                                title: "",
+                                image: "",
+                                additionalImages: [],
+                                openCollectionId: ""
+                              }
+                            ]
+                          }
+                          : s
+                      )
+                    )
+                  }
+                >
+                  + Add Collection
+                </button>
+
+                {sec.collections.map((col, colIndex) => (
+                  <div key={col.id} className="collection-card">
+
+                    <input
+                      placeholder="Title"
+                      value={col.title}
+                      onChange={(e) =>
+                        updateCollection(
+                          secIndex,
+                          colIndex,
+                          "title",
+                          e.target.value
+                        )
+                      }
+                    />
+                    <button
+                      className="secondary"
+                      onClick={() =>
+                        setSections(prev =>
+                          prev.map((sec, i) =>
+                            i === secIndex
+                              ? {
+                                ...sec,
+                                collections: sec.collections.filter(
+                                  (_, ci) => ci !== colIndex
+                                )
+                              }
+                              : sec
+                          )
+                        )
+                      }
+                    >
+                      Remove Collection
+                    </button>
+
+                    <select
+                      value={col.openCollectionId || ""}
+                      onChange={(e) =>
+                        updateCollection(
+                          secIndex,
+                          colIndex,
+                          "openCollectionId",
+                          e.target.value
+                        )
+                      }
+                    >
+                      <option value="">Select Collection</option>
+                      {collectionsList.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.title}
+                        </option>
+                      ))}
+                    </select>
+
+                    <input
+                      type="file"
+                      onChange={async (e) => {
+                        const url = await uploadImage(
+                          e.target.files[0],
+                          "collections"
+                        );
+                        updateCollection(secIndex, colIndex, "image", url);
+                      }}
+                    />
+
+                    {col.image && (
+                      <div className="image-preview">
+                        <img src={col.image} alt="" />
+                      </div>
+                    )}
+
+                    <input
+                      type="file"
+                      multiple
+                      onChange={(e) =>
+                        addCollectionImages(secIndex, colIndex, e.target.files)
+                      }
+                    />
+
+                    <div className="image-preview">
+                      {col.additionalImages?.map((img, i) => (
+                        <div key={i}>
+                          <img src={img} alt="" />
+                          <button
+                            className="secondary"
+                            onClick={() =>
+                              removeCollectionImage(
+                                secIndex,
+                                colIndex,
+                                i
+                              )
+                            }
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                  </div>
+                ))}
               </div>
             ))}
           </div>
-        ))}
-      </div>
-      <div className="section-card">
-  <h3>About Section</h3>
+          <div className="section-card">
+            <h3>About Section</h3>
 
-  <input
-    placeholder="Title"
-    value={about.title}
-    onChange={(e)=>
-      setAbout(prev=>({
-        ...prev,
-        title:e.target.value
-      }))
-    }
-  />
+            <input
+              placeholder="Title"
+              value={about.title}
+              onChange={(e) =>
+                setAbout(prev => ({
+                  ...prev,
+                  title: e.target.value
+                }))
+              }
+            />
 
-  <textarea
-    placeholder="Description"
-    value={about.description}
-    onChange={(e)=>
-      setAbout(prev=>({
-        ...prev,
-        description:e.target.value
-      }))
-    }
-  />
+            <textarea
+              placeholder="Description"
+              value={about.description}
+              onChange={(e) =>
+                setAbout(prev => ({
+                  ...prev,
+                  description: e.target.value
+                }))
+              }
+            />
 
-  <input
-    type="file"
-    onChange={async(e)=>{
+            <input
+              type="file"
+              onChange={async (e) => {
 
-      const url = await uploadImage(
-        e.target.files[0],
-        "about"
-      )
+                const url = await uploadImage(
+                  e.target.files[0],
+                  "about"
+                )
 
-      setAbout(prev=>({
-        ...prev,
-        image:url
-      }))
+                setAbout(prev => ({
+                  ...prev,
+                  image: url
+                }))
 
-    }}
-  />
+              }}
+            />
 
-  {about.image && (
-    <div className="image-preview">
-      <img src={about.image} alt="" />
-    </div>
-  )}
-  <h4>Features</h4>
+            {about.image && (
+              <div className="image-preview">
+                <img src={about.image} alt="" />
+              </div>
+            )}
+            <h4>Features</h4>
 
-<button
-  className="add-btn"
-  onClick={() =>
-    setAbout(prev => ({
-      ...prev,
-      features: [
-        ...(prev.features || []),
-        { title: "", text: "" }
-      ]
-    }))
-  }
->
-  + Add Feature
-</button>
+            <button
+              className="add-btn"
+              onClick={() =>
+                setAbout(prev => ({
+                  ...prev,
+                  features: [
+                    ...(prev.features || []),
+                    { title: "", text: "" }
+                  ]
+                }))
+              }
+            >
+              + Add Feature
+            </button>
 
-{about.features?.map((f, i) => (
+            {about.features?.map((f, i) => (
 
-  <div key={i} className="feature-row">
+              <div key={i} className="feature-row">
 
-    <input
-      placeholder="Feature title"
-      value={f.title}
-      onChange={(e) => {
+                <input
+                  placeholder="Feature title"
+                  value={f.title}
+                  onChange={(e) => {
 
-        const updated = [...about.features];
-        updated[i].title = e.target.value;
+                    const updated = [...about.features];
+                    updated[i].title = e.target.value;
 
-        setAbout(prev => ({
-          ...prev,
-          features: updated
-        }));
+                    setAbout(prev => ({
+                      ...prev,
+                      features: updated
+                    }));
 
-      }}
-    />
+                  }}
+                />
 
-    <input
-      placeholder="Feature description"
-      value={f.text}
-      onChange={(e) => {
+                <input
+                  placeholder="Feature description"
+                  value={f.text}
+                  onChange={(e) => {
 
-        const updated = [...about.features];
-        updated[i].text = e.target.value;
+                    const updated = [...about.features];
+                    updated[i].text = e.target.value;
 
-        setAbout(prev => ({
-          ...prev,
-          features: updated
-        }));
+                    setAbout(prev => ({
+                      ...prev,
+                      features: updated
+                    }));
 
-      }}
-    />
+                  }}
+                />
 
-    <button
-      className="secondary"
-      onClick={() => {
+                <button
+                  className="secondary"
+                  onClick={() => {
 
-        const updated = about.features.filter((_, index) => index !== i);
+                    const updated = about.features.filter((_, index) => index !== i);
 
-        setAbout(prev => ({
-          ...prev,
-          features: updated
-        }));
+                    setAbout(prev => ({
+                      ...prev,
+                      features: updated
+                    }));
 
-      }}
-    >
-      Remove
-    </button>
+                  }}
+                >
+                  Remove
+                </button>
 
-  </div>
+              </div>
 
-))}
-</div>
-      <div className="section-card">
+            ))}
+          </div>
+          <div className="section-card">
 
-<h3>Testimonials</h3>
+            <h3>Testimonials</h3>
 
-<input
-  placeholder="Section Title"
-  value={testimonials.title}
-  onChange={(e)=>
-    setTestimonials(prev=>({
-      ...prev,
-      title:e.target.value
-    }))
-  }
-/>
+            <input
+              placeholder="Section Title"
+              value={testimonials.title}
+              onChange={(e) =>
+                setTestimonials(prev => ({
+                  ...prev,
+                  title: e.target.value
+                }))
+              }
+            />
 
-<button
-  className="add-btn"
-  onClick={() =>
-    setTestimonials(prev => ({
-      ...prev,
-      items: [
-        ...prev.items,
-        { name:"", text:"", rating:5 }
-      ]
-    }))
-  }
->
-+ Add Testimonial
-</button>
+            <button
+              className="add-btn"
+              onClick={() =>
+                setTestimonials(prev => ({
+                  ...prev,
+                  items: [
+                    ...prev.items,
+                    { name: "", text: "", rating: 5 }
+                  ]
+                }))
+              }
+            >
+              + Add Testimonial
+            </button>
 
-{testimonials.items.map((t,i)=>(
-<div key={i} className="feature-row">
+            {testimonials.items.map((t, i) => (
+              <div key={i} className="feature-row">
 
-<input
-placeholder="Customer Name"
-value={t.name}
-onChange={(e)=>{
-const updated=[...testimonials.items]
-updated[i].name=e.target.value
-setTestimonials(prev=>({...prev,items:updated}))
-}}
-/>
+                <input
+                  placeholder="Customer Name"
+                  value={t.name}
+                  onChange={(e) => {
+                    const updated = [...testimonials.items]
+                    updated[i].name = e.target.value
+                    setTestimonials(prev => ({ ...prev, items: updated }))
+                  }}
+                />
 
-<textarea
-placeholder="Review"
-value={t.text}
-onChange={(e)=>{
-const updated=[...testimonials.items]
-updated[i].text=e.target.value
-setTestimonials(prev=>({...prev,items:updated}))
-}}
-/>
+                <textarea
+                  placeholder="Review"
+                  value={t.text}
+                  onChange={(e) => {
+                    const updated = [...testimonials.items]
+                    updated[i].text = e.target.value
+                    setTestimonials(prev => ({ ...prev, items: updated }))
+                  }}
+                />
 
-</div>
-))}
+              </div>
+            ))}
 
-</div>
-      <div className="section-card theme-section">
+          </div>
+          <div className="section-card">
 
-        <h3>Theme</h3>
+            <h3>Footer</h3>
 
-        {/* PRIMARY COLOR */}
-        <div className="theme-color-row">
-          <label>Primary Color</label>
-          <input
-            type="color"
-            value={theme.colors.primary}
-            onChange={(e) =>
-              setTheme(prev => ({
+            <input
+              placeholder="Brand Name"
+              value={footer.brand}
+              onChange={(e) => setFooter(prev => ({
                 ...prev,
-                colors: { ...prev.colors, primary: e.target.value }
-              }))
-            }
-          />
-        </div>
+                brand: e.target.value
+              }))}
+            />
 
-        {/* BACKGROUND */}
-        <div className="theme-color-row">
+            <textarea
+              placeholder="Description"
+              value={footer.description}
+              onChange={(e) => setFooter(prev => ({
+                ...prev,
+                description: e.target.value
+              }))}
+            />
+
+            <input
+              placeholder="Address"
+              value={footer.address}
+              onChange={(e) => setFooter(prev => ({
+                ...prev,
+                address: e.target.value
+              }))}
+            />
+
+            <input
+              placeholder="Phone"
+              value={footer.phone}
+              onChange={(e) => setFooter(prev => ({
+                ...prev,
+                phone: e.target.value
+              }))}
+            />
+
+            <input
+              placeholder="Email"
+              value={footer.email}
+              onChange={(e) => setFooter(prev => ({
+                ...prev,
+                email: e.target.value
+              }))}
+            />
+
+            <input
+              placeholder="Business Hours"
+              value={footer.hours}
+              onChange={(e) => setFooter(prev => ({
+                ...prev,
+                hours: e.target.value
+              }))}
+            />
+
+            <h4>Social Links</h4>
+
+            <input
+              placeholder="Instagram"
+              value={footer.socials.instagram}
+              onChange={(e) => setFooter(prev => ({
+                ...prev,
+                socials: { ...prev.socials, instagram: e.target.value }
+              }))}
+            />
+
+            <input
+              placeholder="Facebook"
+              value={footer.socials.facebook}
+              onChange={(e) => setFooter(prev => ({
+                ...prev,
+                socials: { ...prev.socials, facebook: e.target.value }
+              }))}
+            />
+
+            <input
+              placeholder="Twitter"
+              value={footer.socials.twitter}
+              onChange={(e) => setFooter(prev => ({
+                ...prev,
+                socials: { ...prev.socials, twitter: e.target.value }
+              }))}
+            />
+
+          </div>
+          <h4>Footer Colors</h4>
+
           <label>Background</label>
+
           <input
             type="color"
-            value={theme.colors.background}
+            value={footer.colors.background}
             onChange={(e) =>
-              setTheme(prev => ({
+              setFooter(prev => ({
                 ...prev,
-                colors: { ...prev.colors, background: e.target.value }
+                colors: {
+                  ...prev.colors,
+                  background: e.target.value
+                }
               }))
             }
           />
-        </div>
 
-        {/* TEXT COLOR */}
-        <div className="theme-color-row">
-          <label>Text Color</label>
+          <label>Text</label>
+
           <input
             type="color"
-            value={theme.colors.text}
+            value={footer.colors.text}
             onChange={(e) =>
-              setTheme(prev => ({
+              setFooter(prev => ({
                 ...prev,
-                colors: { ...prev.colors, text: e.target.value }
+                colors: {
+                  ...prev.colors,
+                  text: e.target.value
+                }
               }))
             }
           />
-        </div>
 
-        {/* FONT */}
-        <div className="theme-font">
-          <label>Font</label>
+          <label>Accent</label>
 
-          <select
-            value={theme.font}
+          <input
+            type="color"
+            value={footer.colors.accent}
             onChange={(e) =>
-              setTheme(prev => ({
+              setFooter(prev => ({
                 ...prev,
-                font: e.target.value
+                colors: {
+                  ...prev.colors,
+                  accent: e.target.value
+                }
               }))
             }
+          />
+          <div className="section-card theme-section">
+
+            <h3>Theme</h3>
+
+            {/* PRIMARY COLOR */}
+            <div className="theme-color-row">
+              <label>Primary Color</label>
+              <input
+                type="color"
+                value={theme.colors.primary}
+                onChange={(e) =>
+                  setTheme(prev => ({
+                    ...prev,
+                    colors: { ...prev.colors, primary: e.target.value }
+                  }))
+                }
+              />
+            </div>
+
+            {/* BACKGROUND */}
+            <div className="theme-color-row">
+              <label>Background</label>
+              <input
+                type="color"
+                value={theme.colors.background}
+                onChange={(e) =>
+                  setTheme(prev => ({
+                    ...prev,
+                    colors: { ...prev.colors, background: e.target.value }
+                  }))
+                }
+              />
+            </div>
+
+            {/* TEXT COLOR */}
+            <div className="theme-color-row">
+              <label>Text Color</label>
+              <input
+                type="color"
+                value={theme.colors.text}
+                onChange={(e) =>
+                  setTheme(prev => ({
+                    ...prev,
+                    colors: { ...prev.colors, text: e.target.value }
+                  }))
+                }
+              />
+            </div>
+
+            {/* FONT */}
+            <div className="theme-font">
+              <label>Font</label>
+
+              <select
+                value={theme.font}
+                onChange={(e) =>
+                  setTheme(prev => ({
+                    ...prev,
+                    font: e.target.value
+                  }))
+                }
+              >
+                <option>Playfair Display</option>
+                <option>Poppins</option>
+                <option>Inter</option>
+              </select>
+            </div>
+
+          </div>
+
+
+          {/* SAVE */}
+          <button
+            className="save-btn"
+            onClick={handleSave}
+            disabled={loading}
           >
-            <option>Playfair Display</option>
-            <option>Poppins</option>
-            <option>Inter</option>
-          </select>
+            {loading ? "Saving..." : "Save Changes"}
+          </button>
+
+        </div>
+      </div>
+
+      {/* RIGHT SIDE — PREVIEW */}
+      <div className="builder-preview">
+
+        <h3 style={{ marginBottom: "15px" }}>Live Store Preview</h3>
+
+        <div className="preview-toolbar">
+
+          <button
+            className={previewDevice === "desktop" ? "active" : ""}
+            onClick={() => setPreviewDevice("desktop")}
+          >
+            Desktop
+          </button>
+
+          <button
+            className={previewDevice === "tablet" ? "active" : ""}
+            onClick={() => setPreviewDevice("tablet")}
+          >
+            Tablet
+          </button>
+
+          <button
+            className={previewDevice === "mobile" ? "active" : ""}
+            onClick={() => setPreviewDevice("mobile")}
+          >
+            Mobile
+          </button>
+
+        </div>
+
+        <div className="preview-container">
+
+          <div className={`preview-frame ${previewDevice}`}>
+
+            <StorePreview
+              navbar={navbar}
+              hero={hero}
+              theme={theme}
+              sections={sections}
+              about={about}
+              testimonials={testimonials}
+              footer={footer}
+            />
+
+          </div>
+
         </div>
 
       </div>
 
-
-      {/* SAVE */}
-      <button
-        className="save-btn"
-        onClick={handleSave}
-        disabled={loading}
-      >
-        {loading ? "Saving..." : "Save Changes"}
-      </button>
-
-        </div>
-  </div>
-
-  {/* RIGHT SIDE — PREVIEW */}
-  <div className="builder-preview">
-
-  <h3 style={{marginBottom:"15px"}}>Live Store Preview</h3>
-
-  <div className="preview-toolbar">
-
-    <button
-      className={previewDevice === "desktop" ? "active" : ""}
-      onClick={() => setPreviewDevice("desktop")}
-    >
-      Desktop
-    </button>
-
-    <button
-      className={previewDevice === "tablet" ? "active" : ""}
-      onClick={() => setPreviewDevice("tablet")}
-    >
-      Tablet
-    </button>
-
-    <button
-      className={previewDevice === "mobile" ? "active" : ""}
-      onClick={() => setPreviewDevice("mobile")}
-    >
-      Mobile
-    </button>
-
-  </div>
-
-  <div className="preview-container">
-
-    <div className={`preview-frame ${previewDevice}`}>
-
-      <StorePreview
-        navbar={navbar}
-        hero={hero}
-        theme={theme}
-        sections={sections}
-        about={about}
-          testimonials={testimonials}
-      />
-
     </div>
 
-  </div>
-
-</div>
-
-</div>
-    
   );
 };
 

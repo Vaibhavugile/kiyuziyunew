@@ -10,6 +10,7 @@ import CollectionsSection from "./CollectionsSection";
 import { HERO_LAYOUTS } from "../storefront/heroes/HeroRegistry";
 import AboutSection from "./AboutSection";
 import TestimonialsSection from "./TestimonialsSection";
+import FooterSection from "./FooterSection";
 const StoreHomepage = () => {
 
   const [homepage, setHomepage] = useState(null);
@@ -198,6 +199,10 @@ const StoreHomepage = () => {
   />
     <TestimonialsSection
     data={homepage.testimonials}
+    theme={theme}
+  />
+  <FooterSection
+    data={homepage.footer}
     theme={theme}
   />
 
