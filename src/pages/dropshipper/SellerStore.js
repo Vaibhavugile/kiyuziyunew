@@ -275,10 +275,8 @@ if (homepageSnap.exists()) {
             selectedCol = validCollections[0].id;
           }
 
-          const firstSub = finalSubMap[selectedCol]?.[0]?.id || "";
-
           setSelectedCollection(selectedCol);
-          setSelectedSubcollection(firstSub);
+setSelectedSubcollection("");
         }
 
       } catch (err) {
@@ -450,9 +448,7 @@ const description =
           onChange={(e) => {
             const col = e.target.value;
             setSelectedCollection(col);
-            setSelectedSubcollection(
-              subcollectionsMap[col]?.[0]?.id || ""
-            );
+            setSelectedSubcollection("");
           }}
         >
           {collections.map(c => (
@@ -463,15 +459,17 @@ const description =
         </select>
 
         <select
-          value={selectedSubcollection}
-          onChange={(e) => setSelectedSubcollection(e.target.value)}
-        >
-          {subcollectionsMap[selectedCollection]?.map(sub => (
-            <option key={sub.id} value={sub.id}>
-              {sub.name}
-            </option>
-          ))}
-        </select>
+  value={selectedSubcollection}
+  onChange={(e) => setSelectedSubcollection(e.target.value)}
+>
+  <option value="">All</option>
+
+  {subcollectionsMap[selectedCollection]?.map(sub => (
+    <option key={sub.id} value={sub.id}>
+      {sub.name}
+    </option>
+  ))}
+</select>
 
         <input
           placeholder="Search..."
