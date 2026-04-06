@@ -1,0 +1,156 @@
+/* =========================
+   PAGE WRAPPER
+========================= */
+
+.sales-page {
+  max-width: 1100px;
+  margin: auto;
+  padding: 40px 20px;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background: #f7f8fb;
+  min-height: 100vh;
+}
+
+.sales-page h2 {
+  font-size: 30px;
+  font-weight: 700;
+  margin-bottom: 25px;
+  color: #111827;
+}
+
+/* =========================
+   FILTER DROPDOWNS
+========================= */
+
+.sales-page select {
+  width: 260px;
+  padding: 10px 12px;
+  margin-right: 12px;
+  margin-bottom: 15px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+  background: white;
+  transition: border 0.2s ease;
+}
+
+.sales-page select:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+/* =========================
+   RANGE BUTTONS
+========================= */
+
+.range-buttons {
+  margin-top: 10px;
+  margin-bottom: 25px;
+}
+
+.range-buttons button {
+  padding: 8px 16px;
+  margin-right: 10px;
+  border-radius: 8px;
+  border: none;
+  background: #111827;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.range-buttons button:hover {
+  background: #2563eb;
+}
+
+/* =========================
+   SALES TABLE
+========================= */
+
+.sales-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+}
+
+.sales-table thead {
+  background: #f3f4f6;
+}
+
+.sales-table th {
+  text-align: left;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.sales-table td {
+  padding: 14px;
+  border-top: 1px solid #f1f1f1;
+  font-size: 14px;
+}
+
+.sales-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+/* align numbers right */
+
+.sales-table th:nth-child(2),
+.sales-table th:nth-child(3),
+.sales-table th:nth-child(4),
+.sales-table td:nth-child(2),
+.sales-table td:nth-child(3),
+.sales-table td:nth-child(4) {
+  text-align: right;
+}
+
+/* =========================
+   SALES SUMMARY
+========================= */
+
+.sales-summary {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding: 16px 20px;
+  background: linear-gradient(90deg,#111827,#1f2937);
+  color: white;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+/* =========================
+   RESPONSIVE DESIGN
+========================= */
+
+@media (max-width: 768px) {
+
+  .sales-page select {
+    width: 100%;
+    margin-bottom: 12px;
+  }
+
+  .range-buttons {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .range-buttons button {
+    margin-bottom: 8px;
+  }
+
+  .sales-summary {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+
+}

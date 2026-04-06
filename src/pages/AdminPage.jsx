@@ -3459,8 +3459,8 @@ localStorage.removeItem("offlineBillingDraft");
 
         {ROLE_PERMISSIONS[currentUserRole]?.includes("reports") && (
           <button
-            className={activeTab === "reports" ? "active" : ""}
-            onClick={() => setActiveTab("reports")}
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/inventory/stock")}
           >
             Reports
           </button>

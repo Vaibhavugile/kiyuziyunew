@@ -52,7 +52,7 @@ const ProductsPage = () => {
 
   // 🌟 Loop Fix: Ref to manage initial render skip (Kept for Strict Mode resilience)
   const isInitialRender = useRef(true);
-
+const [showDownloadOptions, setShowDownloadOptions] = useState(false);
   // --- STATE ---
   const [products, setProducts] = useState([]);
   const [hasMore, setHasMore] = useState(true);
@@ -61,7 +61,7 @@ const ProductsPage = () => {
   const [selectedSubcollectionId, setSelectedSubcollectionId] = useState('all');
   const [mainCollection, setMainCollection] = useState(null);
   const [subcollectionsMap, setSubcollectionsMap] = useState({});
-
+const [downloadAction, setDownloadAction] = useState(null);
   const [isMetadataReady, setIsMetadataReady] = useState(false);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
 
@@ -70,7 +70,8 @@ const ProductsPage = () => {
   const [isZipping, setIsZipping] = useState(false);
   const [zipProgress, setZipProgress] = useState(0); // 0..100
 
-
+const [minDownloadQty, setMinDownloadQty] = useState("");
+const [maxDownloadQty, setMaxDownloadQty] = useState("");
   const { cart, addToCart, removeFromCart, pricingKey } = useCart();
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
@@ -573,6 +574,16 @@ const ProductsPage = () => {
     pricingKey,
     debouncedSearchTerm
   ]);
+  const inStockProducts = useMemo(() => {
+  return sortedProducts.filter(product => {
+
+    if (Array.isArray(product.variations) && product.variations.length > 0) {
+      return product.variations.some(v => Number(v.quantity) > 0);
+    }
+
+    return Number(product.quantity) > 0;
+  });
+}, [sortedProducts]);
   const handleAddToCart = (product, variation) => {
     if (!currentUser) {
       alert("To Add Products To Cart Please Log in");
@@ -698,19 +709,27 @@ const ProductsPage = () => {
       // 📸 Collect all image paths first
       const imageJobs = [];
 
-      for (const product of allProducts) {
+    const minQty = Number(minDownloadQty) || 0;
+const maxQty = maxDownloadQty ? Number(maxDownloadQty) : Infinity;
 
-  let hasStock = false;
+for (const product of allProducts) {
 
+  let qty = 0;
+
+  // check variant stock
   if (Array.isArray(product.variations) && product.variations.length > 0) {
-    hasStock = product.variations.some(
-      (v) => Number(v.quantity) > 0
+    qty = product.variations.reduce(
+      (sum, v) => sum + (Number(v.quantity) || 0),
+      0
     );
   } else {
-    hasStock = Number(product.quantity) > 0;
+    qty = Number(product.quantity) || 0;
   }
 
-  if (!hasStock) continue;
+  // 🚫 skip if outside range
+  if (qty < minQty || qty > maxQty) {
+    continue;
+  }
 
   const paths = getAllImagePathsForProduct(product);
 
@@ -801,6 +820,8 @@ const ProductsPage = () => {
     const subcollectionName = subcollectionsMap[selectedSubcollectionId]?.name || 'Category';
 
     try {
+      const minQty = Number(minDownloadQty) || 0;
+const maxQty = maxDownloadQty ? Number(maxDownloadQty) : Infinity;
       // 1. Fetch ALL products (no limit)
       const productsCollectionPath = collection(
         db,
@@ -830,9 +851,22 @@ const ProductsPage = () => {
         const product = productDoc.data();
 
         // 🚫 Skip products with quantity 0
-        if (!product.quantity || Number(product.quantity) <= 0) {
-          return null;
-        }
+       let qty = 0;
+
+// check variant stock
+if (Array.isArray(product.variations) && product.variations.length > 0) {
+  qty = product.variations.reduce(
+    (sum, v) => sum + (Number(v.quantity) || 0),
+    0
+  );
+} else {
+  qty = Number(product.quantity) || 0;
+}
+
+// 🚫 skip if outside range
+if (qty < minQty || qty > maxQty) {
+  return null;
+}
         if (product.image) {
           try {
             const storageInstance = getStorage();
@@ -849,7 +883,7 @@ const ProductsPage = () => {
                 resolve({
                   dataUrl: reader.result,
                   productCode: product.productCode || `Product ${index + 1}`,
-                  quantity: product.quantity ?? 'N/A' // Use ?? to handle missing/null quantity
+                  quantity: qty ?? 'N/A' // Use ?? to handle missing/null quantity
 
                 });
               };
@@ -1014,27 +1048,84 @@ const ProductsPage = () => {
           </div>
           {selectedSubcollectionId !== 'all' && (
             <div className="filter-group">
-              <button
-                onClick={handleGeneratePDF}
-                disabled={isFetchingMore || isLoadingProducts}
-                className="download-btn"
-                title={`Generate PDF catalog for ${subcollectionsMap[selectedSubcollectionId]?.name || 'category'}`}
-              >
-                <FaDownload />
-                {isFetchingMore ? 'Preparing PDF...' : 'Generate PDF'}
-              </button>
+             <button
+  onClick={() => {
+    setDownloadAction("pdf");
+    setShowDownloadOptions(true);
+  }}
+  disabled={isFetchingMore || isLoadingProducts}
+  className="download-btn"
+  title={`Generate PDF catalog for ${
+    subcollectionsMap[selectedSubcollectionId]?.name || "category"
+  }`}
+>
+  <FaDownload />
+  {isFetchingMore ? "Preparing PDF..." : "Generate PDF"}
+</button>
             </div>
           )}
           <div className="filter-group">
-            <button
-              onClick={handleDownloadCollectionImagesDirect}
-              className="download-btn"
-            >
-              <FaDownload />
-              {selectedSubcollectionId === "all"
-                ? "Download All Images"
-                : "Download Category Images"}
-            </button>
+      <button
+  onClick={() => {
+    setDownloadAction("images");
+    setShowDownloadOptions(true);
+  }}
+  className="download-btn"
+>
+  <FaDownload />
+  {selectedSubcollectionId === "all"
+    ? "Download All Images"
+    : "Download Category Images"}
+</button>
+
+{showDownloadOptions && (
+  <div className="download-options">
+
+    <div className="qty-range-inputs">
+      <label>Min Qty</label>
+      <input
+        type="number"
+        value={minDownloadQty}
+        onChange={(e) => setMinDownloadQty(e.target.value)}
+        placeholder="0"
+      />
+
+      <label>Max Qty</label>
+      <input
+        type="number"
+        value={maxDownloadQty}
+        onChange={(e) => setMaxDownloadQty(e.target.value)}
+        placeholder="100"
+      />
+    </div>
+
+    {downloadAction === "images" && (
+      <button
+        onClick={() => {
+          setShowDownloadOptions(false);
+          handleDownloadCollectionImagesDirect();
+        }}
+        className="download-confirm-btn"
+      >
+        Start Download
+      </button>
+    )}
+
+    {downloadAction === "pdf" && (
+      <button
+        onClick={() => {
+          setShowDownloadOptions(false);
+          handleGeneratePDF();
+        }}
+        className="download-confirm-btn"
+      >
+        Generate PDF
+      </button>
+    )}
+
+  </div>
+)}
+
 
             {isDownloadingImages && (
               <div className="download-progress-card">
@@ -1090,14 +1181,30 @@ const ProductsPage = () => {
         {/* END OF CONTROLS BLOCK */}
 
         {/* PRODUCTS GRID */}
-        {sortedProducts.length === 0 && !isLoadingProducts && !isFetchingMore ? (
-          <p className="no-products-message">
-            No products found for this selection. Please select a subcollection or adjust your filters.
-          </p>
-        ) : (
+{inStockProducts.length === 0 && !isLoadingProducts && !isFetchingMore ? (
+    <div className="no-products-message">
+
+    {selectedSubcollectionId !== "all" ? (
+      <>
+        <h3>🚧 Out of Stock</h3>
+        <p>
+          This category is currently out of stock.
+        </p>
+        <p>
+          Please check back soon — we are restocking new products.
+        </p>
+      </>
+    ) : (
+      <p>
+        No products found for this selection.
+      </p>
+    )}
+
+  </div>
+) : (
           <div className="products-grid collections-grid">
             {/* REAL PRODUCTS */}
-            {sortedProducts.map((product) => {
+            {inStockProducts.map((product) => {
               const price = getProductPrice(product, subcollectionsMap, pricingKey);
 
               const subcollection = subcollectionsMap[product.subcollectionId];

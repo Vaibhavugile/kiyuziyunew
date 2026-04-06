@@ -48,6 +48,8 @@ import StoreLogin from './pages/store/StoreLogin';
 import StoreSignup from './pages/store/StoreSignup';
 import { StoreAuthProvider } from './pages/store/StoreAuthContext';
 import DropshipperPayments from './pages/dropshipper/DropshipperPayments';
+import InventorySummaryPage from "./pages/InventorySummaryPage";
+import ProductSalesPage from './pages/ProductSalesPage';
 function App() {
   return (
     <AuthProvider>
@@ -96,6 +98,8 @@ function App() {
             <Route path="/admin/coupon-analytics" element={<CouponAnalytics />} />
             <Route path="/admin/seller-profits" element={<AdminSellerProfits />} />
 
+<Route path="/inventory/stock" element={<InventorySummaryPage />} />
+<Route path="/productsale" element={<ProductSalesPage />} />
 
             <Route
               path="/admin/barcode-printing"

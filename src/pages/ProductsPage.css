@@ -461,3 +461,34 @@ select, input[type="text"] {
   font-size: 12px;
   color: #555;
 }
+.download-options {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 8px;
+  width: 220px;
+}
+
+.qty-range-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.qty-range-inputs input {
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.download-confirm-btn {
+  margin-top: 10px;
+  width: 100%;
+  padding: 8px;
+  background: #0077ff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
