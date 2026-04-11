@@ -30,7 +30,7 @@ const DropshipperProducts = () => {
 
     const [selectedCollection, setSelectedCollection] = useState("");
     const [selectedSubcollection, setSelectedSubcollection] = useState("");
-
+const [autoEnableNewProducts, setAutoEnableNewProducts] = useState(false);
     const [baseTiers, setBaseTiers] = useState([]);
     const [sellerTiers, setSellerTiers] = useState([]);
 
@@ -285,7 +285,32 @@ const DropshipperProducts = () => {
     /* ===============================
     LOAD ENABLED PRODUCTS
     ================================ */
+useEffect(() => {
 
+    if (!currentUser || !selectedCollection || !selectedSubcollection) return;
+
+    const loadAutoEnable = async () => {
+
+        const ref = doc(
+            db,
+            "dropshipperSettings",
+            currentUser.uid
+        );
+
+        const snap = await getDoc(ref);
+
+        if (!snap.exists()) return;
+
+        const key = `${selectedCollection}_${selectedSubcollection}`;
+
+        setAutoEnableNewProducts(
+            snap.data()?.autoEnable?.[key] || false
+        );
+    };
+
+    loadAutoEnable();
+
+}, [currentUser, selectedCollection, selectedSubcollection]);
     useEffect(() => {
 
         if (!currentUser) return;
@@ -619,6 +644,29 @@ const DropshipperProducts = () => {
         }));
 
     };
+    const toggleAutoEnable = async () => {
+
+    if (!currentUser) return;
+
+    const newValue = !autoEnableNewProducts;
+
+    setAutoEnableNewProducts(newValue);
+
+    const key = `${selectedCollection}_${selectedSubcollection}`;
+
+    const ref = doc(
+        db,
+        "dropshipperSettings",
+        currentUser.uid
+    );
+
+    await setDoc(ref, {
+        autoEnable: {
+            [key]: newValue
+        }
+    }, { merge: true });
+
+};
 
 
     /* ===============================
@@ -758,8 +806,22 @@ const DropshipperProducts = () => {
                                     : "Enable All Products"}
 
                             </button>
+                            
+<div style={{ marginTop: "10px" }}>
+<label style={{ display: "flex", gap: "8px" }}>
 
+<input
+    type="checkbox"
+    checked={autoEnableNewProducts}
+    onChange={toggleAutoEnable}
+/>
+
+Auto enable future products in this subcollection
+
+</label>
+</div>
                         </div>
+                        
 
                     )}
 

@@ -1532,6 +1532,64 @@ useEffect(() => {
 
     setCurrentImageIndex(currentImageIndex + 1);
   };
+  const autoEnableForDropshippers = async (productId, productData) => {
+
+  const settingsSnap = await getDocs(collection(db, "dropshipperSettings"));
+
+  for (const settingDoc of settingsSnap.docs) {
+
+    const userId = settingDoc.id;
+    const data = settingDoc.data();
+
+    const key = `${selectedMainCollectionId}_${selectedSubcollectionId}`;
+
+    // Skip if autoEnable not enabled for this subcollection
+    if (!data?.autoEnable?.[key]) continue;
+
+    const batch = writeBatch(db);
+
+    /* dropshipperProducts */
+
+    const dropshipperRef = doc(
+      db,
+      "dropshipperProducts",
+      userId,
+      "products",
+      productId
+    );
+
+    batch.set(dropshipperRef, {
+      productId,
+      collectionId: selectedMainCollectionId,
+      subcollectionId: selectedSubcollectionId,
+      enabled: true,
+      updatedAt: Date.now()
+    });
+
+    /* storeProducts */
+
+    const storeRef = doc(
+      db,
+      "storeProducts",
+      userId,
+      "products",
+      productId
+    );
+
+    batch.set(storeRef, {
+      productId,
+      productName: productData.productName,
+      productCode: productData.productCode,
+      image: productData.image,
+      collectionId: selectedMainCollectionId,
+      subcollectionId: selectedSubcollectionId,
+      enabled: true,
+      updatedAt: Date.now()
+    });
+
+    await batch.commit();
+  }
+};
   const handleAddAllProducts = async (e) => {
     e.preventDefault();
     setIsProductUploading(true);
@@ -1615,11 +1673,31 @@ useEffect(() => {
 
         console.log("Saving product:", productData);
 
-        const newDocRef = doc(productCollectionRef);
-        batch.set(newDocRef, productData);
+       const newDocRef = doc(productCollectionRef);
+batch.set(newDocRef, productData);
+
+/* SAVE PRODUCT ID FOR AUTO ENABLE */
+
+product.autoEnableId = newDocRef.id;
+product.autoEnableData = productData;
       }
 
       await batch.commit();
+
+/* AUTO ENABLE FOR DROPSHIPPERS */
+
+for (const product of newProducts) {
+
+  if (product.autoEnableId) {
+
+    await autoEnableForDropshippers(
+      product.autoEnableId,
+      product.autoEnableData
+    );
+
+  }
+
+}
 
       alert("All products added successfully!");
       fetchProducts();
