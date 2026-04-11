@@ -1604,8 +1604,11 @@ useEffect(() => {
           additionalImages: additionalImageUrls,    // ✅ REQUIRED BY ProductCard
 
           quantity: totalQuantity,
-          variations: finalVariations,
-
+            initialQuantity: totalQuantity, 
+  variations: finalVariations.map(v => ({
+    ...v,
+    initialQuantity: v.quantity      // ✅ SAVE INITIAL VARIANT STOCK
+  })),
           mainCollection: selectedMainCollectionId,
           createdAt: serverTimestamp(),
         };
@@ -1730,11 +1733,12 @@ useEffect(() => {
       let finalQuantity = 0;
 
       if (productVariations.length > 0) {
-        finalVariations = productVariations.map(v => ({
-          color: v.color || "",
-          size: v.size || "",
-          quantity: Number(v.quantity) || 0,
-        }));
+   finalVariations = productVariations.map(v => ({
+  color: v.color || "",
+  size: v.size || "",
+  quantity: Number(v.quantity) || 0,
+  initialQuantity: (v.initialQuantity ?? Number(v.quantity)) || 0
+}));
 
         finalQuantity = finalVariations.reduce(
           (sum, v) => sum + v.quantity,

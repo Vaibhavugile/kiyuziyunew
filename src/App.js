@@ -50,6 +50,8 @@ import { StoreAuthProvider } from './pages/store/StoreAuthContext';
 import DropshipperPayments from './pages/dropshipper/DropshipperPayments';
 import InventorySummaryPage from "./pages/InventorySummaryPage";
 import ProductSalesPage from './pages/ProductSalesPage';
+import RefundPolicy from './pages/RefundPolicy';
+import CancellationPolicy from './pages/CancellationPolicy';
 function App() {
   return (
     <AuthProvider>
@@ -83,6 +85,8 @@ function App() {
             <Route path="/admin/orders/edit" element={<OrderEditPage />} />
             <Route path="/admin/bulk" element={<BulkEnquiryList />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/refund-policy" element={<RefundPolicy />} />
+            <Route path="/cancellation-policy" element={<CancellationPolicy />} />
             <Route
               path="/admin/coupons"
               element={<CouponAdmin />}

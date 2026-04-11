@@ -139,10 +139,17 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="fj-bottom">
-          <p>© {new Date().getFullYear()} Kiyuziyu-By Tanishka · All rights reserved</p>
-          <p className="fj-credits">Made with ♥ · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
-        </div>
+       <div className="fj-bottom">
+  <p>© {new Date().getFullYear()} Kiyuziyu-By Tanishka · All rights reserved</p>
+
+  <p className="fj-credits">
+    Made with ♥ · 
+    <a href="/terms">Terms</a> · 
+    <a href="/privacy">Privacy</a> · 
+    <a href="/refund-policy">Refund Policy</a> · 
+    <a href="/cancellation-policy">Cancellation Policy</a>
+  </p>
+</div>
       </footer>
 
       {/* back-to-top */}

@@ -43,7 +43,7 @@ const getTierData = (tiers, quantity) => {
 
 };
 
-const SHIPPING_FEE = 199;
+const SHIPPING_FEE = 0;
 
 const StoreCheckoutPage = () => {
 
