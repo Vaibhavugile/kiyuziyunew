@@ -12,36 +12,43 @@ const [password,setPassword] = useState("");
 
 const navigate = useNavigate();
 
-const handleLogin = async(e)=>{
+const handleLogin = async (e) => {
+  e.preventDefault();
 
-e.preventDefault();
+  try {
+    const res = await signInWithEmailAndPassword(auth, email, password);
 
-try{
+    const userRef = doc(db, "users", res.user.uid);
+    const userSnap = await getDoc(userRef);
 
-const res = await signInWithEmailAndPassword(auth,email,password);
+    if (!userSnap.exists()) {
+      alert("User profile not found");
+      return;
+    }
 
-const userRef = doc(db,"users",res.user.uid);
-const userSnap = await getDoc(userRef);
+    const userData = userSnap.data();
 
-const userData = userSnap.data();
+    // role check
+    if (userData.role !== "dropshipper") {
+      alert("Not a dropshipper account");
+      return;
+    }
 
-if(userData.role !== "dropshipper"){
-alert("Not a dropshipper account");
-return;
-}
+    // active check (only block if explicitly false)
+    if (userData.isActive === false) {
+      alert("Your account is disabled. Please contact support.");
+      return;
+    }
 
-if(!userData.storeSlug){
-navigate("/dropshipper/setup");
-}else{
-navigate("/dropshipper/dashboard");
-}
+    if (!userData.storeSlug) {
+      navigate("/dropshipper/setup");
+    } else {
+      navigate("/dropshipper/dashboard");
+    }
 
-}catch(err){
-
-alert(err.message);
-
-}
-
+  } catch (err) {
+    alert(err.message);
+  }
 };
 
 return(

@@ -3,7 +3,7 @@ import {
     collection,
     getDocs,
     updateDoc,
-    doc
+    doc,runTransaction
 } from "firebase/firestore";
 
 import { db } from "../firebase";
@@ -20,6 +20,7 @@ const AdminStoreOrders = () => {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [statusFilter,setStatusFilter] = useState("All");
+    const [downloadingId, setDownloadingId] = useState(null);
     /* ================= LOAD DATA ================= */
 
     useEffect(() => {
@@ -146,73 +147,316 @@ totalQty
         });
 
     };
+    const cancelOrder = async (order) => {
+    
+    console.log("🚨 Cancel order clicked:", order);
+    
+    try {
+    
+    await runTransaction(db, async (transaction) => {
+    
+    /* =====================
+    READ PRODUCTS
+    ===================== */
+    
+    const productDocs = [];
+    
+    for (const item of order.items) {
+    
+    console.log("📦 Processing item:", item);
+    
+    const ref = doc(
+    db,
+    "collections",
+    item.collectionId,
+    "subcollections",
+    item.subcollectionId,
+    "products",
+    item.productId
+    );
+    
+    const snap = await transaction.get(ref);
+    
+    if (!snap.exists()) {
+    console.log("❌ Product not found:", item.productId);
+    continue;
+    }
+    
+    productDocs.push({
+    ref,
+    data: snap.data(),
+    item
+    });
+    
+    }
+    
+    /* =====================
+    GROUP ITEMS BY PRODUCT
+    ===================== */
+    
+    const groupedProducts = {};
+    
+    productDocs.forEach(p => {
+    
+    const key = p.ref.path;
+    
+    if (!groupedProducts[key]) {
+    groupedProducts[key] = {
+    ref: p.ref,
+    data: JSON.parse(JSON.stringify(p.data)),
+    items: []
+    };
+    }
+    
+    groupedProducts[key].items.push(p.item);
+    
+    });
+    
+    /* =====================
+    UPDATE STOCK
+    ===================== */
+    
+    for (const group of Object.values(groupedProducts)) {
+    
+    const { ref, data, items } = group;
+    
+    console.log("📦 Updating grouped product:", ref.path);
+    
+    /* ===== VARIANT PRODUCT ===== */
+    
+    /* ===== VARIANT PRODUCT ===== */
+    
+    if (data.variations && data.variations.length > 0) {
+    
+      let updatedVariations = [...data.variations];
+    
+      items.forEach(item => {
+    
+        if (!item.variation) return;
+    
+        const matchIndex = updatedVariations.findIndex(v =>
+          Object.keys(item.variation)
+            .filter(k => k !== "quantity")
+            .every(key => v[key] === item.variation[key])
+        );
+    
+        if (matchIndex === -1) {
+          console.log("❌ Variant not found", item.variation);
+          return;
+        }
+    
+        const currentQty = updatedVariations[matchIndex].quantity || 0;
+        const newQty = currentQty + item.quantity;
+    
+        updatedVariations[matchIndex] = {
+          ...updatedVariations[matchIndex],
+          quantity: newQty
+        };
+    
+      });
+    
+      transaction.update(ref, {
+        variations: updatedVariations
+      });
+    
+    }
+    
+    /* ===== NORMAL PRODUCT ===== */
+    
+    else {
+    
+      let newStock = data.quantity || 0;
+    
+      items.forEach(item => {
+        newStock += item.quantity;
+      });
+    
+      console.log(`📈 Normal stock updated to: ${newStock}`);
+    
+      transaction.update(ref, {
+        quantity: newStock
+      });
+    
+    }
+    
+    }
+    
+    /* =====================
+    UPDATE ORDER STATUS
+    ===================== */
+    
+    const orderRef = doc(db, "storeOrders", order.id);
+    
+    console.log("🧾 Updating order status → Cancelled");
+    
+    transaction.update(orderRef, {
+    status: "Cancelled",
+    cancelledAt: Date.now()
+    });
+    
+    });
+    
+    console.log("✅ Transaction finished");
+    
+    /* =====================
+    UPDATE UI STATE
+    ===================== */
+    
+    setOrders(prev =>
+    prev.map(o =>
+    o.id === order.id
+    ? { ...o, status: "Cancelled" }
+    : o
+    )
+    );
+    
+    
+    
+    } catch (err) {
+    
+    console.error("❌ Cancel order failed:", err);
+    
+    }
+    
+    };
+const generateOrderPDF = async (order) => {
 
-    const generateOrderPDF = async (order) => {
+    setDownloadingId(order.id);
+
+    try {
 
         const docPdf = new jsPDF();
+
+        /* HEADER */
 
         docPdf.setFontSize(18);
         docPdf.text("Order Invoice", 14, 20);
 
         docPdf.setFontSize(11);
-
         docPdf.text(`Order ID: ${order.id}`, 14, 35);
-
-        docPdf.text(`Customer: ${order.billingInfo?.fullName}`, 14, 42);
-
-        docPdf.text(`Phone: ${order.billingInfo?.phoneNumber}`, 14, 49);
-
-        docPdf.text(`City: ${order.billingInfo?.city}`, 14, 56);
+        docPdf.text(`Customer: ${order.billingInfo?.fullName || ""}`, 14, 42);
+        docPdf.text(`Phone: ${order.billingInfo?.phoneNumber || ""}`, 14, 49);
+        docPdf.text(`City: ${order.billingInfo?.city || ""}`, 14, 56);
 
         let y = 70;
 
-        docPdf.setFontSize(14);
-        docPdf.text("Products", 14, y);
+        /* TABLE HEADER */
 
-        y += 10;
+        docPdf.setFontSize(11);
 
-        for (const item of order.items) {
+        docPdf.text("Image", 14, y);
+        docPdf.text("Product", 35, y);
+        docPdf.text("Code", 120, y);
+        docPdf.text("Qty", 150, y);
+        docPdf.text("Price", 170, y);
 
-            let base64 = null;
+        y += 4;
+        docPdf.line(14, y, 196, y);
+        y += 8;
 
-            const imgUrl = item.images?.[0]?.url || item.image;
+        docPdf.setFontSize(10);
+
+        /* PRODUCTS */
+
+        for (const item of order.items || []) {
+
+            if (y > 260) {
+
+                docPdf.addPage();
+                y = 20;
+
+                docPdf.setFontSize(11);
+                docPdf.text("Image", 14, y);
+                docPdf.text("Product", 35, y);
+                docPdf.text("Code", 120, y);
+                docPdf.text("Qty", 150, y);
+                docPdf.text("Price", 170, y);
+
+                y += 4;
+                docPdf.line(14, y, 196, y);
+                y += 8;
+
+                docPdf.setFontSize(10);
+            }
+
+            /* IMAGE */
 
             try {
-                base64 = await getBase64FromUrl(imgUrl);
-            } catch { }
 
-            if (base64) {
-                docPdf.addImage(base64, "JPEG", 14, y, 25, 25);
+                const imgUrl = item.images?.[0]?.url || item.image;
+
+                if (imgUrl) {
+
+                    const res = await fetch(imgUrl);
+                    const blob = await res.blob();
+
+                    const reader = new FileReader();
+
+                    const base64 = await new Promise(resolve => {
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(blob);
+                    });
+
+                    docPdf.addImage(base64, "JPEG", 14, y - 4, 16, 16);
+                }
+
+            } catch (e) {
+                console.log("Image load failed");
             }
 
-            docPdf.setFontSize(10);
+            /* PRODUCT TEXT */
 
-            docPdf.text(item.productName, 45, y + 6);
-            docPdf.text(`Code: ${item.productCode}`, 45, y + 12);
+            let productText = item.productName || "-";
 
             if (item.variationLabel) {
-                docPdf.text(`Variant: ${item.variationLabel}`, 45, y + 18);
+                productText += ` (${item.variationLabel})`;
             }
 
-            docPdf.text(`Qty: ${item.quantity}`, 130, y + 6);
-            docPdf.text(`Price: ₹${item.priceAtTimeOfOrder}`, 130, y + 12);
+            const wrappedText = docPdf.splitTextToSize(productText, 75);
 
-            y += 32;
+            docPdf.text(wrappedText, 35, y);
 
+            docPdf.text(item.productCode || "-", 120, y);
+            docPdf.text(String(item.quantity || 0), 150, y);
+
+            const price = Number(item.priceAtTimeOfOrder || 0)
+                .toLocaleString("en-IN");
+
+            docPdf.text(`Rs ${price}`, 170, y);
+
+            y += Math.max(wrappedText.length * 6, 18);
         }
 
+        /* TOTALS */
+
         y += 10;
+
+        if (y > 260) {
+            docPdf.addPage();
+            y = 20;
+        }
+
+        const subtotal = Number(order.subtotal || 0).toLocaleString("en-IN");
+        const shipping = Number(order.shippingFee || 0).toLocaleString("en-IN");
+        const total = Number(order.totalAmount || 0).toLocaleString("en-IN");
 
         docPdf.setFontSize(12);
 
-        docPdf.text(`Subtotal: ₹${order.subtotal}`, 14, y);
-        docPdf.text(`Shipping: ₹${order.shippingFee}`, 14, y + 8);
-        docPdf.text(`Total: ₹${order.totalAmount}`, 14, y + 16);
+        docPdf.text(`Subtotal: Rs ${subtotal}`, 14, y);
+        docPdf.text(`Shipping: Rs ${shipping}`, 14, y + 8);
+        docPdf.text(`Total: Rs ${total}`, 14, y + 16);
 
-        docPdf.save(`order-${order.id}.pdf`);
+        /* OPEN PDF */
 
-    };
+        const pdfBlobUrl = docPdf.output("bloburl");
+        window.open(pdfBlobUrl);
 
+    } finally {
+
+        setDownloadingId(null);
+
+    }
+};
    const filteredOrders = orders.filter(order=>{
 
 const seller = sellers[order.sellerId];
@@ -360,15 +604,15 @@ const profit = summary.profit;
 
                                         <div className="order-actions">
 
-                                            <button
-                                                className="btn-view"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    generateOrderPDF(order);
-                                                }}
-                                            >
-                                                View PDF
-                                            </button>
+                                           <button
+disabled={downloadingId === order.id}
+onClick={(e) => {
+    e.stopPropagation();
+    generateOrderPDF(order);
+}}
+>
+{downloadingId === order.id ? "Downloading PDF..." : "View PDF"}
+</button>
 
                                             {order.status === "Pending" && (
 
@@ -385,7 +629,7 @@ const profit = summary.profit;
 
                                                 <button
                                                     className="btn-cancel"
-                                                    onClick={() => updateOrderStatus(order, "Cancelled")}
+                                                    onClick={() => cancelOrder(order)}
                                                 >
                                                     Cancel Order
                                                 </button>
