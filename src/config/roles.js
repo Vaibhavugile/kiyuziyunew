@@ -18,7 +18,7 @@ export const ROLE_CONFIG = {
     pricingKey: 'retail',
 
     // 💳 PAYMENT
-    paymentMode: 'MANUAL', // ✅ Razorpay enabled
+    paymentMode: 'ONLINE', // ✅ Razorpay enabled
   },
 
   wholesaler: {

@@ -3493,6 +3493,7 @@ localStorage.removeItem("offlineBillingDraft");
     sales: [
       "leads",
       "users",
+      "offline-billing",
 
     ],
 

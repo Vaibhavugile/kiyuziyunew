@@ -2,7 +2,7 @@
 // ✅ Multi-role ready, UI-only, pricing logic removed from component
 
 import React, { useState, useEffect } from 'react';
-import './ProductCard.css';
+import './StoreProductCard.css';
 import Zoom from 'react-medium-image-zoom';
 import 'react-medium-image-zoom/dist/styles.css';
 import { getCartItemId } from "../pages/store/StoreCartContext";
@@ -175,147 +175,154 @@ const getTierPrice = (tiers, qty) => {
   /* =====================
      RENDER
   ===================== */
-  return (
-    <div className={`product-card ${isOutOfStock ? 'out-of-stock' : ''}`}>
-      {isOutOfStock && (
-        <div className="out-of-stock-overlay">Out of Stock</div>
+return (
+  <div className={`storeproductcard-container ${isOutOfStock ? "storeproductcard-out-of-stock" : ""}`}>
+
+    {isOutOfStock && (
+      <div className="storeproductcard-stock-overlay">Out of Stock</div>
+    )}
+
+    {/* IMAGE */}
+    <div className="storeproductcard-image-wrapper">
+      <Zoom>
+        <ProgressiveImage
+          src={mainImage}
+          alt={productName}
+          className="storeproductcard-image"
+        />
+      </Zoom>
+    </div>
+
+    {/* INFO */}
+    <div className="storeproductcard-info">
+
+      {/* TITLE */}
+      <h4 className="storeproductcard-title">{productName}</h4>
+
+      {/* PRICE */}
+      <p className="storeproductcard-price">
+        ₹{Number(cartQuantity > 0 ? unitPrice : startingPrice || 0).toFixed(2)}
+      </p>
+
+      {/* CODE + STOCK */}
+      <div className="storeproductcard-meta">
+        <span className="storeproductcard-code">{productCode}</span>
+        <span className="storeproductcard-stock">Stock {availableStock}</span>
+      </div>
+
+      {/* BULK PRICING */}
+      {tiers.length > 1 && (
+        <>
+          <button
+            className="storeproductcard-bulk-toggle-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowTiers(!showTiers);
+            }}
+          >
+            {showTiers ? "Hide bulk price" : "Bulk price"}
+          </button>
+
+          {showTiers && (
+            <div className="storeproductcard-tier-container">
+              {tiers.map((tier, i) => {
+
+                const isUnlocked =
+                  cartQuantity >= tier.min_quantity &&
+                  (!tier.max_quantity || cartQuantity <= tier.max_quantity);
+
+                return (
+                  <div
+                    key={i}
+                    className={`storeproductcard-tier-row ${
+                      isUnlocked ? "storeproductcard-tier-active" : ""
+                    }`}
+                  >
+                    {tier.min_quantity}
+                    {tier.max_quantity ? `–${tier.max_quantity}` : "+"}
+                    {" "}₹{tier.price}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
-      {/* IMAGE */}
-   <div className="product-image-container">
-  <Zoom>
-    <ProgressiveImage
-      src={mainImage}
-      alt={productName}
-      className="product-image"
-    />
-  </Zoom>
-</div>
+      {/* VARIATIONS */}
+      {variations?.length > 0 && (
+        <div className="storeproductcard-variations">
 
+          {variations.map((v, i) => {
 
+            const cleanVar = Object.fromEntries(
+              Object.entries(v).filter(([k]) => k !== "quantity")
+            );
 
-      {/* INFO */}
-      <div className="product-info">
-        <h4 className="product-title">{productName}</h4>
-        <p className="product-code">{productCode}</p>
+            const idForVar = getCartItemId({
+              ...product,
+              variation: cleanVar,
+            });
 
-        {/* PRICE */}
-        {cartQuantity > 0 ? (
-          <p className="product-price">
-            ₹{Number(unitPrice).toFixed(2)} / unit
-          </p>
-        ) : (
-          startingPrice !== null && (
-            <p className="product-price">
-              From ₹{startingPrice.toFixed(2)} / unit
-            </p>
-          )
-        )}
+            const qtyInCart = cart?.[idForVar]?.quantity || 0;
 
-        {/* BULK PRICING (POLISHED UI) */}
-        {tiers.length > 1 && (
-  <>
-    <button
-      className="bulk-toggle-btn"
-      onClick={(e) => {
-        e.stopPropagation();
-        setShowTiers(!showTiers);
-      }}
-    >
-      {showTiers ? 'Hide bulk prices' : 'View bulk prices'}
-    </button>
+            return (
+              <button
+                key={i}
+                className={`storeproductcard-variation-btn ${
+                  selectedVariation === v
+                    ? "storeproductcard-variation-selected"
+                    : ""
+                }`}
+                onClick={() => setSelectedVariation(v)}
+              >
+                {v.color} {v.size}
+                {qtyInCart > 0 && (
+                  <span className="storeproductcard-variation-cartqty">
+                    {qtyInCart}
+                  </span>
+                )}
+              </button>
+            );
+          })}
 
-    {showTiers && (
-      <div className="tiered-pricing-container">
-        {tiers.map((tier, i) => {
-          const isUnlocked =
-            cartQuantity >= tier.min_quantity &&
-            (!tier.max_quantity || cartQuantity <= tier.max_quantity);
+        </div>
+      )}
 
-          return (
-            <div
-              key={i}
-              className={`pricing-tier-row ${
-                isUnlocked ? 'active-tier' : ''
-              }`}
-            >
-              Buy {tier.min_quantity}
-              {tier.max_quantity ? `–${tier.max_quantity}` : '+'}
-              {' '}@ ₹{tier.price} each
-            </div>
-          );
-        })}
-      </div>
-    )}
-  </>
-)}
+    </div>
 
+    {/* ACTIONS */}
+    <div className="storeproductcard-actions">
 
-        <p className="product-quantity">
-          In Stock: {availableStock}
-        </p>
+      {cartQuantity === 0 ? (
+        <button
+          className="storeproductcard-add-btn"
+          onClick={() => onIncrement(productWithVariation)}
+          disabled={isMaxStockReached}
+        >
+          {isMaxStockReached ? "Out of Stock" : "Add to Cart"}
+        </button>
+      ) : (
+        <div className="storeproductcard-qty-controls">
 
-        {/* VARIATIONS */}
-        {variations && variations.length > 0 && (
-          <div className="variations-selector">
-            {variations.map((v, i) => {
-              const cleanVar = Object.fromEntries(
-  Object.entries(v).filter(([k]) => k !== "quantity")
-);
+          <button onClick={() => onDecrement(cartItemId)}>-</button>
 
-const idForVar = getCartItemId({
-  ...product,
-  variation: cleanVar,
-});
+          <span>{cartQuantity}</span>
 
-              const qtyInCart = cart?.[idForVar]?.quantity || 0;
-
-              return (
-                <button
-                  key={i}
-                  className={`variation-btn ${
-                    selectedVariation === v ? 'selected' : ''
-                  }`}
-                  onClick={() => setSelectedVariation(v)}
-                >
-                  {v.color} {v.size}
-                  {qtyInCart > 0 && (
-                    <span className="variation-cart-qty">
-                      ({qtyInCart})
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ACTIONS */}
-      <div className="product-actions">
-        {cartQuantity === 0 ? (
           <button
-            className="add-to-cart-btn"
             onClick={() => onIncrement(productWithVariation)}
             disabled={isMaxStockReached}
           >
-            {isMaxStockReached ? 'Out of Stock' : 'Add to Cart'}
+            +
           </button>
-        ) : (
-          <div className="quantity-controls">
-            <button onClick={() => onDecrement(cartItemId)}>-</button>
-            <span>{cartQuantity}</span>
-            <button
-              onClick={() => onIncrement(productWithVariation)}
-              disabled={isMaxStockReached}
-            >
-              +
-            </button>
-          </div>
-        )}
-      </div>
+
+        </div>
+      )}
+
     </div>
-  );
+
+  </div>
+);
 };
 
 export default StoreProductCard;

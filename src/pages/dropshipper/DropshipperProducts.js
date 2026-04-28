@@ -807,18 +807,40 @@ useEffect(() => {
 
                             </button>
                             
-<div style={{ marginTop: "10px" }}>
-<label style={{ display: "flex", gap: "8px" }}>
-
-<input
+<div
+  style={{
+    marginTop: "14px",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "10px 14px",
+    background: "#f7f7f7",
+    borderRadius: "8px",
+    width: "fit-content",
+    border: "1px solid #e5e5e5"
+  }}
+>
+  <input
     type="checkbox"
     checked={autoEnableNewProducts}
     onChange={toggleAutoEnable}
-/>
+    style={{
+      width: "18px",
+      height: "18px",
+      cursor: "pointer",
+      accentColor: "#007bff"
+    }}
+  />
 
-Auto enable future products in this subcollection
-
-</label>
+  <span
+    style={{
+      fontSize: "14px",
+      fontWeight: "500",
+      color: "#333"
+    }}
+  >
+    Auto enable future products in this subcollection
+  </span>
 </div>
                         </div>
                         
@@ -896,22 +918,40 @@ Auto enable future products in this subcollection
                                 </p>
 
                             )}
+<label
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    marginTop: "12px",
+    cursor: "pointer"
+  }}
+>
 
-                            <label style={{
-                                display: "flex",
-                                gap: "8px",
-                                marginTop: "10px"
-                            }}>
+  <input
+    type="checkbox"
+    checked={enabledProducts[p.id] || false}
+    onChange={() => toggleProduct(p)}
+    style={{
+      width: "26px",
+      height: "26px",
+      cursor: "pointer",
+      accentColor: "#0d6efd",
+      borderRadius: "6px"
+    }}
+  />
 
-                                <input
-                                    type="checkbox"
-                                    checked={enabledProducts[p.id] || false}
-                                    onChange={() => toggleProduct(p)}
-                                />
+  <span
+    style={{
+      fontSize: "14px",
+      fontWeight: "500",
+      color: "#333"
+    }}
+  >
+    Show in my store
+  </span>
 
-                                Show in my store
-
-                            </label>
+</label>
 
                         </div>
 
