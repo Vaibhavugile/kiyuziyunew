@@ -81,7 +81,22 @@ const BarcodePrintingPage = () => {
     setSelectedProductIds([]);
     fetchSubcollections();
   }, [selectedCollectionId]);
+const getProductQty = (product) => {
+  const variants =
+    product.variations ||
+    product.variants ||
+    product.variation ||
+    [];
 
+  if (Array.isArray(variants) && variants.length > 0) {
+    return variants.reduce(
+      (sum, v) => sum + Number(v.quantity || 0),
+      0
+    );
+  }
+
+  return Number(product.quantity || 0);
+};
   /* ================= FETCH PRODUCTS ================= */
  useEffect(() => {
   if (!selectedSubcollectionId) {
@@ -102,11 +117,12 @@ const BarcodePrintingPage = () => {
       )
     );
 
-    const productsData = snap.docs.map(d => ({
-      id: d.id,
-      ...d.data(),
-    }));
-
+  const productsData = snap.docs
+  .map(d => ({
+    id: d.id,
+    ...d.data(),
+  }))
+  .filter(product => getProductQty(product) > 0);
     // Sort newest first (supports timestamp OR createdAt)
     productsData.sort((a, b) => {
       const timeA = (a.timestamp || a.createdAt)?.seconds || 0;

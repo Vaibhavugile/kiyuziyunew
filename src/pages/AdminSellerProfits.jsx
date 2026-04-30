@@ -78,15 +78,16 @@ loadData();
 SELLER STATS
 ========================= */
 
-const getSellerStats = (sellerId)=>{
+const getSellerStats = (sellerId) => {
 
 const sellerOrders = orders.filter(
 o => o.sellerId === sellerId && o.status !== "Cancelled"
 );
 
 let revenue = 0;
-let profit = 0;
-let costTotal = 0;
+let sellerProfit = 0;
+let adminProfit = 0;
+let adminPurchaseTotal = 0;
 let shippingTotal = 0;
 
 sellerOrders.forEach(order=>{
@@ -95,23 +96,28 @@ revenue += order.totalAmount || 0;
 
 shippingTotal += order.shippingFee || 0;
 
+/* ADMIN VALUES (already stored in order) */
+
+adminProfit += order.adminProfit || 0;
+adminPurchaseTotal += order.adminPurchaseTotal || 0;
+
+/* SELLER PROFIT */
+
 (order.items || []).forEach(item=>{
 
 const selling = item.priceAtTimeOfOrder || 0;
 const cost = item.costPrice || 0;
 const qty = item.quantity || 0;
 
-profit += (selling - cost) * qty;
-
-costTotal += cost * qty;
+sellerProfit += (selling - cost) * qty;
 
 });
 
 });
 
-/* ADMIN PAYABLE */
+/* ADMIN PAYABLE TO SELLER */
 
-const adminPayable = costTotal + shippingTotal;
+const adminPayable = adminPurchaseTotal + shippingTotal;
 
 /* PAYMENTS RECEIVED */
 
@@ -131,7 +137,8 @@ const pending = adminPayable - received;
 return{
 orders: sellerOrders.length,
 revenue,
-profit,
+sellerProfit,
+adminProfit,
 adminPayable,
 received,
 pending
@@ -164,7 +171,8 @@ return(
 <div>Seller</div>
 <div>Total Orders</div>
 <div>Revenue</div>
-<div>Profit</div>
+<div>Seller Profit</div>
+<div>Admin Profit</div>
 <div>Admin Payable</div>
 <div>Admin Payment Received</div>
 <div>Admin Payment Pending</div>
@@ -183,22 +191,26 @@ return(
 
 <div>{stats.orders}</div>
 
-<div>₹{stats.revenue}</div>
+<div>₹{Number(stats.revenue).toFixed(2)}</div>
 
 <div className="profit">
-₹{stats.profit}
+₹{Number(stats.sellerProfit ).toFixed(2)}
+</div>
+
+<div className="admin-profit">
+₹{Number(stats.adminProfit ).toFixed(2)}
 </div>
 
 <div className="admin-payable">
-₹{stats.adminPayable}
+₹{Number(stats.adminPayable ).toFixed(2)}
 </div>
 
 <div className="paid">
-₹{stats.received}
+₹{Number(stats.received ).toFixed(2)}
 </div>
 
 <div className="pending">
-₹{stats.pending}
+₹{Number(stats.pending).toFixed(2)}
 </div>
 
 </div>

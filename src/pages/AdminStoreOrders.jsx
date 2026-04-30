@@ -3,7 +3,8 @@ import {
     collection,
     getDocs,
     updateDoc,
-    doc,runTransaction
+    doc,runTransaction,
+    getDoc
 } from "firebase/firestore";
 
 import { db } from "../firebase";
@@ -45,7 +46,10 @@ const AdminStoreOrders = () => {
 
                     });
 
-                setOrders(ordersList);
+   await calculateAdminProfits(ordersList);
+
+setOrders(ordersList);
+
 
                 /* SELLERS */
 
@@ -107,7 +111,91 @@ totalQty
 };
 
     /* ================= UPDATE STATUS ================= */
+const calculateAdminProfits = async (ordersList) => {
 
+const subcollections = new Set();
+
+/* COLLECT UNIQUE SUBCOLLECTIONS */
+
+ordersList.forEach(order => {
+(order.items || []).forEach(item => {
+subcollections.add(`${item.collectionId}_${item.subcollectionId}`);
+});
+});
+
+/* FETCH PURCHASE RATES ONCE */
+
+const purchaseRateMap = {};
+
+await Promise.all(
+
+[...subcollections].map(async key => {
+
+const [collectionId, subcollectionId] = key.split("_");
+
+const ref = doc(
+db,
+"collections",
+collectionId,
+"subcollections",
+subcollectionId
+);
+
+const snap = await getDoc(ref);
+
+purchaseRateMap[key] = snap.exists()
+? snap.data().purchaseRate || 0
+: 0;
+
+})
+
+);
+
+/* CALCULATE PROFITS */
+
+ordersList.forEach(order => {
+
+if (order.adminProfit !== undefined) return;
+
+let storeCostTotal = 0;
+let adminPurchaseTotal = 0;
+
+(order.items || []).forEach(item => {
+
+const qty = item.quantity || 0;
+
+const key = `${item.collectionId}_${item.subcollectionId}`;
+
+const purchaseRate = purchaseRateMap[key] || 0;
+
+storeCostTotal += (item.costPrice || 0) * qty;
+adminPurchaseTotal += purchaseRate * qty;
+
+});
+
+order.adminProfit = storeCostTotal - adminPurchaseTotal;
+order.adminPurchaseTotal = adminPurchaseTotal;
+
+});
+
+/* SAVE TO FIRESTORE */
+
+await Promise.all(
+
+ordersList
+.filter(order => order.adminProfit !== undefined)
+.map(order =>
+
+updateDoc(doc(db, "storeOrders", order.id), {
+adminProfit: order.adminProfit,
+adminPurchaseTotal: order.adminPurchaseTotal
+})
+
+)
+
+);
+
+};
     const updateOrderStatus = async (order, status) => {
 
         try {
@@ -532,6 +620,7 @@ className="orders-filter"
 
                     const summary = calculateOrderSummary(order);
 const profit = summary.profit;
+const adminProfit = order.adminProfit || 0;
 
                     const isExpanded = expandedOrder === order.id;
 
@@ -575,6 +664,12 @@ const profit = summary.profit;
 <div className="order-payable">
 ₹{summary.payableToAdmin}
 </div>
+<div className="order-profit">
+₹{adminProfit}
+</div>
+
+
+
 
                             </div>
 
@@ -601,6 +696,7 @@ const profit = summary.profit;
                                         <p><strong>City:</strong> {order.billingInfo?.city}</p>
 
                                         <p><strong>Date:</strong> {formatDate(order.createdAt)}</p>
+                                                    <p><strong>Admin Profit:</strong> ₹{order.adminProfit || 0}</p>
 
                                         <div className="order-actions">
 

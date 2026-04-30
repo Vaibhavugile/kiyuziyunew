@@ -80,7 +80,23 @@ const ProductSalesPage = () => {
     }, [selectedCollection]);
 
 
+const getInitialQty = (product) => {
 
+  const variants =
+    product.variations ||
+    product.variants ||
+    product.variation ||
+    [];
+
+  if (Array.isArray(variants) && variants.length > 0) {
+    return variants.reduce(
+      (sum, v) => sum + Number(v.initialQuantity || 0),
+      0
+    );
+  }
+
+  return Number(product.initialQuantity || 0);
+};
     /* -----------------------------
     LOAD PRODUCTS
     ----------------------------- */
@@ -102,14 +118,21 @@ const ProductSalesPage = () => {
                 )
             );
 
-            setProducts(
-                snap.docs.map(d => ({
-                    id: d.id,
-                    name: d.data().productName,
-                    productCode: d.data().productCode || "",
-                    type: d.data().type || ""
-                }))
-            );
+          setProducts(
+  snap.docs.map(d => {
+
+    const data = d.data();
+
+    return {
+      id: d.id,
+      name: data.productName,
+      productCode: data.productCode || "",
+      type: data.type || "",
+      initialQty: getInitialQty(data)
+    };
+
+  })
+);
 
         };
 
@@ -207,6 +230,8 @@ const ProductSalesPage = () => {
             .toLowerCase()
             .includes(productSearch.toLowerCase())
     );
+
+    const selectedProductData = products.find(p => p.id === selectedProduct);
     /* -----------------------------
     UI
     ----------------------------- */
@@ -302,6 +327,7 @@ setShowProductDropdown(false);
 <span className="product-type">{p.type}</span>
 )}
 
+
 </div>
 
 ))}
@@ -311,6 +337,11 @@ setShowProductDropdown(false);
 )}
 
 </div>
+{selectedProductData && (
+  <div className="stock-info">
+    Initial Stock: {selectedProductData.initialQty}
+  </div>
+)}
 
 
             {/* RANGE BUTTONS */}
