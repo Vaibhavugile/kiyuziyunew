@@ -20,7 +20,7 @@ const DropshipperOrders = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expandedOrder, setExpandedOrder] = useState(null);
-
+const [downloadingId, setDownloadingId] = useState(null);
     /* =========================
     LOAD SELLER ORDERS
     ========================= */
@@ -293,97 +293,142 @@ console.error("❌ Cancel order failed:", err);
         });
     };
     const generateOrderPDF = async (order) => {
-
-        const doc = new jsPDF();
-
-        doc.setFontSize(18);
-        doc.text("Order Invoice", 14, 20);
-
-        doc.setFontSize(11);
-
-        doc.text(`Order ID: ${order.id}`, 14, 35);
-        doc.text(`Date: ${formatDate(order.createdAt)}`, 14, 42);
-
-        /* CUSTOMER */
-
-        doc.text("Customer Details:", 14, 55);
-
-        doc.text(`Name: ${order.billingInfo?.fullName}`, 14, 63);
-        doc.text(`Email: ${order.billingInfo?.email}`, 14, 70);
-        doc.text(`Phone: ${order.billingInfo?.phoneNumber}`, 14, 77);
-
-        doc.text(
-            `Address: ${order.billingInfo?.addressLine1} ${order.billingInfo?.addressLine2}`,
-            14,
-            84
-        );
-
-        doc.text(
-            `${order.billingInfo?.city}, ${order.billingInfo?.state} - ${order.billingInfo?.pincode}`,
-            14,
-            91
-        );
-
-        /* PRODUCTS */
-
-        let y = 105;
-
-        doc.setFontSize(14);
-        doc.text("Products", 14, y);
-
-        y += 10;
-
-        for (const item of order.items) {
-
-            const imgUrl = item.images?.[0]?.url || item.image;
-
-            let base64 = null;
-
-            try {
-                base64 = await getBase64FromUrl(imgUrl);
-            } catch (e) {
-                console.warn("Image load failed", imgUrl);
+    
+        setDownloadingId(order.id);
+    
+        try {
+    
+            const docPdf = new jsPDF();
+    
+            /* HEADER */
+    
+            docPdf.setFontSize(18);
+            docPdf.text("Order Invoice", 14, 20);
+    
+            docPdf.setFontSize(11);
+            docPdf.text(`Order ID: ${order.id}`, 14, 35);
+            docPdf.text(`Customer: ${order.billingInfo?.fullName || ""}`, 14, 42);
+            docPdf.text(`Phone: ${order.billingInfo?.phoneNumber || ""}`, 14, 49);
+            docPdf.text(`City: ${order.billingInfo?.city || ""}`, 14, 56);
+    
+            let y = 70;
+    
+            /* TABLE HEADER */
+    
+            docPdf.setFontSize(11);
+    
+            docPdf.text("Image", 14, y);
+            docPdf.text("Product", 35, y);
+            docPdf.text("Code", 120, y);
+            docPdf.text("Qty", 150, y);
+            docPdf.text("Price", 170, y);
+    
+            y += 4;
+            docPdf.line(14, y, 196, y);
+            y += 8;
+    
+            docPdf.setFontSize(10);
+    
+            /* PRODUCTS */
+    
+            for (const item of order.items || []) {
+    
+                if (y > 260) {
+    
+                    docPdf.addPage();
+                    y = 20;
+    
+                    docPdf.setFontSize(11);
+                    docPdf.text("Image", 14, y);
+                    docPdf.text("Product", 35, y);
+                    docPdf.text("Code", 120, y);
+                    docPdf.text("Qty", 150, y);
+                    docPdf.text("Price", 170, y);
+    
+                    y += 4;
+                    docPdf.line(14, y, 196, y);
+                    y += 8;
+    
+                    docPdf.setFontSize(10);
+                }
+    
+                /* IMAGE */
+    
+                try {
+    
+                    const imgUrl = item.images?.[0]?.url || item.image;
+    
+                    if (imgUrl) {
+    
+                        const res = await fetch(imgUrl);
+                        const blob = await res.blob();
+    
+                        const reader = new FileReader();
+    
+                        const base64 = await new Promise(resolve => {
+                            reader.onloadend = () => resolve(reader.result);
+                            reader.readAsDataURL(blob);
+                        });
+    
+                        docPdf.addImage(base64, "JPEG", 14, y - 4, 16, 16);
+                    }
+    
+                } catch (e) {
+                    console.log("Image load failed");
+                }
+    
+                /* PRODUCT TEXT */
+    
+                let productText = item.productName || "-";
+    
+                if (item.variationLabel) {
+                    productText += ` (${item.variationLabel})`;
+                }
+    
+                const wrappedText = docPdf.splitTextToSize(productText, 75);
+    
+                docPdf.text(wrappedText, 35, y);
+    
+                docPdf.text(item.productCode || "-", 120, y);
+                docPdf.text(String(item.quantity || 0), 150, y);
+    
+                const price = Number(item.priceAtTimeOfOrder || 0)
+                    .toLocaleString("en-IN");
+    
+                docPdf.text(`Rs ${price}`, 170, y);
+    
+                y += Math.max(wrappedText.length * 6, 18);
             }
-
-            /* IMAGE */
-
-            if (base64) {
-                doc.addImage(base64, "JPEG", 14, y, 25, 25);
+    
+            /* TOTALS */
+    
+            y += 10;
+    
+            if (y > 260) {
+                docPdf.addPage();
+                y = 20;
             }
-
-            /* TEXT */
-
-            doc.setFontSize(10);
-
-            doc.text(`Product: ${item.productName}`, 45, y + 6);
-            doc.text(`Code: ${item.productCode}`, 45, y + 12);
-
-            if (item.variationLabel) {
-                doc.text(`Variant: ${item.variationLabel}`, 45, y + 18);
-            }
-
-            doc.text(`Qty: ${item.quantity}`, 120, y + 6);
-            doc.text(`Price: Rs. ${item.priceAtTimeOfOrder}`, 120, y + 12);
-            doc.text(`Subtotal: Rs. ${(item.priceAtTimeOfOrder * item.quantity).toFixed(2)}`, 120, y + 18);
-
-            y += 32;
-
+    
+            const subtotal = Number(order.subtotal || 0).toLocaleString("en-IN");
+            const shipping = Number(order.shippingFee || 0).toLocaleString("en-IN");
+            const total = Number(order.totalAmount || 0).toLocaleString("en-IN");
+    
+            docPdf.setFontSize(12);
+    
+            docPdf.text(`Subtotal: Rs ${subtotal}`, 14, y);
+            docPdf.text(`Shipping: Rs ${shipping}`, 14, y + 8);
+            docPdf.text(`Total: Rs ${total}`, 14, y + 16);
+    
+            /* OPEN PDF */
+    
+            const pdfBlobUrl = docPdf.output("bloburl");
+            window.open(pdfBlobUrl);
+    
+        } finally {
+    
+            setDownloadingId(null);
+    
         }
-
-        /* TOTALS */
-
-        y += 10;
-
-        doc.setFontSize(12);
-
-        doc.text(`Subtotal: Rs. ${order.subtotal}`, 14, y);
-        doc.text(`Shipping: Rs. ${order.shippingFee}`, 14, y + 8);
-        doc.text(`Total: Rs. ${order.totalAmount}`, 14, y + 16);
-
-        /* SAVE */
-
-        doc.save(`order-${order.id}.pdf`);
-
     };
 
     /* =========================
@@ -520,14 +565,14 @@ console.error("❌ Cancel order failed:", err);
                                         </p>
                                         <div className="order-actions">
                                         <button
-                                            className="btn-view"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                generateOrderPDF(order);
-                                            }}
-                                        >
-                                            View PDF
-                                        </button>
+disabled={downloadingId === order.id}
+onClick={(e) => {
+    e.stopPropagation();
+    generateOrderPDF(order);
+}}
+>
+{downloadingId === order.id ? "Downloading PDF..." : "View PDF"}
+</button>
                                         {order.status === "Pending" && (
 
                                             <button

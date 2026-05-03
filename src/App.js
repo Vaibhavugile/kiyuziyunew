@@ -52,6 +52,8 @@ import InventorySummaryPage from "./pages/InventorySummaryPage";
 import ProductSalesPage from './pages/ProductSalesPage';
 import RefundPolicy from './pages/RefundPolicy';
 import CancellationPolicy from './pages/CancellationPolicy';
+import CustomBillingPage from './pages/CustomBillingPage';
+import OrdersProductsPage from './pages/OrdersProductsPage';
 function App() {
   return (
     <AuthProvider>
@@ -74,6 +76,9 @@ function App() {
               }
             />         <Route path="/login" element={<LoginPage />} />
             <Route path="/Apple@782k" element={<AdminPage />} />
+            <Route path="/orders-products" element={<OrdersProductsPage />} />
+
+            <Route path="/custombill" element={<CustomBillingPage/>} />
             <Route path="/collections/:collectionId" element={<SubcollectionsPage />} />
             <Route path="/collections/:collectionId/all-products" element={<ProductsPage />} />            <Route path="/cart" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
@@ -87,6 +92,7 @@ function App() {
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/cancellation-policy" element={<CancellationPolicy />} />
+            
             <Route
               path="/admin/coupons"
               element={<CouponAdmin />}
@@ -117,7 +123,6 @@ function App() {
             />
             <Route path="/admin/leads" element={<AdminLeadsDashboard />} />
             <Route path="/dropshipper" element={<DropshipperLayout />}>
-
               <Route
                 path="dashboard"
                 element={<DropshipperDashboard />}

@@ -520,7 +520,9 @@ else {
 
                         <div className="cart-total-section">
                             <p>Packing</p>
-                            <p>₹{SHIPPING_FEE.toFixed(2)}</p>
+                                <p>
+        {SHIPPING_FEE === 0 ? "Applicable As Per Location" : `₹${SHIPPING_FEE.toFixed(2)}`}
+    </p>
                         </div>
 
                         <div className="cart-total-section total-final">

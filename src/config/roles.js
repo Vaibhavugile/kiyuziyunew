@@ -7,6 +7,7 @@ export const ROLES = {
   DISTRIBUTOR: 'distributor',
   DEALER: 'dealer',
   VIP: 'vip',
+  DROPSHIPPING: 'dropshipping',
 };
 
 // 🔥 Role behavior configuration
@@ -57,7 +58,16 @@ export const ROLE_CONFIG = {
 
     paymentMode: 'MANUAL', // can change later if needed
   },
+    dropshipping: {
+    label: 'Dropshipping',
+    minOrderValue: 0,
+    canSeeBulkPricing: true,
+    pricingKey: 'dropshipping',
+
+    paymentMode: 'MANUAL', // can change later if needed
+  },
 };
+
 
 // 🛟 Safe fallback (VERY IMPORTANT)
 export const DEFAULT_ROLE = ROLES.RETAILER;

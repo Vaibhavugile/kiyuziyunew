@@ -356,7 +356,7 @@ RIGHT SIDE - SUMMARY
 
 <div className="cart-summary-line">
 <p>Shipping</p>
-<span>Free</span>
+<span>applicable as per location</span>
 </div>
 
 <div className="cart-total final-total">
