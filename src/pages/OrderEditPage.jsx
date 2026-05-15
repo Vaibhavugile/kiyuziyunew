@@ -100,7 +100,17 @@ export default function OrderEditPage() {
     .reduce((sum, o) => sum + Number(o.orderProfit || 0), 0);
 
   const netProfit = totalProfit - cancelledProfit;
+const totalSales = filteredOrders
+  .filter(o => o.status !== 'Cancelled')
+  .reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
 
+const totalShipping = filteredOrders
+  .filter(o => o.status !== 'Cancelled')
+  .reduce((sum, o) => sum + Number(o.shippingFee || 0), 0);
+
+const totalOrders = filteredOrders.filter(
+  o => o.status !== 'Cancelled'
+).length;
   /* ------------------ RECALCULATION ------------------ */
   const recalculateOrder = (order) => {
   let subtotal = 0;
@@ -202,6 +212,20 @@ export default function OrderEditPage() {
         </div>
 
         <div className="profit-summary">
+          <div>
+  <span>Total Sales</span>
+   <strong>₹{totalSales.toFixed(2)}</strong>
+</div>
+
+<div>
+  <span>Total Shipping</span>
+  <strong>₹{totalShipping}</strong>
+</div>
+
+<div>
+  <span>Total Orders</span>
+  <strong>{totalOrders}</strong>
+</div>
           <div>
             <span>Total Profit</span>
             <strong>₹{totalProfit}</strong>

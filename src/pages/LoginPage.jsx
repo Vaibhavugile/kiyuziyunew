@@ -427,7 +427,7 @@ const LoginPage = () => {
         await setDoc(newUserRef, {
           uid: firebaseUser.uid,
           mobile: fullMobileNumber,
-          role: 'retailer',
+          role: 'dropshipping',
           createdAt: new Date(),
         });
 

@@ -428,8 +428,13 @@ const StoreMyOrders = () => {
 
                             <div>Subtotal: ₹{selectedOrder.subtotal}</div>
 
-                            <div>Shipping: ₹{selectedOrder.shippingFee}</div>
-
+<div>
+  Shipping: {
+    Number(selectedOrder.shippingFee) === 0
+      ? "Applicable as per distance"
+      : `₹${selectedOrder.shippingFee}`
+  }
+</div>
                             <div className="modal-total-final">
                                 Total: ₹{selectedOrder.totalAmount}
                             </div>

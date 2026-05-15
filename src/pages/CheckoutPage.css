@@ -324,3 +324,116 @@ body {
   font-family: inherit; /* Ensures it uses the page font, not monospace */
 }
 
+/* --- ORDER DETAILS IMPROVED UI --- */
+
+.order-details {
+  flex: 1;
+  background: #ffffff;
+  padding: 28px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+  position: sticky;
+  top: 20px;
+}
+
+/* Title */
+.order-details h3 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+/* Cart item */
+.cart-item {
+  display: flex;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f1f1;
+  transition: 0.2s ease;
+}
+
+.cart-item:hover {
+  transform: translateX(4px);
+}
+
+/* Image */
+.cart-item img {
+  width: 65px;
+  height: 65px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid #eee;
+}
+
+/* Item details */
+.cart-item h4 {
+  font-size: 0.95rem;
+  margin: 0;
+  font-weight: 600;
+  color: #222;
+}
+
+.cart-item p {
+  margin: 2px 0;
+  font-size: 0.85rem;
+  color: #777;
+}
+
+/* Price highlight */
+.cart-item p:last-child {
+  font-weight: 600;
+  color: #000;
+}
+
+/* --- TOTAL SECTION --- */
+
+.cart-total-section {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  font-size: 0.95rem;
+  color: #444;
+}
+
+/* Divider spacing */
+.cart-total-section:not(:last-child) {
+  border-bottom: 1px dashed #eee;
+}
+
+/* Discount */
+.discount-line {
+  color: #27ae60;
+  font-weight: 600;
+}
+
+/* Minimum order */
+.minimum-order-line.not-met {
+  color: #e74c3c;
+}
+
+.minimum-order-line.met {
+  color: #2ecc71;
+}
+
+/* Shipping */
+.cart-total-section p:last-child {
+  font-weight: 600;
+}
+
+/* FINAL TOTAL */
+.total-final {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 2px solid #eee;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #000;
+}
+
+/* Total price highlight */
+.total-final p:last-child {
+  color: #27ae60;
+  font-size: 1.5rem;
+}

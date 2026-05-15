@@ -74,8 +74,8 @@ const StoreProductCard = ({
     : totalStock;
 
   const isOutOfStock = totalStock <= 0;
-  if (isOutOfStock) return null;
-
+    if (isOutOfStock) return null;
+  
   /* =====================
      CART HELPERS
   ===================== */

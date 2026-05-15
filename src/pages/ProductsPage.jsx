@@ -1087,7 +1087,7 @@ if (qty < minQty || qty > maxQty) {
         type="number"
         value={minDownloadQty}
         onChange={(e) => setMinDownloadQty(e.target.value)}
-        placeholder="0"
+        placeholder="1"
       />
 
       <label>Max Qty</label>

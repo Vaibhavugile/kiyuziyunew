@@ -631,8 +631,13 @@ input[type=number] {
 
 .status-pending { background-color: #ffc107; }
 .status-processing { background-color: #17a2b8; }
-.status-shipped { background-color: #28a745; }
+.status-placed { background-color: #28a745; }
 .status-delivered { background-color: #6c757d; }
+
+.status-paymentdone { background-color: #28a745; }
+.status-packed { background-color: #ffc107; }
+.status-dispatched { background-color: #6c757d; }
+
 
 .low-stock-list {
   list-style: none;

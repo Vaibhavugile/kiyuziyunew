@@ -608,6 +608,8 @@ className="orders-filter"
 <option value="All">All Orders</option>
 <option value="Pending">Pending</option>
 <option value="ReadyToPack">Ready To Pack</option>
+<option value="Packed">Packed</option>
+<option value="Dispatched">Dispatched</option>
 <option value="Cancelled">Cancelled</option>
 
 </select>
@@ -720,6 +722,23 @@ onClick={(e) => {
                                                 </button>
 
                                             )}
+                                            {order.status === "ReadyToPack" && (
+  <button
+    className="btn-paid"
+    onClick={() => updateOrderStatus(order, "Packed")}
+  >
+    Mark Packed
+  </button>
+)}
+
+{order.status === "Packed" && (
+  <button
+    className="btn-paid"
+    onClick={() => updateOrderStatus(order, "Dispatched")}
+  >
+    Mark Dispatched
+  </button>
+)}
 
                                             {order.status !== "Cancelled" && (
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
-collection,
-getDocs
+  collection,
+  getDocs
 } from "firebase/firestore";
 
 import { db } from "../firebase";
@@ -10,220 +10,320 @@ import "./AdminSellerProfits.css";
 
 const AdminSellerProfits = () => {
 
-const [sellers,setSellers] = useState([]);
-const [orders,setOrders] = useState([]);
-const [payments,setPayments] = useState([]);
+  const [sellers, setSellers] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [payments, setPayments] = useState([]);
 
-const [loading,setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-/* =========================
-LOAD DATA
-========================= */
+  /* =========================
+     LOAD DATA
+  ========================= */
 
-useEffect(()=>{
+  useEffect(() => {
 
-const loadData = async()=>{
+    const loadData = async () => {
 
-try{
+      try {
 
-/* SELLERS */
+        /* SELLERS */
 
-const sellersSnap = await getDocs(collection(db,"users"));
+        const sellersSnap = await getDocs(
+          collection(db, "users")
+        );
 
-const sellersList = sellersSnap.docs
-.map(doc=>({
-id:doc.id,
-...doc.data()
-}))
-.filter(u=>u.role === "dropshipper");
+        const sellersList = sellersSnap.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }))
+          .filter(u => u.role === "dropshipper");
 
+        /* ORDERS */
 
-/* ORDERS */
+        const ordersSnap = await getDocs(
+          collection(db, "storeOrders")
+        );
 
-const ordersSnap = await getDocs(collection(db,"storeOrders"));
+        const ordersList = ordersSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
 
-const ordersList = ordersSnap.docs.map(doc=>({
-id:doc.id,
-...doc.data()
-}));
+        /* PAYMENTS */
 
+        const paymentsSnap = await getDocs(
+          collection(db, "adminPayments")
+        );
 
-/* ADMIN PAYMENTS */
+        const paymentsList = paymentsSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
 
-const paymentsSnap = await getDocs(collection(db,"adminPayments"));
+        setSellers(sellersList);
+        setOrders(ordersList);
+        setPayments(paymentsList);
 
-const paymentsList = paymentsSnap.docs.map(doc=>({
-id:doc.id,
-...doc.data()
-}));
+      } catch (err) {
 
+        console.error(
+          "Admin seller payments load error:",
+          err
+        );
 
-setSellers(sellersList);
-setOrders(ordersList);
-setPayments(paymentsList);
+      }
 
-}catch(err){
-console.error("Admin seller payments load error:",err);
-}
+      setLoading(false);
 
-setLoading(false);
+    };
 
-};
+    loadData();
 
-loadData();
+  }, []);
 
-},[]);
+  /* =========================
+     ORDER CALCULATION
+  ========================= */
 
-/* =========================
-SELLER STATS
-========================= */
+  const calculateOrder = (order) => {
 
-const getSellerStats = (sellerId) => {
+    let costTotal = 0;
+    let sellingTotal = 0;
+    let totalQty = 0;
 
-const sellerOrders = orders.filter(
-o => o.sellerId === sellerId && o.status !== "Cancelled"
-);
+    (order.items || []).forEach(item => {
 
-let revenue = 0;
-let sellerProfit = 0;
-let adminProfit = 0;
-let adminPurchaseTotal = 0;
-let shippingTotal = 0;
+      const qty = item.quantity || 0;
 
-sellerOrders.forEach(order=>{
+      costTotal +=
+        (item.costPrice || 0) * qty;
 
-revenue += order.totalAmount || 0;
+      sellingTotal +=
+        (item.priceAtTimeOfOrder || 0) * qty;
 
-shippingTotal += order.shippingFee || 0;
+      totalQty += qty;
 
-/* ADMIN VALUES (already stored in order) */
+    });
 
-adminProfit += order.adminProfit || 0;
-adminPurchaseTotal += order.adminPurchaseTotal || 0;
+    const profit = sellingTotal - costTotal;
 
-/* SELLER PROFIT */
+    const shipping = order.shippingFee || 0;
 
-(order.items || []).forEach(item=>{
+    const payableToAdmin =
+      costTotal + shipping;
 
-const selling = item.priceAtTimeOfOrder || 0;
-const cost = item.costPrice || 0;
-const qty = item.quantity || 0;
+    return {
+      costTotal,
+      sellingTotal,
+      profit,
+      shipping,
+      payableToAdmin,
+      totalQty
+    };
 
-sellerProfit += (selling - cost) * qty;
+  };
 
-});
+  /* =========================
+     SELLER STATS
+  ========================= */
 
-});
+  const getSellerStats = (sellerId) => {
 
-/* ADMIN PAYABLE TO SELLER */
+    const sellerOrders = orders.filter(
+      o =>
+        o.sellerId === sellerId &&
+        o.status !== "Cancelled"
+    );
 
-const adminPayable = adminPurchaseTotal + shippingTotal;
+    let totalOrders = 0;
+    let totalQty = 0;
 
-/* PAYMENTS RECEIVED */
+    let totalCost = 0;
+    let totalSelling = 0;
+    let totalProfit = 0;
+    let totalShipping = 0;
+    let totalPayable = 0;
 
-const sellerPayments = payments.filter(
-p => p.sellerId === sellerId
-);
+    sellerOrders.forEach(order => {
 
-const received = sellerPayments.reduce(
-(sum,p)=> sum + (p.amount || 0),
-0
-);
+      const calc = calculateOrder(order);
 
-/* PENDING */
+      totalOrders += 1;
 
-const pending = adminPayable - received;
+      totalQty += calc.totalQty;
 
-return{
-orders: sellerOrders.length,
-revenue,
-sellerProfit,
-adminProfit,
-adminPayable,
-received,
-pending
-};
+      totalCost += calc.costTotal;
 
-};
+      totalSelling += calc.sellingTotal;
 
-/* =========================
-LOADING
-========================= */
+      totalProfit += calc.profit;
 
-if(loading){
-return <div className="admin-loading">Loading...</div>;
-}
+      totalShipping += calc.shipping;
 
-/* =========================
-UI
-========================= */
+      totalPayable += calc.payableToAdmin;
 
-return(
+    });
 
-<div className="seller-profits">
+    /* PAYMENTS */
 
-<h1>Seller Payments</h1>
+    const sellerPayments = payments.filter(
+      p => p.sellerId === sellerId
+    );
 
-<div className="profits-table">
+    const totalPaid = sellerPayments.reduce(
+      (sum, p) => sum + (p.amount || 0),
+      0
+    );
 
-<div className="table-header">
+    /* PENDING */
 
-<div>Seller</div>
-<div>Total Orders</div>
-<div>Revenue</div>
-<div>Seller Profit</div>
-<div>Admin Profit</div>
-<div>Admin Payable</div>
-<div>Admin Payment Received</div>
-<div>Admin Payment Pending</div>
+    const pending = totalPayable - totalPaid;
 
-</div>
+    return {
+      totalOrders,
+      totalQty,
+      totalCost,
+      totalSelling,
+      totalProfit,
+      totalShipping,
+      totalPayable,
+      totalPaid,
+      pending
+    };
 
-{sellers.map(seller=>{
+  };
 
-const stats = getSellerStats(seller.id);
+  /* =========================
+     LOADING
+  ========================= */
 
-return(
+  if (loading) {
+    return (
+      <div className="admin-loading">
+        Loading...
+      </div>
+    );
+  }
 
-<div key={seller.id} className="table-row">
+  /* =========================
+     UI
+  ========================= */
 
-<div>{seller.name || seller.storeName}</div>
+  return (
 
-<div>{stats.orders}</div>
+    <div className="seller-profits">
 
-<div>₹{Number(stats.revenue).toFixed(2)}</div>
+      <h1>Seller Payments</h1>
 
-<div className="profit">
-₹{Number(stats.sellerProfit ).toFixed(2)}
-</div>
+      <div className="profits-table">
 
-<div className="admin-profit">
-₹{Number(stats.adminProfit ).toFixed(2)}
-</div>
+        {/* HEADER */}
 
-<div className="admin-payable">
-₹{Number(stats.adminPayable ).toFixed(2)}
-</div>
+        <div className="table-header">
 
-<div className="paid">
-₹{Number(stats.received ).toFixed(2)}
-</div>
+          <div>Seller</div>
 
-<div className="pending">
-₹{Number(stats.pending).toFixed(2)}
-</div>
+          <div>Total Orders</div>
 
-</div>
+          <div>Total Qty</div>
 
-);
+          <div>Cost Total</div>
 
-})}
+          <div>Selling Total</div>
 
-</div>
+          <div>Profit</div>
 
-</div>
+          <div>Shipping</div>
 
-);
+          <div>Payable To Admin</div>
+
+          <div>Paid</div>
+
+          <div>Pending</div>
+
+        </div>
+
+        {/* ROWS */}
+
+        {sellers.map(seller => {
+
+          const stats = getSellerStats(seller.id);
+
+          return (
+
+            <div
+              key={seller.id}
+              className="table-row"
+            >
+
+              <div>
+                {seller.name ||
+                  seller.storeName ||
+                  "Seller"}
+              </div>
+
+              <div>
+                {stats.totalOrders}
+              </div>
+
+              <div>
+                {stats.totalQty}
+              </div>
+
+              <div>
+                ₹{Number(
+                  stats.totalCost
+                ).toFixed(2)}
+              </div>
+
+              <div>
+                ₹{Number(
+                  stats.totalSelling
+                ).toFixed(2)}
+              </div>
+
+              <div className="profit">
+                ₹{Number(
+                  stats.totalProfit
+                ).toFixed(2)}
+              </div>
+
+              <div>
+                ₹{Number(
+                  stats.totalShipping
+                ).toFixed(2)}
+              </div>
+
+              <div className="admin-payable">
+                ₹{Number(
+                  stats.totalPayable
+                ).toFixed(2)}
+              </div>
+
+              <div className="paid">
+                ₹{Number(
+                  stats.totalPaid
+                ).toFixed(2)}
+              </div>
+
+              <div className="pending">
+                ₹{Number(
+                  stats.pending
+                ).toFixed(2)}
+              </div>
+
+            </div>
+
+          );
+
+        })}
+
+      </div>
+
+    </div>
+
+  );
 
 };
 

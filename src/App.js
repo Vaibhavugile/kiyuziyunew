@@ -54,6 +54,7 @@ import RefundPolicy from './pages/RefundPolicy';
 import CancellationPolicy from './pages/CancellationPolicy';
 import CustomBillingPage from './pages/CustomBillingPage';
 import OrdersProductsPage from './pages/OrdersProductsPage';
+import DropshipperCustomers from './pages/dropshipper/DropshipperCustomers';
 function App() {
   return (
     <AuthProvider>
@@ -142,6 +143,10 @@ function App() {
                 element={<DropshipperHomepage />}
               />
               <Route path="payments" element={<DropshipperPayments />} />
+              <Route
+    path="customers"
+    element={<DropshipperCustomers />}
+/>
 
             </Route>
 

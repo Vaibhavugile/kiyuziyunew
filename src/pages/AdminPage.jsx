@@ -3123,7 +3123,7 @@ setTimeout(() => {
 
         const orderData = {
           userId: 'offline-sale',
-          status: 'Delivered',
+          status: 'Pending',
           createdAt: serverTimestamp(),
           billingInfo: offlineSaleCustomerInfo,
           items: orderItems,
@@ -4222,11 +4222,13 @@ localStorage.removeItem("offlineBillingDraft");
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="status-select"
                 >
-                  <option value="All">All Statuses</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Processing">Processing</option>
-                  <option value="Shipped">Shipped</option>
-                  <option value="Delivered">Delivered</option>
+                <option value="All">All Statuses</option>
+<option value="Pending">Pending</option>
+<option value="Paymentdone">Payment Done</option>
+<option value="Packed">Packed</option>
+<option value="Dispatched">Dispatched</option>
+<option value="Delivered">Delivered</option>
+<option value="Cancelled">Cancelled</option>
 
                 </select>
 

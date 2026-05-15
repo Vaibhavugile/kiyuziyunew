@@ -5,7 +5,10 @@ import {
   query,
   where,
   doc,
-  onSnapshot,getDoc
+  onSnapshot,
+  getDoc,
+  limit,
+  startAfter
 } from "firebase/firestore";
 
 import { db } from "../../firebase";
@@ -29,7 +32,8 @@ const [homepage, setHomepage] = useState(null);
 
   const [seller, setSeller] = useState(null);
   const [products, setProducts] = useState([]);
-
+const [lastDoc, setLastDoc] = useState(null);
+const [hasMore, setHasMore] = useState(true);
   const [collections, setCollections] = useState([]);
   const [subcollectionsMap, setSubcollectionsMap] = useState({});
  const initialCollection =
@@ -57,242 +61,302 @@ const [selectedCollection, setSelectedCollection] = useState(initialCollection |
   LOAD STORE
   =============================== */
 
-  useEffect(() => {
+ useEffect(() => {
 
-    let inventoryListeners = [];
+  let inventoryListeners = [];
 
-    const loadStore = async () => {
-      try {
-        setLoading(true);
+  const loadStore = async () => {
+    
 
-        /* ===============================
-        FIND SELLER (DOMAIN BASED)
-        =============================== */
-const domain = getCleanDomain();
+    try {
 
-const homepageRef = doc(db, "storeHomepages", domain);
-const homepageSnap = await getDoc(homepageRef);
+      setLoading(true);
+      setProducts([]);
+setLastDoc(null);
+setHasMore(true);
 
-if (homepageSnap.exists()) {
-  setHomepage(homepageSnap.data());
-}
-        const sellerSnap = await getDocs(
-          query(
-            collection(db, "users"),
-            where("storeDomain", "==", passedDomain)
-          )
-        );
+      console.log("STORE LOADING...");
 
-        if (sellerSnap.empty) {
-          setLoading(false);
-          return;
-        }
+      /* ===============================
+      FIND SELLER (DOMAIN BASED)
+      =============================== */
 
-        const sellerDoc = sellerSnap.docs[0];
-        const sellerId = sellerDoc.id;
+      const domain = getCleanDomain();
 
-        setSeller({
-          id: sellerId,
-          ...sellerDoc.data()
-        });
+      const homepageRef = doc(db, "storeHomepages", domain);
+      const homepageSnap = await getDoc(homepageRef);
 
+      if (homepageSnap.exists()) {
+        setHomepage(homepageSnap.data());
+      }
 
-        /* ===============================
-        LOAD PRICING
-        =============================== */
-
-        const pricingSnap = await getDocs(
-          collection(db, "dropshipperPricing", sellerId, "pricing")
-        );
-
-        const pricingMap = {};
-
-        pricingSnap.docs.forEach(d => {
-          pricingMap[d.id] = d.data();
-        });
-
-        /* ===============================
-        LOAD PRODUCTS
-        =============================== */
-
-        const storeSnap = await getDocs(
-          collection(db, "storeProducts", sellerId, "products")
-        );
-
-        let storeProducts = storeSnap.docs
-          .map(d => ({
-            id: d.id,
-            ...d.data()
-          }))
-          .filter(p => p.enabled);
-
-        /* ===============================
-        APPLY PRICING
-        =============================== */
-
-        storeProducts = storeProducts.map(p => {
-
-          const pricingKey = `${p.collectionId}_${p.subcollectionId}`;
-          const tiers = pricingMap[pricingKey]?.tieredPricing || [];
-
-          const normalized = tiers.map(t => ({
-            min_quantity: Number(t.min_quantity),
-            max_quantity: Number(t.max_quantity),
-            price: Number(t.price),
-            costPrice: Number(t.costPrice ?? 0)
-          }));
-
-          return {
-            ...p,
-            sellerId,
-
-            tieredPricing: {
-              retail: normalized,
-              wholesale: normalized,
-              dealer: normalized,
-              distributor: normalized,
-              vip: normalized
-            }
-          };
-        });
-
-        setProducts(storeProducts);
-
-        /* ===============================
-        LIVE INVENTORY
-        =============================== */
-
-        storeProducts.forEach(p => {
-
-          const ref = doc(
-            db,
-            "collections",
-            p.collectionId,
-            "subcollections",
-            p.subcollectionId,
-            "products",
-            p.productId
-          );
-
-          const unsub = onSnapshot(ref, (snap) => {
-            if (!snap.exists()) return;
-
-            const data = snap.data();
-
-            setProducts(prev =>
-  prev.map(prod => {
-
-    if (prod.productId !== p.productId) return prod;
-
-    /* Variant products */
-
-    if (data.variations && data.variations.length > 0) {
-
-      const totalStock = data.variations.reduce(
-        (sum,v)=> sum + Number(v.quantity || 0),
-        0
+      const sellerSnap = await getDocs(
+        query(
+          collection(db, "users"),
+          where("storeDomain", "==", passedDomain)
+        )
       );
 
-      return {
-        ...prod,
-        variations: data.variations,
-        quantity: totalStock
-      };
+      if (sellerSnap.empty) {
+        console.log("Seller not found");
+        setLoading(false);
+        return;
+      }
+
+      const sellerDoc = sellerSnap.docs[0];
+      const sellerId = sellerDoc.id;
+
+      setSeller({
+        id: sellerId,
+        ...sellerDoc.data()
+      });
+
+      console.log("Seller ID:", sellerId);
+
+      /* ===============================
+      LOAD PRICING
+      =============================== */
+
+      const pricingSnap = await getDocs(
+        collection(db, "dropshipperPricing", sellerId, "pricing")
+      );
+
+      const pricingMap = {};
+
+      pricingSnap.docs.forEach(d => {
+        pricingMap[d.id] = d.data();
+      });
+
+      console.log("Pricing loaded:", Object.keys(pricingMap).length);
+
+      /* ===============================
+      LOAD PRODUCTS (PAGINATED)
+      =============================== */
+
+      const baseRef = collection(db, "storeProducts", sellerId, "products");
+
+      let q;
+
+      if (selectedSubcollection) {
+
+        q = query(
+          baseRef,
+          where("collectionId", "==", selectedCollection),
+          where("subcollectionId", "==", selectedSubcollection),
+          where("enabled", "==", true),
+          limit(24)
+        );
+
+      } else {
+
+        q = query(
+          baseRef,
+          where("collectionId", "==", selectedCollection),
+          where("enabled", "==", true),
+          limit(24)
+        );
+
+      }
+
+      const storeSnap = await getDocs(q);
+
+      console.log("FIRST QUERY DOC COUNT:", storeSnap.docs.length);
+      console.log("FIRST QUERY IDS:", storeSnap.docs.map(d => d.id));
+
+      /* ===============================
+      PAGINATION TRACKING
+      =============================== */
+
+      if (!storeSnap.empty) {
+
+        const last = storeSnap.docs[storeSnap.docs.length - 1];
+
+        console.log("LAST DOC SET:", last.id);
+
+        setLastDoc(last);
+
+      }
+
+      if (storeSnap.docs.length < 24) {
+
+        console.log("LESS THAN LIMIT → NO MORE PRODUCTS");
+
+        setHasMore(false);
+
+      } else {
+
+        setHasMore(true);
+
+      }
+
+      /* ===============================
+      MAP PRODUCTS
+      =============================== */
+
+      let storeProducts = storeSnap.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      }));
+
+      /* ===============================
+      APPLY PRICING
+      =============================== */
+
+      storeProducts = storeProducts.map(p => {
+
+        const pricingKey = `${p.collectionId}_${p.subcollectionId}`;
+        const tiers = pricingMap[pricingKey]?.tieredPricing || [];
+
+        const normalized = tiers.map(t => ({
+          min_quantity: Number(t.min_quantity),
+          max_quantity: Number(t.max_quantity),
+          price: Number(t.price),
+          costPrice: Number(t.costPrice ?? 0)
+        }));
+
+        return {
+          ...p,
+          sellerId,
+          tieredPricing: {
+            retail: normalized,
+            wholesale: normalized,
+            dealer: normalized,
+            distributor: normalized,
+            vip: normalized
+          }
+        };
+
+      });
+
+      console.log("PRODUCTS AFTER PRICING:", storeProducts.length);
+
+      setProducts(storeProducts);
+
+      /* ===============================
+      LIVE INVENTORY LISTENERS
+      =============================== */
+
+      storeProducts.forEach(p => {
+
+        const ref = doc(
+          db,
+          "collections",
+          p.collectionId,
+          "subcollections",
+          p.subcollectionId,
+          "products",
+          p.productId
+        );
+
+        const unsub = onSnapshot(ref, (snap) => {
+
+          if (!snap.exists()) return;
+
+          const data = snap.data();
+
+          setProducts(prev =>
+            prev.map(prod => {
+
+              if (prod.productId !== p.productId) return prod;
+
+              if (data.variations && data.variations.length > 0) {
+
+                const totalStock = data.variations.reduce(
+                  (sum,v)=> sum + Number(v.quantity || 0),
+                  0
+                );
+
+                return {
+                  ...prod,
+                  variations: data.variations,
+                  quantity: totalStock
+                };
+
+              }
+
+              return {
+                ...prod,
+                quantity: data.quantity ?? 0
+              };
+
+            })
+          );
+
+        });
+
+        inventoryListeners.push(unsub);
+
+      });
+
+      /* ===============================
+      COLLECTION DETECTION
+      =============================== */
+
+      const collectionsSet = {};
+      const subMap = {};
+
+      storeProducts.forEach(p => {
+
+        collectionsSet[p.collectionId] = true;
+
+        if (!subMap[p.collectionId]) {
+          subMap[p.collectionId] = new Set();
+        }
+
+        subMap[p.collectionId].add(p.subcollectionId);
+
+      });
+
+      /* ===============================
+      LOAD COLLECTIONS
+      =============================== */
+
+      const collectionsSnap = await getDocs(collection(db, "collections"));
+
+      const validCollections = collectionsSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(c => collectionsSet[c.id]);
+
+      setCollections(validCollections);
+
+      /* ===============================
+      LOAD SUBCOLLECTIONS
+      =============================== */
+
+      const finalSubMap = {};
+
+      for (const colId in subMap) {
+
+        const snap = await getDocs(
+          collection(db, "collections", colId, "subcollections")
+        );
+
+        finalSubMap[colId] = snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(s => subMap[colId].has(s.id));
+
+      }
+
+      setSubcollectionsMap(finalSubMap);
+
+      console.log("Collections loaded:", validCollections.length);
+
+    } catch (err) {
+
+      console.error("Store load error:", err);
 
     }
 
-    /* Normal product */
+    setLoading(false);
 
-    return {
-      ...prod,
-      quantity: data.quantity ?? 0
-    };
+  };
 
-  })
-);
-          });
+  loadStore();
 
-          inventoryListeners.push(unsub);
-        });
-
-        /* ===============================
-        COLLECTION DETECTION
-        =============================== */
-
-        const collectionsSet = {};
-        const subMap = {};
-
-        storeProducts.forEach(p => {
-
-          collectionsSet[p.collectionId] = true;
-
-          if (!subMap[p.collectionId]) {
-            subMap[p.collectionId] = new Set();
-          }
-
-          subMap[p.collectionId].add(p.subcollectionId);
-        });
-
-        /* ===============================
-        LOAD COLLECTIONS
-        =============================== */
-
-        const collectionsSnap = await getDocs(collection(db, "collections"));
-
-        const validCollections = collectionsSnap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(c => collectionsSet[c.id]);
-
-        setCollections(validCollections);
-
-        /* ===============================
-        LOAD SUBCOLLECTIONS
-        =============================== */
-
-        const finalSubMap = {};
-
-        for (const colId in subMap) {
-          const snap = await getDocs(
-            collection(db, "collections", colId, "subcollections")
-          );
-
-          finalSubMap[colId] = snap.docs
-            .map(d => ({ id: d.id, ...d.data() }))
-            .filter(s => subMap[colId].has(s.id));
-        }
-
-        setSubcollectionsMap(finalSubMap);
-
-        /* ===============================
-        AUTO SELECT (FROM CLICK)
-        =============================== */
-
-        if (validCollections.length) {
-
-          let selectedCol = initialCollection;
-
-          if (!selectedCol || !finalSubMap[selectedCol]) {
-            selectedCol = validCollections[0].id;
-          }
-
-          setSelectedCollection(selectedCol);
-setSelectedSubcollection("");
-        }
-
-      } catch (err) {
-        console.error("Store load error:", err);
-      }
-
-      setLoading(false);
-    };
-
-    loadStore();
-
-    return () => {
-      inventoryListeners.forEach(unsub => unsub());
-    };
-
-  }, []);
+  return () => {
+    inventoryListeners.forEach(unsub => unsub());
+  };
+}, [selectedCollection, selectedSubcollection]);
 
   /* ===============================
   SAVE SELECTION (REFRESH SAFE)
@@ -322,41 +386,210 @@ setSelectedSubcollection("");
   return Number(selected.price);
 };
 
+const loadMoreProducts = async () => {
+
+  try {
+
+    if (!lastDoc) return;
+    if (!seller?.id) return;
+
+    const baseRef = collection(db, "storeProducts", seller.id, "products");
+
+    let q;
+
+    if (selectedSubcollection) {
+      q = query(
+        baseRef,
+        where("collectionId", "==", selectedCollection),
+        where("subcollectionId", "==", selectedSubcollection),
+        where("enabled", "==", true),
+        startAfter(lastDoc),
+        limit(24)
+      );
+    } else {
+      q = query(
+        baseRef,
+        where("collectionId", "==", selectedCollection),
+        where("enabled", "==", true),
+        startAfter(lastDoc),
+        limit(24)
+      );
+    }
+
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      setHasMore(false);
+      return;
+    }
+
+    let newProducts = snap.docs.map(d => ({
+  id: d.id,
+  ...d.data()
+}));
+
+/* ===============================
+LOAD PRICING (same as loadStore)
+=============================== */
+
+const pricingSnap = await getDocs(
+  collection(db, "dropshipperPricing", seller.id, "pricing")
+);
+
+const pricingMap = {};
+
+pricingSnap.docs.forEach(d => {
+  pricingMap[d.id] = d.data();
+});
+
+/* ===============================
+APPLY PRICING
+=============================== */
+
+newProducts = newProducts.map(p => {
+
+  const pricingKey = `${p.collectionId}_${p.subcollectionId}`;
+  const tiers = pricingMap[pricingKey]?.tieredPricing || [];
+
+  const normalized = tiers.map(t => ({
+    min_quantity: Number(t.min_quantity),
+    max_quantity: Number(t.max_quantity),
+    price: Number(t.price),
+    costPrice: Number(t.costPrice ?? 0)
+  }));
+
+  return {
+    ...p,
+    sellerId: seller.id,
+    tieredPricing: {
+      retail: normalized,
+      wholesale: normalized,
+      dealer: normalized,
+      distributor: normalized,
+      vip: normalized
+    }
+  };
+
+});
+
+    /* ===============================
+       ATTACH INVENTORY LISTENERS
+    =============================== */
+
+    newProducts.forEach(p => {
+
+      const ref = doc(
+        db,
+        "collections",
+        p.collectionId,
+        "subcollections",
+        p.subcollectionId,
+        "products",
+        p.productId
+      );
+
+      onSnapshot(ref, (snap) => {
+
+        if (!snap.exists()) return;
+
+        const data = snap.data();
+
+        setProducts(prev =>
+          prev.map(prod => {
+
+            if (prod.productId !== p.productId) return prod;
+
+            if (data.variations && data.variations.length > 0) {
+
+              const totalStock = data.variations.reduce(
+                (sum,v)=> sum + Number(v.quantity || 0),
+                0
+              );
+
+              return {
+                ...prod,
+                variations: data.variations,
+                quantity: totalStock
+              };
+
+            }
+
+            return {
+              ...prod,
+              quantity: data.quantity ?? 0
+            };
+
+          })
+        );
+
+      });
+
+    });
+
+
+    setProducts(prev => [...prev, ...newProducts]);
+
+    const newLastDoc = snap.docs[snap.docs.length - 1];
+    setLastDoc(newLastDoc);
+
+    if (snap.docs.length < 24) {
+      setHasMore(false);
+    }
+
+  } catch (error) {
+
+    console.error("Load more error:", error);
+
+  }
+
+};
   /* ===============================
   FILTER PRODUCTS
   =============================== */
 
-  const filteredProducts = useMemo(() => {
+ const filteredProducts = useMemo(() => {
+
+  console.log("------------ FILTER PIPELINE ------------");
+  console.log("PRODUCTS IN STATE:", products.length);
+  console.log("Selected Collection:", selectedCollection);
+  console.log("Selected Subcollection:", selectedSubcollection);
 
   let list = [...products];
 
-  if (selectedCollection) {
-    list = list.filter(p => p.collectionId === selectedCollection);
-  }
-
-  if (selectedSubcollection) {
-    list = list.filter(p => p.subcollectionId === selectedSubcollection);
-  }
+  /* ===============================
+  SEARCH FILTER
+  =============================== */
 
   if (search) {
+
     const term = search.toLowerCase();
 
     list = list.filter(p =>
       p.productName?.toLowerCase().includes(term) ||
       p.productCode?.toLowerCase().includes(term)
     );
+
+    console.log("AFTER SEARCH FILTER:", list.length);
+
   }
 
-  return list.map(product => {
+  /* ===============================
+  PRICE CALCULATION
+  =============================== */
+
+  const mapped = list.map(product => {
 
     const tiers = product.tieredPricing?.retail ?? [];
 
-    const subQty = Object.values(cart).reduce((sum,item)=>{
-      if(item.subcollectionId === product.subcollectionId){
+    const subQty = Object.values(cart).reduce((sum, item) => {
+
+      if (item.subcollectionId === product.subcollectionId) {
         return sum + item.quantity;
       }
+
       return sum;
-    },0);
+
+    }, 0);
 
     const price = getTierPrice(tiers, subQty || 1);
 
@@ -367,7 +600,12 @@ setSelectedSubcollection("");
 
   });
 
-}, [products, selectedCollection, selectedSubcollection, search, cart]);
+  console.log("FINAL PRODUCTS RENDERED:", mapped.length);
+  console.log("-----------------------------------------");
+
+  return mapped;
+
+}, [products, search, cart]);
   /* ===============================
   UI
   =============================== */
@@ -493,7 +731,13 @@ const description =
         ))}
 
       </div>
-
+{hasMore && (
+  <div style={{ textAlign: "center", margin: "20px" }}>
+    <button onClick={loadMoreProducts} className="load-more-btn">
+      Load More
+    </button>
+  </div>
+)}
       {/* CART */}
       {cartItemsCount > 0 && (
         <div className="view-cart-fixed-container">

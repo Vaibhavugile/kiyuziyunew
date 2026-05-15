@@ -7,7 +7,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase'
 import { getRoleConfig } from '../config/roles';
 
-const SHIPPING_FEE = 199;
+const SHIPPING_FEE = 99;
 
 const CheckoutPage = () => {
   const {
@@ -200,7 +200,7 @@ const loadRazorpay = () =>
 
     const orderData = {
       userId: currentUser?.uid || 'guest',
-      role: userRole || 'retailer',
+      role: userRole || 'retail',
       items: validatedItems,
       subtotal,
       shippingFee: SHIPPING_FEE,
@@ -459,14 +459,22 @@ const startRazorpayPayment = async (orderId, amount) => {
             )}
 
             <div className="cart-total-section">
-              <p>Packing</p>
+              <p>Packing & Service</p>
+
               <p>₹{SHIPPING_FEE.toFixed(2)}</p>
+              
             </div>
+
 
             <div className="cart-total-section total-final">
               <p>Total</p>
               <p>₹{getFinalTotal() + SHIPPING_FEE}</p>
 
+            </div>
+            <div className="cart-total-section">
+              <p>Courier Charges</p>
+
+              <p>Applicable As per Location</p>
             </div>
           </div>
         </div>

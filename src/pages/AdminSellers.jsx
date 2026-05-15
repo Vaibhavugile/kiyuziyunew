@@ -321,6 +321,8 @@ onChange={e=>setEditing({...seller,pricingKey:e.target.value})}
 <option value="dealer">Dealer</option>
 <option value="distributor">Distributor</option>
 <option value="vip">VIP</option>
+<option value="dropshipping">Dropshipper</option>
+
 
 </select>
 

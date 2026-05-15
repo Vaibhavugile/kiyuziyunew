@@ -169,10 +169,11 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus, onCancelOrder }) =>
           >
             {/* Standard status options */}
             <option value="">Select Stautus</option>
-            <option value="Pending">Pending</option>
-            <option value="Processing">Processing</option>
-            <option value="Shipped">Shipped</option>
-            <option value="Delivered">Delivered</option>
+           <option value="Pending">Pending</option>
+<option value="Paymentdone">Payment Done</option>
+<option value="Packed">Packed</option>
+<option value="Dispatched">Dispatched</option>
+<option value="Delivered">Delivered</option>
             {/* Show Cancelled option if it's the current status, but not as an editable choice */}
             {order.status === 'Cancelled' && <option value="Cancelled">Cancelled</option>} 
           </select>

@@ -16,6 +16,7 @@ const ROLES = [
   'distributor',
   'dealer',
   'vip',
+  'dropshipping'
 ];
 
 const CouponUsageHistory = () => {
