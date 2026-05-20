@@ -1,7 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
+  
 
 <head>
+  <script>
+(function () {
+
+  const host = window.location.hostname.replace("www.", "");
+
+  // Main website keeps original SEO
+  if (
+    host === "kiyuziyuofficial.com" ||
+    host === "localhost"
+  ) {
+    return;
+  }
+
+  // Temporary loading SEO for seller stores
+  document.title = "Loading Store...";
+
+  const setMeta = (selector, value) => {
+
+    const tag = document.querySelector(selector);
+
+    if (tag) {
+      tag.setAttribute("content", value);
+    }
+
+  };
+
+  setMeta(
+    'meta[name="description"]',
+    'Loading store...'
+  );
+
+  setMeta(
+    'meta[property="og:title"]',
+    'Store'
+  );
+
+  setMeta(
+    'meta[property="og:description"]',
+    'Store'
+  );
+
+  setMeta(
+    'meta[name="twitter:title"]',
+    'Store'
+  );
+
+  setMeta(
+    'meta[name="twitter:description"]',
+    'Store'
+  );
+
+})();
+</script>
   <meta charset="utf-8" />
 
   <!-- Favicon -->

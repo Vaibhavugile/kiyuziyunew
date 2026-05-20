@@ -358,6 +358,7 @@ setHasMore(true);
   };
 }, [selectedCollection, selectedSubcollection]);
 
+
   /* ===============================
   SAVE SELECTION (REFRESH SAFE)
   =============================== */
@@ -367,6 +368,8 @@ setHasMore(true);
       localStorage.setItem("selectedCollection", selectedCollection);
     }
   }, [selectedCollection]);
+
+ 
   const getTierPrice = (tiers, quantity) => {
 
   if (!tiers || tiers.length === 0) return 0;
@@ -606,6 +609,21 @@ newProducts = newProducts.map(p => {
   return mapped;
 
 }, [products, search, cart]);
+ useEffect(() => {
+
+  if (!window.fbq) return;
+
+  if (filteredProducts.length > 0) {
+
+    window.fbq("track", "ViewContent", {
+      content_type: "product_group",
+      content_ids: filteredProducts.map(p => p.productId),
+      currency: "INR"
+    });
+
+  }
+
+}, [filteredProducts]);
   /* ===============================
   UI
   =============================== */
@@ -724,7 +742,23 @@ const description =
           <StoreProductCard
             key={product.id}
             product={product}
-            onIncrement={addToCart}
+            onIncrement={(product) => {
+
+  addToCart(product);
+
+  if (window.fbq) {
+
+    window.fbq("track", "AddToCart", {
+      content_name: product.productName,
+      content_ids: [product.productId],
+      content_type: "product",
+      value: product.displayPrice || 0,
+      currency: "INR"
+    });
+
+  }
+
+}}
             onDecrement={(cartId) => removeFromCart(cartId)}
             cart={cart}
           />

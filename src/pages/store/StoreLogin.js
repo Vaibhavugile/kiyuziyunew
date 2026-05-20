@@ -19,6 +19,7 @@ const StoreLogin = () => {
         try {
 
             await login(email, password);
+            window.fbq("track", "Login");
 
             navigate(redirectTo);
 

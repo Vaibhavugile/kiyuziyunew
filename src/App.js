@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useEffect } from "react";
 import './App.css';
+import { initMetaPixel } from "./utils/pixels";
 import HomePage from './pages/HomePage';
 import AdminPage from './pages/AdminPage';
 import LoginPage from './pages/LoginPage';
@@ -55,11 +57,16 @@ import CancellationPolicy from './pages/CancellationPolicy';
 import CustomBillingPage from './pages/CustomBillingPage';
 import OrdersProductsPage from './pages/OrdersProductsPage';
 import DropshipperCustomers from './pages/dropshipper/DropshipperCustomers';
+import PixelTracker from "./components/PixelTracker";
 function App() {
+    useEffect(() => {
+    initMetaPixel();
+  }, []);
   return (
     <AuthProvider>
       <CartProvider>
         <Router>
+            <PixelTracker />
           {isMainDomain() && <Navbar />}
           <Routes>
             <Route

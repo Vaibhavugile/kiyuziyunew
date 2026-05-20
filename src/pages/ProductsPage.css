@@ -492,3 +492,14 @@ select, input[type="text"] {
   border-radius: 6px;
   cursor: pointer;
 }
+.view-cart-fixed-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 999;
+}
+
+.products-grid {
+  padding-bottom: 120px;
+}

@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { useStoreCart } from "./StoreCartContext";
 import { useNavigate } from "react-router-dom";
+
 import "../CheckoutPage.css";
 import {
     doc,
@@ -80,6 +81,22 @@ const StoreCheckoutPage = () => {
         }));
 
     };
+    useEffect(() => {
+
+  if (!window.fbq) return;
+
+  if (items.length > 0) {
+
+    window.fbq("track", "InitiateCheckout", {
+      content_ids: items.map(i => i.productId),
+      content_type: "product",
+      value: totalAmount,
+      currency: "INR"
+    });
+
+  }
+
+}, []);
 
     /* =========================
     TOTAL CALCULATIONS

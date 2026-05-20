@@ -91,6 +91,22 @@ setStockWarning(false);
 }
 
 },[cart]);
+useEffect(() => {
+
+  if (!window.fbq) return;
+
+  if (items.length > 0) {
+
+    window.fbq("track", "ViewCart", {
+      content_ids: items.map(i => i.productId),
+      content_type: "product",
+      value: total,
+      currency: "INR"
+    });
+
+  }
+
+}, []);
 
 
 /* =========================

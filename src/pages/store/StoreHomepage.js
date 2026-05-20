@@ -139,6 +139,14 @@ const StoreHomepage = () => {
     name="description"
     content={description}
   />
+  <meta
+  name="keywords"
+  content={`${storeName}, jewellery store, online shopping, fashion store`}
+/>
+  <link
+  rel="canonical"
+  href={`https://${domain}`}
+/>
 
   <meta property="og:title" content={storeName} />
   <meta property="og:description" content={description} />
