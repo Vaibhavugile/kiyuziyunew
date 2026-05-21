@@ -160,6 +160,7 @@ const StoreCheckoutPage = () => {
             return;
 
         }
+        let purchasedItems = [];
 
         try {
 
@@ -362,6 +363,7 @@ else {
                     };
 
                 });
+                purchasedItems = sanitizedItems;
 
                 /* =========================
                 TOTAL PROFIT
@@ -415,8 +417,24 @@ else {
 
             });
 
-            clearCart();
-            navigate("/order-success");
+            // META PURCHASE EVENT
+if (window.fbq) {
+
+    window.fbq("track", "Purchase", {
+        content_ids: purchasedItems.map(i => i.productId),
+        content_type: "product",
+        value: Number(totalAmount),
+        currency: "INR",
+        num_items: purchasedItems.reduce(
+            (sum, item) => sum + item.quantity,
+            0
+        )
+    });
+
+}
+
+clearCart();
+navigate("/order-success");
 
         } catch (err) {
 

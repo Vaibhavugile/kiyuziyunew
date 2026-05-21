@@ -3471,6 +3471,7 @@ localStorage.removeItem("offlineBillingDraft");
       "collections",
       "orders",
       "lowStock",
+      "Storestock",
       "reports",
       "users",
       "offline-billing",
@@ -3535,6 +3536,14 @@ localStorage.removeItem("offlineBillingDraft");
              <button
             className="admin-menu-item"
             onClick={() => (window.location.href = "/admin/productsale/view")}
+          >
+            Stock Summary
+          </button>
+        )}
+         {ROLE_PERMISSIONS[currentUserRole]?.includes("Storestock") && (
+             <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/stockcheck")}
           >
             Stock Summary
           </button>

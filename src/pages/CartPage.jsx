@@ -239,7 +239,7 @@ const [couponUiError, setCouponUiError] = useState(null);
             </div>
 
             {/* COUPON SECTION */}
-            <div className="coupon-section">
+            {/* <div className="coupon-section">
   {!appliedCoupon ? (
     <>
       <input
@@ -274,16 +274,16 @@ const [couponUiError, setCouponUiError] = useState(null);
       </button>
     </div>
   )}
-</div>
+</div> */}
 
 
             {/* DISCOUNT */}
-            {couponDiscount > 0 && (
+            {/* {couponDiscount > 0 && (
               <div className="cart-summary-line discount-line">
                 <p>Coupon Discount:</p>
                 <span>- ₹{couponDiscount.toFixed(2)}</span>
               </div>
-            )}
+            )} */}
 
             {/* MINIMUM ORDER */}
             {isMinOrderApplicable && (

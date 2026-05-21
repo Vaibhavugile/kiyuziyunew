@@ -459,7 +459,7 @@ const startRazorpayPayment = async (orderId, amount) => {
             )}
 
             <div className="cart-total-section">
-              <p>Packing & Service</p>
+              <p>Service Charge</p>
 
               <p>₹{SHIPPING_FEE.toFixed(2)}</p>
               

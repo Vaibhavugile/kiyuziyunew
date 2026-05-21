@@ -4,7 +4,7 @@ const META_PIXELS = {
   "kiyuziyuofficial.com": "1011222784602653",
 
   "kiyuziyubypawanratna.com": "930079726687326",
-
+"kiyuziyujewellery.in": "1327934982509184",
   // local development
   "localhost:3000": "1011222784602653",
   "localhost:3001": "1011222784602653",

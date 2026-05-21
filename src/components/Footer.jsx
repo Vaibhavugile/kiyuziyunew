@@ -99,7 +99,7 @@ const Footer = () => {
           <div className="fj-col fj-contact" aria-labelledby="fj-contact-heading">
             <h4 id="fj-contact-heading" className="fj-h">Contact Us</h4>
             <address className="fj-contact-list">
-              <div>📍 <span>Streets Of Europe, Hinjewadi, Pune</span></div>
+              <div>📍 <span>Shop No 201 ,Xion Mall ,Hinjewadi,Pune-411057</span></div>
               <div>📞 <a href="tel:+917897897441">+91 78978 97441</a></div>
               <div>✉️ <a href="mailto:kiyuziyujewellery@gmail.com">kiyuziyujewellery@gmail.com</a></div>
               <div>📍 <span>For Wholsale Contact On +91 78978 97441</span></div>

@@ -123,13 +123,22 @@ const getInitialQty = (product) => {
 
     const data = d.data();
 
-    return {
-      id: d.id,
-      name: data.productName,
-      productCode: data.productCode || "",
-      type: data.type || "",
-      initialQty: getInitialQty(data)
-    };
+return {
+  id: d.id,
+  name: data.productName,
+  productCode: data.productCode || "",
+  type: data.type || "",
+
+  initialQty: getInitialQty(data),
+
+  availableQty:
+    data.variations && data.variations.length > 0
+      ? data.variations.reduce(
+          (sum, v) => sum + Number(v.quantity || 0),
+          0
+        )
+      : Number(data.quantity || 0)
+};
 
   })
 );
@@ -166,48 +175,73 @@ const getInitialQty = (product) => {
             const start = new Date(startDate + "T00:00:00");
             const end = new Date(endDate + "T23:59:59");
 
-            const q = query(
-                collection(db, "orders"),
-                where("createdAt", ">=", Timestamp.fromDate(start)),
-                where("createdAt", "<=", Timestamp.fromDate(end))
-            );
-            const snap = await getDocs(q);
+          const ordersQuery = query(
+    collection(db, "orders"),
+    where("createdAt", ">=", Timestamp.fromDate(start)),
+    where("createdAt", "<=", Timestamp.fromDate(end))
+);
+
+const storeOrdersQuery = query(
+    collection(db, "storeOrders"),
+    where("createdAt", ">=", Timestamp.fromDate(start)),
+    where("createdAt", "<=", Timestamp.fromDate(end))
+);
+
+const [ordersSnap, storeOrdersSnap] = await Promise.all([
+    getDocs(ordersQuery),
+    getDocs(storeOrdersQuery)
+]);
 
             const rows = [];
             let qty = 0;
             let value = 0;
 
-            snap.forEach(docSnap => {
+           const processOrders = (snap, sourceType) => {
 
-                const order = docSnap.data();
+    snap.forEach(docSnap => {
 
-                (order.items || []).forEach(item => {
+        const order = docSnap.data();
 
-                    if (String(item.productId).trim() === String(selectedProduct).trim()) {
-                        console.log(item.productId, selectedProduct);
-                        const total = item.quantity * item.priceAtTimeOfOrder;
+        (order.items || []).forEach(item => {
 
-                      rows.push({
-  orderId: docSnap.id,
-  customerName: order.billingInfo?.fullName || "Unknown",
-  date: order.createdAt?.toDate(),
-  productCode: item.productCode,
-  variant: {
-    color: item.variation?.color || "",
-    size: item.variation?.size || ""
-  },
-  qty: item.quantity,
-  price: item.priceAtTimeOfOrder,
-  total: item.quantity * item.priceAtTimeOfOrder
-});
-                        qty += item.quantity;
-                        value += total;
+            if (String(item.productId).trim() === String(selectedProduct).trim()) {
 
-                    }
+                const total = item.quantity * item.priceAtTimeOfOrder;
 
+                rows.push({
+                    orderId: docSnap.id,
+                    source: sourceType,
+                    customerName:
+                        order.billingInfo?.fullName ||
+                        order.customerName ||
+                        "Walk-in Customer",
+
+                    date: order.createdAt?.toDate(),
+
+                    productCode: item.productCode,
+
+                    variant: {
+                        color: item.variation?.color || "",
+                        size: item.variation?.size || ""
+                    },
+
+                    qty: item.quantity,
+                    price: item.priceAtTimeOfOrder,
+                    total
                 });
 
-            });
+                qty += item.quantity;
+                value += total;
+            }
+
+        });
+
+    });
+
+};
+
+processOrders(ordersSnap, "Online");
+processOrders(storeOrdersSnap, "Store");
             rows.sort((a, b) => {
                 const dateA = a.date ? new Date(a.date).getTime() : 0;
                 const dateB = b.date ? new Date(b.date).getTime() : 0;
@@ -339,10 +373,21 @@ setShowProductDropdown(false);
 </div>
 {selectedProductData && (
   <div className="stock-info">
-    Initial Stock: {selectedProductData.initialQty}
+
+    <div>
+      Initial Stock: {selectedProductData.initialQty}
+    </div>
+
+    <div>
+      Available Stock: {selectedProductData.availableQty}
+    </div>
+
+    <div>
+      Sold In Selected Range: {totalQty}
+    </div>
+
   </div>
 )}
-
 
             {/* RANGE BUTTONS */}
 
@@ -374,11 +419,13 @@ setShowProductDropdown(false);
                     <tr>
                         <th>Date</th>
 <th>Order</th>
+<th>Source</th>
 <th>Customer</th>
 <th>Variant</th>
 <th>Qty</th>
 <th>Price</th>
 <th>Total</th>
+
                     </tr>
                 </thead>
 
@@ -391,6 +438,7 @@ setShowProductDropdown(false);
                             </td>
 
                             <td>{s.orderId}</td>
+                            <td>{s.source}</td>
 
                             <td>{s.customerName}</td>
                             <td>

@@ -20,6 +20,7 @@
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.7",
     "jszip": "^3.10.1",
+    "prerender-node": "^3.8.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-helmet-async": "^3.0.0",
@@ -34,7 +35,8 @@
     "recharts": "^3.6.0",
     "sharp": "^0.34.5",
     "twilio": "^5.9.0",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "start": "react-scripts start",

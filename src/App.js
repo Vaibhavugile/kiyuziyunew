@@ -58,6 +58,7 @@ import CustomBillingPage from './pages/CustomBillingPage';
 import OrdersProductsPage from './pages/OrdersProductsPage';
 import DropshipperCustomers from './pages/dropshipper/DropshipperCustomers';
 import PixelTracker from "./components/PixelTracker";
+import StockCheckPage from './pages/StockCheckPage';
 function App() {
     useEffect(() => {
     initMetaPixel();
@@ -115,6 +116,7 @@ function App() {
             />
             <Route path="/admin/coupon-analytics" element={<CouponAnalytics />} />
             <Route path="/admin/seller-profits" element={<AdminSellerProfits />} />
+            <Route path="/admin/stockcheck" element={<StockCheckPage />} />
 
 <Route path="/inventory/stock" element={<InventorySummaryPage />} />
 <Route path="/admin/productsale/view" element={<ProductSalesPage />} />
