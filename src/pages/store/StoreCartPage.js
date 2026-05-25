@@ -98,6 +98,60 @@ sellerTotals[item.sellerId].total +=
 price * item.quantity;
 
 });
+/* =========================
+SHIPPING TOTAL
+========================= */
+
+let shippingTotal = 0;
+
+let shippingLabel = "Free Shipping";
+
+Object.entries(sellerTotals).forEach(
+([sellerId]) => {
+
+const item = items.find(
+i => i.sellerId === sellerId
+);
+
+const settings =
+item?.shippingSettings;
+
+if(!settings) return;
+
+/* =========================
+FREE SHIPPING
+========================= */
+
+if(settings.type === "free"){
+
+return;
+
+}
+
+/* =========================
+FIXED SHIPPING
+========================= */
+
+if(settings.type === "fixed"){
+
+shippingTotal +=
+Number(settings.charge || 0);
+
+}
+
+/* =========================
+CUSTOM TEXT
+========================= */
+
+if(settings.type === "customText"){
+
+shippingLabel =
+settings.label ||
+"Applicable as per location";
+
+}
+
+});
 
 
 /* =========================
@@ -162,6 +216,12 @@ const { price } = getTierData(tiers, subQty);
 return sum + price * item.quantity;
 
 },0);
+/* =========================
+FINAL TOTAL
+========================= */
+
+const finalTotal =
+total + shippingTotal;
 
 
 /* =========================
@@ -464,12 +524,20 @@ RIGHT SIDE - SUMMARY
 
 <div className="cart-summary-line">
 <p>Shipping</p>
-<span>applicable as per location</span>
+
+<span>
+
+{shippingTotal > 0
+? `₹${shippingTotal}`
+: shippingLabel}
+
+</span>
+
 </div>
 
 <div className="cart-total final-total">
 <p>Total</p>
-<span>₹{total}</span>
+<span>₹{finalTotal}</span>
 </div>
 
 

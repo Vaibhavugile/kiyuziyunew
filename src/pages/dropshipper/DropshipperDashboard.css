@@ -8,6 +8,58 @@ margin:auto;
 margin-bottom:30px;
 color:#555;
 }
+/* =========================
+STORE SETTINGS
+========================= */
+
+.settings-group{
+display:flex;
+flex-direction:column;
+margin-bottom:18px;
+}
+
+.settings-group label{
+font-size:14px;
+font-weight:600;
+margin-bottom:6px;
+color:#333;
+}
+
+.settings-group input,
+.settings-group select{
+padding:10px 12px;
+border:1px solid #ddd;
+border-radius:8px;
+font-size:14px;
+outline:none;
+transition:0.2s;
+}
+
+.settings-group input:focus,
+.settings-group select:focus{
+border-color:#111;
+}
+
+.save-settings-btn{
+background:#111;
+color:white;
+border:none;
+padding:12px 18px;
+border-radius:8px;
+cursor:pointer;
+font-weight:600;
+font-size:14px;
+transition:0.2s;
+}
+
+.save-settings-btn:hover{
+opacity:0.9;
+}
+
+.save-settings-btn:disabled{
+opacity:0.6;
+cursor:not-allowed;
+}
 
 /* STORE CARD */
 

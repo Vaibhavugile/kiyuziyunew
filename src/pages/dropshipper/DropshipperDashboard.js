@@ -5,7 +5,8 @@ getDoc,
 collection,
 query,
 where,
-getDocs
+getDocs,
+updateDoc
 } from "firebase/firestore";
 
 import { db } from "../../firebase";
@@ -20,7 +21,20 @@ const { currentUser } = useAuth();
 const [userData,setUserData] = useState(null);
 const [orders,setOrders] = useState([]);
 const [payouts,setPayouts] = useState([]);
+const [minimumOrderValue,setMinimumOrderValue] =
+useState("");
 
+const [shippingType,setShippingType] =
+useState("free");
+
+const [shippingCharge,setShippingCharge] =
+useState("");
+
+const [shippingLabel,setShippingLabel] =
+useState("");
+
+const [saving,setSaving] =
+useState(false);
 const [loading,setLoading] = useState(true);
 
 /* =========================
@@ -41,7 +55,27 @@ const userRef = doc(db,"users",currentUser.uid);
 const userSnap = await getDoc(userRef);
 
 if(userSnap.exists()){
-setUserData(userSnap.data());
+
+const data = userSnap.data();
+
+setUserData(data);
+
+setMinimumOrderValue(
+data.minimumOrderValue || ""
+);
+
+setShippingType(
+data.shippingSettings?.type || "free"
+);
+
+setShippingCharge(
+data.shippingSettings?.charge || ""
+);
+
+setShippingLabel(
+data.shippingSettings?.label || ""
+);
+
 }
 
 /* LOAD ORDERS */
@@ -127,6 +161,55 @@ navigator.clipboard.writeText(link);
 alert("Store link copied");
 
 };
+/* =========================
+SAVE STORE SETTINGS
+========================= */
+
+const saveStoreSettings = async()=>{
+
+try{
+
+setSaving(true);
+
+await updateDoc(
+doc(db,"users",currentUser.uid),
+{
+
+minimumOrderValue:
+Number(minimumOrderValue || 0),
+
+shippingSettings:{
+
+type:shippingType,
+
+charge:
+shippingType === "fixed"
+? Number(shippingCharge || 0)
+: 0,
+
+label:
+shippingType === "customText"
+? shippingLabel
+: ""
+
+}
+
+}
+);
+
+alert("Settings updated");
+
+}catch(err){
+
+console.error(err);
+
+alert("Failed to save settings");
+
+}
+
+setSaving(false);
+
+};
 
 /* =========================
 LOADING
@@ -185,6 +268,115 @@ Copy
 <p><b>Email:</b> {userData?.email}</p>
 
 </div>
+
+</div>
+{/* =========================
+STORE SETTINGS
+========================= */}
+
+<div className="store-card">
+
+<h2>Store Settings</h2>
+
+{/* MINIMUM ORDER */}
+
+<div className="settings-group">
+
+<label>Minimum Order Value</label>
+
+<input
+type="number"
+placeholder="Enter minimum order value"
+value={minimumOrderValue}
+onChange={(e)=>
+setMinimumOrderValue(e.target.value)
+}
+/>
+
+</div>
+
+{/* SHIPPING TYPE */}
+
+<div className="settings-group">
+
+<label>Shipping Type</label>
+
+<select
+value={shippingType}
+onChange={(e)=>
+setShippingType(e.target.value)
+}
+>
+
+<option value="free">
+Free Shipping
+</option>
+
+<option value="fixed">
+Fixed Shipping
+</option>
+
+<option value="customText">
+Custom Text
+</option>
+
+</select>
+
+</div>
+
+{/* FIXED SHIPPING */}
+
+{shippingType === "fixed" && (
+
+<div className="settings-group">
+
+<label>Shipping Charge</label>
+
+<input
+type="number"
+placeholder="Enter shipping amount"
+value={shippingCharge}
+onChange={(e)=>
+setShippingCharge(e.target.value)
+}
+/>
+
+</div>
+
+)}
+
+{/* CUSTOM TEXT */}
+
+{shippingType === "customText" && (
+
+<div className="settings-group">
+
+<label>Shipping Label</label>
+
+<input
+type="text"
+placeholder="Applicable as per location"
+value={shippingLabel}
+onChange={(e)=>
+setShippingLabel(e.target.value)
+}
+/>
+
+</div>
+
+)}
+
+<button
+className="save-settings-btn"
+onClick={saveStoreSettings}
+disabled={saving}
+>
+
+{saving
+? "Saving..."
+: "Save Settings"}
+
+</button>
 
 </div>
 

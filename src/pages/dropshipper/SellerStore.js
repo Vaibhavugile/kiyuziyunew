@@ -220,6 +220,8 @@ setHasMore(true);
           sellerId,
             minimumOrderValue:
     sellerDoc.data().minimumOrderValue ?? 0,
+    shippingSettings:
+sellerDoc.data().shippingSettings ?? null,
           tieredPricing: {
             retail: normalized,
             wholesale: normalized,
@@ -469,6 +471,8 @@ newProducts = newProducts.map(p => {
     sellerId: seller.id,
      minimumOrderValue:
     seller.minimumOrderValue ?? 0,
+    shippingSettings:
+seller.shippingSettings ?? null,
     tieredPricing: {
       retail: normalized,
       wholesale: normalized,

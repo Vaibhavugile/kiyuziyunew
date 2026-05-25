@@ -207,6 +207,8 @@ return{
 [cartId]:{
 ...product,
 sellerId: product.sellerId ?? null,
+shippingSettings:
+product.shippingSettings ?? null,
 cartId,
 productId: product.productId || product.id,
 quantity:1,

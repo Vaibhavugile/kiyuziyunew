@@ -44,7 +44,6 @@ const getTierData = (tiers, quantity) => {
 
 };
 
-const SHIPPING_FEE = 0;
 
 const StoreCheckoutPage = () => {
 
@@ -81,22 +80,7 @@ const StoreCheckoutPage = () => {
         }));
 
     };
-    useEffect(() => {
 
-  if (!window.fbq) return;
-
-  if (items.length > 0) {
-
-    window.fbq("track", "InitiateCheckout", {
-      content_ids: items.map(i => i.productId),
-      content_type: "product",
-      value: totalAmount,
-      currency: "INR"
-    });
-
-  }
-
-}, []);
 
     /* =========================
     TOTAL CALCULATIONS
@@ -115,7 +99,7 @@ const StoreCheckoutPage = () => {
 
     }, 0);
 
-    const totalAmount = subtotal + SHIPPING_FEE;
+  
 /* =========================
 SELLER TOTALS
 ========================= */
@@ -156,6 +140,78 @@ Object.entries(sellerTotals).filter(
 ([_,data]) =>
 data.total < data.minimumOrderValue
 );
+/* =========================
+SHIPPING TOTAL
+========================= */
+
+let shippingTotal = 0;
+
+let shippingLabel = "Free Shipping";
+
+Object.entries(sellerTotals).forEach(
+([sellerId]) => {
+
+const item = items.find(
+i => i.sellerId === sellerId
+);
+
+const settings =
+item?.shippingSettings;
+
+if(!settings) return;
+
+/* =========================
+FREE SHIPPING
+========================= */
+
+if(settings.type === "free"){
+
+return;
+
+}
+
+/* =========================
+FIXED SHIPPING
+========================= */
+
+if(settings.type === "fixed"){
+
+shippingTotal +=
+Number(settings.charge || 0);
+
+}
+
+/* =========================
+CUSTOM TEXT
+========================= */
+
+if(settings.type === "customText"){
+
+shippingLabel =
+settings.label ||
+"Applicable as per location";
+
+}
+
+});
+ const totalAmount =
+subtotal + shippingTotal;
+   useEffect(() => {
+
+  if (!window.fbq) return;
+
+  if (items.length > 0) {
+
+    window.fbq("track", "InitiateCheckout", {
+      content_ids: items.map(i => i.productId),
+      content_type: "product",
+      value: totalAmount,
+      currency: "INR"
+    });
+
+  }
+
+}, [items, totalAmount]);
     /* =========================
     PLACE ORDER
     ========================= */
@@ -459,7 +515,8 @@ else {
                     items: sanitizedItems,
 
                     subtotal: Number(subtotal) || 0,
-                    shippingFee: SHIPPING_FEE,
+                    shippingFee: shippingTotal,
+                    shippingLabel,
                     totalAmount: Number(totalAmount) || 0,
 
                     totalItems: sanitizedItems.length,
@@ -510,7 +567,7 @@ if (window.fbq) {
 setTimeout(() => {
     clearCart();
     navigate("/order-success");
-}, 1500);
+}, 2000);
 
         } catch (err) {
 
@@ -630,11 +687,18 @@ setTimeout(() => {
                         </div>
 
                         <div className="cart-total-section">
-                            <p>Packing</p>
-                                <p>
-        {SHIPPING_FEE === 0 ? "Applicable As Per Location" : `₹${SHIPPING_FEE.toFixed(2)}`}
-    </p>
-                        </div>
+
+<p>Shipping</p>
+
+<p>
+
+{shippingTotal > 0
+? `₹${shippingTotal.toFixed(2)}`
+: shippingLabel}
+
+</p>
+
+</div>
 
                         <div className="cart-total-section total-final">
                             <p>Total</p>
