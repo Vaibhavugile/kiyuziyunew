@@ -70,7 +70,7 @@ export const ROLE_CONFIG = {
 
 
 // 🛟 Safe fallback (VERY IMPORTANT)
-export const DEFAULT_ROLE = ROLES.RETAILER;
+export const DEFAULT_ROLE = ROLES.DROPSHIPPING;
 
 // ✅ Helper: get role config safely
 export const getRoleConfig = (role) => {

@@ -10,6 +10,7 @@ import TrendingSection from "../components/TrendingSection";
 import "./HomePage.css";
 import BulkEnquirySection from '../components/BulkEnquirySection';
 import InstagramReelsSection from "../components/InstagramReelsSection";
+import { trackMetaEvent } from "../utils/pixels";
 const HomePage = () => {
   const [collections, setCollections] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -79,13 +80,22 @@ const HomePage = () => {
           // NOTE: use the class name that matches the grid CSS (.collection-grid)
           <div className="collection-grid" role="list" aria-live="polite">
             {collections.map((col) => (
-              <Link
-                to={`/collections/${col.id}/all-products`}
-                key={col.id}
-                className="collection-link"
-                role="listitem"
-                aria-label={`Open ${col.title || col.name} collection`}
-              >
+            <Link
+  to={`/collections/${col.id}/all-products`}
+  key={col.id}
+  className="collection-link"
+  role="listitem"
+  aria-label={`Open ${col.title || col.name} collection`}
+  onClick={() => {
+
+    trackMetaEvent("ViewContent", {
+      content_name: col.title || col.name || "Collection",
+      content_ids: [col.id],
+      content_type: "product_group"
+    });
+
+  }}
+>
               <CollectionCard
   id={col.id}
   title={col.title || col.name || "Collection"}

@@ -1,7 +1,7 @@
 import { getCleanDomain } from "./domain";
 
 const META_PIXELS = {
-  "kiyuziyuofficial.com": "1011222784602653",
+  "kiyuziyuofficial.com": "2231396327679041",
 
   "kiyuziyubypawanratna.com": "930079726687326",
 "kiyuziyujewellery.in": "1327934982509184",
@@ -57,4 +57,14 @@ export const initMetaPixel = () => {
   window.fbq("init", pixelId);
 
   window.fbq("track", "PageView");
+};
+export const trackMetaEvent = (
+  eventName,
+  data = {}
+) => {
+
+  if (!window.fbq) return;
+
+  window.fbq("track", eventName, data);
+
 };

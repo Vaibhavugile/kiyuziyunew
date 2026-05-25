@@ -35,7 +35,7 @@ const ProductCard = ({
      ROLE (DISPLAY ONLY)
   ===================== */
   const { roleConfig } = useAuth();
-  const pricingKey = roleConfig?.pricingKey || 'retail';
+  const pricingKey = roleConfig?.pricingKey || 'dropshipping';
 
   /* =====================
      STATE

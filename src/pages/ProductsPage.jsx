@@ -30,7 +30,7 @@ import * as autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import ProductCardSkeleton from "../components/ProductCardSkeleton";
-
+import { trackMetaEvent } from "../utils/pixels";
 // Product fetch limit per batch
 const PRODUCTS_PER_PAGE = 20;
 
@@ -203,6 +203,12 @@ const [maxDownloadQty, setMaxDownloadQty] = useState("");
 
 
       setProducts(fetched);
+
+trackMetaEvent("ViewContent", {
+  content_name: mainCollection?.title || "Products Collection",
+  content_ids: fetched.map(p => p.id),
+  content_type: "product"
+});
       allProductsCache.current = fetched;
 
       lastVisibleRef.current =
@@ -619,7 +625,13 @@ const [maxDownloadQty, setMaxDownloadQty] = useState("");
       pricingId,
       variation
     };
-
+trackMetaEvent("AddToCart", {
+  content_name: product.productName,
+  content_ids: [product.id],
+  content_type: "product",
+  value: getProductPrice(product, subcollectionsMap, pricingKey) || 0,
+  currency: "INR"
+});
     addToCart(productData);
   };
 

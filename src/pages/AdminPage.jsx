@@ -3042,8 +3042,15 @@ setTimeout(() => {
                 isStockError = true;
                 productUpdatesMap[baseProductId].hasError = true;
                 // ✅ FIX (from previous error): Log the correct variable
-                console.error(`  ❌ STOCK ERROR: Requested ${quantitySold}, but only ${currentSimpleQuantity} available.`);
-              } else {
+console.error(
+  `❌ STOCK ERROR:
+Product: ${item.productName}
+Code: ${item.productCode}
+Variation: ${item.variation?.size || "Simple"}
+
+Requested: ${quantitySold}
+`
+);              } else {
                 currentSimpleQuantity = newQuantity; // Update the temporary quantity
               }
             }
@@ -3194,8 +3201,28 @@ localStorage.removeItem("offlineBillingDraft");
 
       } catch (error) {
         if (error.message === "STOCK_FAILURE_CLIENT") {
-          alert('Failed to finalize sale: Insufficient stock for one or more items. Please adjust the cart.');
-        } else {
+const stockErrorMessages = [];
+
+for (const item of Object.values(offlineCart)) {
+
+  const baseProductId = item.id.split('_')[0];
+  const productData = productUpdatesMap[baseProductId];
+
+  if (productData?.hasError) {
+
+    stockErrorMessages.push(
+`❌ ${item.productName}
+Code: ${item.productCode}
+Variation: ${item.variation?.size || "Simple"}
+
+Requested: ${item.quantity}`
+    );
+  }
+}
+
+alert(
+  `Insufficient Stock:\n\n${stockErrorMessages.join("\n----------------\n")}`
+);        } else {
           console.error('\n--- FINAL ERROR ---');
           console.error('Error finalizing offline sale:', error);
           alert('Failed to finalize the sale. Please check console for details.');
@@ -3203,6 +3230,25 @@ localStorage.removeItem("offlineBillingDraft");
       }
     }
   };
+
+  const handleClearOfflineCart = () => {
+
+  if (!window.confirm("Clear entire offline cart?")) {
+    return;
+  }
+
+  // Clear React state
+  setOfflineCart({});
+
+  // Clear saved draft
+  localStorage.removeItem("offlineCartDraft");
+  localStorage.removeItem("offlineBillingDraft");
+
+  // Optional extra reset
+  setEditedTotal('');
+
+  alert("Offline cart cleared.");
+};
   useEffect(() => {
     if (!showInvoice || !invoiceData) return;
 
@@ -5032,6 +5078,21 @@ localStorage.removeItem("offlineBillingDraft");
                       >
                         🖨 Reprint Invoice
                       </button>
+                      <button
+  type="button"
+  onClick={handleClearOfflineCart}
+  style={{
+    background: "#ff4d4f",
+    color: "white",
+    border: "none",
+    padding: "10px 16px",
+    borderRadius: "6px",
+    cursor: "pointer",
+    marginRight: "10px"
+  }}
+>
+  Clear Cart
+</button>
 
 
                     </>

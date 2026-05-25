@@ -6,7 +6,7 @@ import './CheckoutPage.css';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase'
 import { getRoleConfig } from '../config/roles';
-
+import { trackMetaEvent } from "../utils/pixels";
 const SHIPPING_FEE = 99;
 
 const CheckoutPage = () => {
@@ -59,6 +59,25 @@ const CheckoutPage = () => {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
+
+React.useEffect(() => {
+
+  if (Object.values(cart).length > 0) {
+
+    trackMetaEvent("InitiateCheckout", {
+      content_ids: Object.values(cart).map(item => item.id),
+      content_type: "product",
+      value: getFinalTotal(),
+      currency: "INR",
+      num_items: Object.values(cart).reduce(
+        (sum, item) => sum + item.quantity,
+        0
+      )
+    });
+
+  }
+
+}, []);
 const loadRazorpay = () =>
   new Promise((resolve) => {
     const script = document.createElement('script');
@@ -260,11 +279,22 @@ const loadRazorpay = () =>
 
       // 🔀 STEP 7: Branch payment flow
       if (!isOnlinePayment) {
-        // MANUAL payment roles (wholesaler, distributor, dealer, vip)
-        clearCart();
-        navigate('/order-success');
-        return;
-      }
+
+  trackMetaEvent("Purchase", {
+    content_ids: Object.values(cart).map(item => item.id),
+    content_type: "product",
+    value: totalWithShipping,
+    currency: "INR",
+    num_items: Object.values(cart).reduce(
+      (sum, item) => sum + item.quantity,
+      0
+    )
+  });
+
+  clearCart();
+  navigate('/order-success');
+  return;
+}
 
       // ONLINE payment (retailer)
       // ⚠️ DO NOTHING MORE FOR NOW
@@ -339,8 +369,19 @@ const startRazorpayPayment = async (orderId, amount) => {
         }
       );
 
-      clearCart();
-      navigate("/order-success");
+      trackMetaEvent("Purchase", {
+  content_ids: Object.values(cart).map(item => item.id),
+  content_type: "product",
+  value: amount,
+  currency: "INR",
+  num_items: Object.values(cart).reduce(
+    (sum, item) => sum + item.quantity,
+    0
+  )
+});
+
+clearCart();
+navigate("/order-success");
     },
 
     prefill: {

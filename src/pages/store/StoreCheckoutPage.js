@@ -420,6 +420,8 @@ else {
             // META PURCHASE EVENT
 if (window.fbq) {
 
+    const eventId = `purchase_${Date.now()}`;
+
     window.fbq("track", "Purchase", {
         content_ids: purchasedItems.map(i => i.productId),
         content_type: "product",
@@ -429,12 +431,16 @@ if (window.fbq) {
             (sum, item) => sum + item.quantity,
             0
         )
+    }, {
+        eventID: eventId
     });
 
 }
 
-clearCart();
-navigate("/order-success");
+setTimeout(() => {
+    clearCart();
+    navigate("/order-success");
+}, 1500);
 
         } catch (err) {
 

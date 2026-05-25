@@ -211,6 +211,8 @@ const [ordersSnap, storeOrdersSnap] = await Promise.all([
                 rows.push({
                     orderId: docSnap.id,
                     source: sourceType,
+                    status:
+        order.status,
                     customerName:
                         order.billingInfo?.fullName ||
                         order.customerName ||
@@ -423,6 +425,7 @@ setShowProductDropdown(false);
 <th>Customer</th>
 <th>Variant</th>
 <th>Qty</th>
+<th>Status</th>
 <th>Price</th>
 <th>Total</th>
 
@@ -446,6 +449,7 @@ setShowProductDropdown(false);
 </td>
 
                             <td>{s.qty}</td>
+                            <td>{s.status}</td>
 
                             <td>₹{s.price}</td>
 

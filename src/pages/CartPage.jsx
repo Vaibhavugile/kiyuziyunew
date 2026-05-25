@@ -12,6 +12,7 @@ import {
   getDocs,
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { trackMetaEvent } from "../utils/pixels";
 
 const CartPage = () => {
   const navigate = useNavigate();
@@ -157,6 +158,16 @@ const [couponUiError, setCouponUiError] = useState(null);
   // 🔒 HARD NAVIGATION GUARD
   const handleCheckout = () => {
     if (showMinOrderWarning) return;
+      trackMetaEvent("InitiateCheckout", {
+    content_ids: Object.values(cart).map(item => item.id),
+    content_type: "product",
+    value: getFinalTotal(),
+    currency: "INR",
+    num_items: Object.values(cart).reduce(
+      (sum, item) => sum + item.quantity,
+      0
+    )
+  });
     navigate('/checkout');
   };
 
@@ -324,11 +335,22 @@ const [couponUiError, setCouponUiError] = useState(null);
               </button>
 
               <button
-                onClick={clearCart}
-                className="clear-cart-btn"
-              >
-                Clear Cart
-              </button>
+  onClick={() => {
+
+    trackMetaEvent("RemoveFromCart", {
+      content_ids: Object.values(cart).map(item => item.id),
+      content_type: "product",
+      value: getFinalTotal(),
+      currency: "INR"
+    });
+
+    clearCart();
+
+  }}
+  className="clear-cart-btn"
+>
+  Clear Cart
+</button>
             </div>
 
             <p className="trust-message">🔒 Secure Checkout</p>

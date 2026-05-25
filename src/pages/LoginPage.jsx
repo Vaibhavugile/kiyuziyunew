@@ -17,6 +17,7 @@ import {
 } from '../firebase';
 import '../styles/LoginPage.css';
 import LogoImage from '../assets/logoj.png';
+import { trackMetaEvent } from "../utils/pixels";
 const countryCodes = [
   { code: "+91", name: "India" },
   { code: "+93", name: "Afghanistan" },
@@ -349,7 +350,12 @@ const LoginPage = () => {
 
       if (response.ok && result.status === "success") {
         setIsOtpSent(true);
-        setInfo('OTP sent successfully. Please check your WhatsApp.');
+
+trackMetaEvent("Lead", {
+  method: "WhatsApp OTP"
+});
+
+setInfo('OTP sent successfully. Please check your WhatsApp.');
       } else {
         setError(result.message || 'Failed to send OTP. Please check server logs.');
         console.error('API Error:', result);
@@ -416,7 +422,12 @@ const LoginPage = () => {
         }
 
         setInfo('Welcome back! Logging in...');
-        navigate('/'); // Redirect immediately
+
+trackMetaEvent("Login", {
+  method: "WhatsApp OTP"
+});
+
+navigate('/');
 
       } else {
         // --- NEW USER (SIGN UP) ---
@@ -474,7 +485,12 @@ const LoginPage = () => {
       }, { merge: true });
 
       setInfo('Sign up successful! Redirecting...');
-      setTimeout(() => navigate('/'), 1000);
+
+trackMetaEvent("CompleteRegistration", {
+  status: "Success"
+});
+
+setTimeout(() => navigate('/'), 1000);
 
     } catch (err) {
       console.error('Error during profile setup:', err);
