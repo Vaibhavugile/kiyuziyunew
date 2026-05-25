@@ -116,7 +116,46 @@ const StoreCheckoutPage = () => {
     }, 0);
 
     const totalAmount = subtotal + SHIPPING_FEE;
+/* =========================
+SELLER TOTALS
+========================= */
 
+const sellerTotals = {};
+
+items.forEach(item => {
+
+const subQty =
+getSubcollectionQty(item.subcollectionId);
+
+const { price } = getTierData(
+item.tieredPricing?.retail ?? [],
+subQty
+);
+
+if(!sellerTotals[item.sellerId]){
+
+sellerTotals[item.sellerId] = {
+total:0,
+minimumOrderValue:
+Number(item.minimumOrderValue || 0)
+};
+
+}
+
+sellerTotals[item.sellerId].total +=
+price * item.quantity;
+
+});
+
+/* =========================
+MINIMUM ORDER ERRORS
+========================= */
+
+const minimumOrderErrors =
+Object.entries(sellerTotals).filter(
+([_,data]) =>
+data.total < data.minimumOrderValue
+);
     /* =========================
     PLACE ORDER
     ========================= */
@@ -160,7 +199,38 @@ const StoreCheckoutPage = () => {
             return;
 
         }
+        /* =========================
+MINIMUM ORDER VALIDATION
+========================= */
+
+if(minimumOrderErrors.length > 0){
+
+setError(
+
+minimumOrderErrors
+.map(([_,data]) => {
+
+const remaining =
+data.minimumOrderValue - data.total;
+
+return `
+Minimum order value is ₹${data.minimumOrderValue}
+Current total is ₹${data.total}
+Add ₹${remaining} more to continue.
+`;
+
+})
+.join("\n")
+
+);
+
+setIsProcessing(false);
+
+return;
+
+}
         let purchasedItems = [];
+
 
         try {
 

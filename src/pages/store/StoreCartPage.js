@@ -69,6 +69,35 @@ subcollectionTotals[sub] = 0;
 subcollectionTotals[sub] += item.quantity;
 
 });
+/* =========================
+SELLER TOTALS
+========================= */
+
+const sellerTotals = {};
+
+items.forEach(item => {
+
+const tiers = item.tieredPricing?.retail ?? [];
+
+const subQty =
+subcollectionTotals[item.subcollectionId] || 0;
+
+const { price } = getTierData(tiers, subQty);
+
+if(!sellerTotals[item.sellerId]){
+
+sellerTotals[item.sellerId] = {
+total:0,
+minimumOrderValue:
+Number(item.minimumOrderValue || 0)
+};
+
+}
+
+sellerTotals[item.sellerId].total +=
+price * item.quantity;
+
+});
 
 
 /* =========================
@@ -77,6 +106,15 @@ STOCK VALIDATION
 
 const stockErrors = items.filter(item =>
 item.quantity > (item.stock ?? Infinity)
+);
+/* =========================
+MINIMUM ORDER ERRORS
+========================= */
+
+const minimumOrderErrors =
+Object.entries(sellerTotals).filter(
+([_, data]) =>
+data.total < data.minimumOrderValue
 );
 
 
@@ -132,7 +170,10 @@ CHECKOUT VALIDATION
 
 const handleCheckout = () => {
 
-if(stockErrors.length > 0){
+if(
+stockErrors.length > 0 ||
+minimumOrderErrors.length > 0
+){
 
 setStockWarning(true);
 
@@ -152,7 +193,6 @@ return;
 navigate("/store/checkout");
 
 };
-
 
 return(
 
@@ -181,6 +221,58 @@ fontWeight:"500"
 
 Some items exceed available stock.  
 Please adjust the highlighted quantities.
+
+</div>
+
+)}
+{/* =========================
+MINIMUM ORDER WARNING
+========================= */}
+
+{minimumOrderErrors.length > 0 && (
+
+<div
+style={{
+background:"#fff3cd",
+border:"1px solid #ffcc00",
+padding:"12px",
+borderRadius:"8px",
+marginBottom:"20px",
+color:"#856404",
+fontWeight:"500"
+}}
+>
+
+{minimumOrderErrors.map(([sellerId,data])=>{
+
+const remaining =
+data.minimumOrderValue - data.total;
+
+return(
+
+<div
+key={sellerId}
+style={{marginBottom:"10px"}}
+>
+
+Minimum order value is ₹
+{data.minimumOrderValue}
+
+<br />
+
+Current total: ₹
+{data.total}
+
+<br />
+
+Add ₹{remaining}
+more to continue checkout.
+
+</div>
+
+);
+
+})}
 
 </div>
 

@@ -104,6 +104,7 @@ setHasMore(true);
       }
 
       const sellerDoc = sellerSnap.docs[0];
+      console.log("SELLER DATA", sellerDoc.data());
       const sellerId = sellerDoc.id;
 
       setSeller({
@@ -217,6 +218,8 @@ setHasMore(true);
         return {
           ...p,
           sellerId,
+            minimumOrderValue:
+    sellerDoc.data().minimumOrderValue ?? 0,
           tieredPricing: {
             retail: normalized,
             wholesale: normalized,
@@ -464,6 +467,8 @@ newProducts = newProducts.map(p => {
   return {
     ...p,
     sellerId: seller.id,
+     minimumOrderValue:
+    seller.minimumOrderValue ?? 0,
     tieredPricing: {
       retail: normalized,
       wholesale: normalized,
