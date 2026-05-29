@@ -5,10 +5,12 @@ const META_PIXELS = {
 
   "kiyuziyubypawanratna.com": "930079726687326",
 "kiyuziyujewellery.in": "1327934982509184",
+"kiyuziyujewelery.in":"2192881918217013",
   // local development
   "localhost:3000": "1011222784602653",
   "localhost:3001": "1011222784602653",
   "127.0.0.1:3000": "1011222784602653",
+  "wholesaleantitarnishjewellery.com": "2077794193166378",
 };
 
 export const initMetaPixel = () => {

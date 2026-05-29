@@ -97,7 +97,7 @@
 /* =====================================================
    PRODUCT CARD
 ===================================================== */
-.product-card {
+.barcodeproduct-card {
   display: flex;
   gap: 10px;
   align-items: flex-start;
@@ -108,22 +108,22 @@
   cursor: pointer;
 }
 
-.product-card:hover {
+.barcodeproduct-card:hover {
   background: #f9fafb;
   border-color: #c7d2fe;
 }
 
-.product-card input {
+.barcodeproduct-card input {
   margin-top: 4px;
   transform: scale(1.2);
 }
 
-.product-card strong {
+.barcodeproduct-card strong {
   font-size: 14px;
   display: block;
 }
 
-.product-card small {
+.barcodeproduct-card small {
   font-size: 12px;
   color: #6b7280;
 }

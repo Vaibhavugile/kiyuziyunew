@@ -244,7 +244,7 @@ const isNewProduct = (product) => {
 
       <div className="admin-section product-grid">
         {products.map(product => (
-          <label key={product.id} className="product-card">
+          <label key={product.id} className="barcodeproduct-card">
             <input
               type="checkbox"
               checked={selectedProductIds.includes(product.id)}

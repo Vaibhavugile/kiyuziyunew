@@ -500,7 +500,7 @@ navigate("/order-success");
             )}
 
             <div className="cart-total-section">
-              <p>Service Charge</p>
+              <p>Convinience Fee</p>
 
               <p>₹{SHIPPING_FEE.toFixed(2)}</p>
               

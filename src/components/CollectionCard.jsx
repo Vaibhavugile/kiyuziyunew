@@ -113,13 +113,12 @@ const CollectionCard = ({
               className="btn-pill"
               aria-label={`Explore ${title}`}
             >
-              <span className="pill-text">Explore</span>
+                            <span className="pill-text">{title}</span>
+
               <span className="arrow" aria-hidden="true">›</span>
             </button>
 
-            <span className="product-pill">
-              <span className="pill-text">{title}</span>
-            </span>
+          
           </div>
         </div>
       </div>

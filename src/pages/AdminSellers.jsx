@@ -15,7 +15,10 @@ const AdminSellers = () => {
 const [sellers,setSellers] = useState([]);
 const [orders,setOrders] = useState([]);
 const [expanded,setExpanded] = useState(null);
+
 const [editing,setEditing] = useState(null);
+
+const [newPayment,setNewPayment] = useState({});
 
 const [sortField,setSortField] = useState("revenue");
 const [sortDirection,setSortDirection] = useState("desc");
@@ -63,7 +66,9 @@ SELLER STATS
 
 const getStats = (sellerId)=>{
 
-const sellerOrders = orders.filter(o=>o.sellerId===sellerId);
+const sellerOrders = orders.filter(
+o=>o.sellerId===sellerId
+);
 
 let revenue = 0;
 let profit = 0;
@@ -74,7 +79,13 @@ revenue += order.totalAmount || 0;
 
 (order.items||[]).forEach(item=>{
 
-profit += ((item.priceAtTimeOfOrder||0)-(item.costPrice||0))*(item.quantity||0);
+profit += (
+(item.priceAtTimeOfOrder||0)
+-
+(item.costPrice||0)
+)
+*
+(item.quantity||0);
 
 });
 
@@ -89,6 +100,80 @@ profit
 };
 
 /* =========================
+SUBSCRIPTION TOTALS
+========================= */
+
+const getTotalPaid = (seller)=>{
+
+return (
+seller?.subscription?.payments || []
+).reduce(
+(sum,p)=>sum + Number(p.amount || 0),
+0
+);
+
+};
+
+const getRemainingAmount = (seller)=>{
+
+const total = Number(
+seller?.subscription?.totalAmount || 0
+);
+
+return total - getTotalPaid(seller);
+
+};
+
+/* =========================
+ADD PAYMENT
+========================= */
+
+const addPayment = (seller)=>{
+
+const payment = newPayment[seller.id];
+
+if(!payment?.amount) return;
+
+const updatedPayments = [
+...(editing?.subscription?.payments ||
+seller.subscription?.payments ||
+[]),
+
+payment
+];
+
+setEditing({
+
+...seller,
+
+subscription:{
+
+...(editing?.subscription ||
+seller.subscription ||
+{}),
+
+payments:updatedPayments
+
+}
+
+});
+
+setNewPayment({
+
+...newPayment,
+
+[seller.id]:{
+amount:"",
+paidDate:"",
+method:"",
+note:""
+}
+
+});
+
+};
+
+/* =========================
 SORT
 ========================= */
 
@@ -96,7 +181,11 @@ const handleSort = (field)=>{
 
 if(sortField===field){
 
-setSortDirection(sortDirection==="asc"?"desc":"asc");
+setSortDirection(
+sortDirection==="asc"
+?"desc"
+:"asc"
+);
 
 }else{
 
@@ -146,8 +235,11 @@ bValue = bStats.profit;
 
 }
 
-if(aValue < bValue) return sortDirection==="asc"?-1:1;
-if(aValue > bValue) return sortDirection==="asc"?1:-1;
+if(aValue < bValue)
+return sortDirection==="asc"?-1:1;
+
+if(aValue > bValue)
+return sortDirection==="asc"?1:-1;
 
 return 0;
 
@@ -164,6 +256,14 @@ doc(db,"users",editing.id),
 editing
 );
 
+setSellers(prev=>
+prev.map(s=>
+s.id===editing.id
+?editing
+:s
+)
+);
+
 setEditing(null);
 
 };
@@ -174,7 +274,11 @@ LOADING
 
 if(loading){
 
-return <div className="admin-loading">Loading sellers...</div>;
+return(
+<div className="admin-loading">
+Loading sellers...
+</div>
+);
 
 }
 
@@ -218,6 +322,10 @@ Revenue
 Profit
 </div>
 
+<div>
+Subscription
+</div>
+
 </div>
 
 {/* ROWS */}
@@ -226,15 +334,34 @@ Profit
 
 const stats = getStats(seller.id);
 
-const isExpanded = expanded===seller.id;
+const isExpanded =
+expanded===seller.id;
+
+const currentData =
+editing?.id===seller.id
+?editing
+:seller;
 
 return(
 
-<div key={seller.id} className="seller-row">
+<div
+key={seller.id}
+className="seller-row"
+>
 
 <div
 className="table-row"
-onClick={()=>setExpanded(isExpanded?null:seller.id)}
+onClick={()=>{
+
+setExpanded(
+isExpanded
+?null
+:seller.id
+);
+
+setEditing(seller);
+
+}}
 >
 
 <div>{seller.name}</div>
@@ -247,7 +374,13 @@ onClick={()=>setExpanded(isExpanded?null:seller.id)}
 
 <div>₹{stats.revenue}</div>
 
-<div className="profit">₹{stats.profit}</div>
+<div className="profit">
+₹{stats.profit}
+</div>
+
+<div>
+{seller.subscription?.status || "N/A"}
+</div>
 
 </div>
 
@@ -257,6 +390,8 @@ onClick={()=>setExpanded(isExpanded?null:seller.id)}
 
 <div className="seller-details">
 
+{/* PERSONAL */}
+
 <div className="details-card">
 
 <h3>Personal Details</h3>
@@ -264,25 +399,42 @@ onClick={()=>setExpanded(isExpanded?null:seller.id)}
 <label>Name</label>
 
 <input
-value={editing?.name || seller.name}
-onChange={e=>setEditing({...seller,name:e.target.value})}
+value={currentData.name || ""}
+onChange={e=>
+setEditing({
+...currentData,
+name:e.target.value
+})
+}
 />
 
 <label>Email</label>
 
 <input
-value={editing?.email || seller.email}
-onChange={e=>setEditing({...seller,email:e.target.value})}
+value={currentData.email || ""}
+onChange={e=>
+setEditing({
+...currentData,
+email:e.target.value
+})
+}
 />
 
 <label>Phone</label>
 
 <input
-value={editing?.phone || seller.phone}
-onChange={e=>setEditing({...seller,phone:e.target.value})}
+value={currentData.phone || ""}
+onChange={e=>
+setEditing({
+...currentData,
+phone:e.target.value
+})
+}
 />
 
 </div>
+
+{/* STORE */}
 
 <div className="details-card">
 
@@ -291,29 +443,49 @@ onChange={e=>setEditing({...seller,phone:e.target.value})}
 <label>Store Name</label>
 
 <input
-value={editing?.storeName || seller.storeName}
-onChange={e=>setEditing({...seller,storeName:e.target.value})}
+value={currentData.storeName || ""}
+onChange={e=>
+setEditing({
+...currentData,
+storeName:e.target.value
+})
+}
 />
 
 <label>Store Slug</label>
 
 <input
-value={editing?.storeSlug || seller.storeSlug}
-onChange={e=>setEditing({...seller,storeSlug:e.target.value})}
+value={currentData.storeSlug || ""}
+onChange={e=>
+setEditing({
+...currentData,
+storeSlug:e.target.value
+})
+}
 />
 
 <label>Domain</label>
 
 <input
-value={editing?.storeDomain || seller.storeDomain}
-onChange={e=>setEditing({...seller,storeDomain:e.target.value})}
+value={currentData.storeDomain || ""}
+onChange={e=>
+setEditing({
+...currentData,
+storeDomain:e.target.value
+})
+}
 />
 
 <label>Pricing Type</label>
 
 <select
-value={editing?.pricingKey || seller.pricingKey}
-onChange={e=>setEditing({...seller,pricingKey:e.target.value})}
+value={currentData.pricingKey || ""}
+onChange={e=>
+setEditing({
+...currentData,
+pricingKey:e.target.value
+})
+}
 >
 
 <option value="retail">Retail</option>
@@ -321,12 +493,259 @@ onChange={e=>setEditing({...seller,pricingKey:e.target.value})}
 <option value="dealer">Dealer</option>
 <option value="distributor">Distributor</option>
 <option value="vip">VIP</option>
-<option value="dropshipping">Dropshipper</option>
-
+<option value="dropshipping">
+Dropshipper
+</option>
 
 </select>
 
 </div>
+
+{/* SUBSCRIPTION */}
+
+<div className="details-card">
+
+<h3>Subscription Details</h3>
+
+<label>Current Plan</label>
+
+<input
+value={
+currentData.subscription?.currentPlan || ""
+}
+onChange={e=>
+setEditing({
+...currentData,
+
+subscription:{
+...(currentData.subscription || {}),
+currentPlan:e.target.value
+}
+})
+}
+/>
+
+<label>Start Date</label>
+
+<input
+type="date"
+value={
+currentData.subscription?.startDate || ""
+}
+onChange={e=>
+setEditing({
+...currentData,
+
+subscription:{
+...(currentData.subscription || {}),
+startDate:e.target.value
+}
+})
+}
+/>
+
+<label>End Date</label>
+
+<input
+type="date"
+value={
+currentData.subscription?.endDate || ""
+}
+onChange={e=>
+setEditing({
+...currentData,
+
+subscription:{
+...(currentData.subscription || {}),
+endDate:e.target.value
+}
+})
+}
+/>
+
+<label>Total Amount</label>
+
+<input
+type="number"
+value={
+currentData.subscription?.totalAmount || ""
+}
+onChange={e=>
+setEditing({
+...currentData,
+
+subscription:{
+...(currentData.subscription || {}),
+totalAmount:e.target.value
+}
+})
+}
+/>
+
+<label>Status</label>
+
+<select
+value={
+currentData.subscription?.status || "active"
+}
+onChange={e=>
+setEditing({
+...currentData,
+
+subscription:{
+...(currentData.subscription || {}),
+status:e.target.value
+}
+})
+}
+>
+
+<option value="active">Active</option>
+<option value="expired">Expired</option>
+<option value="pending">Pending</option>
+<option value="cancelled">Cancelled</option>
+
+</select>
+
+<div className="subscription-summary">
+
+<h4>
+Paid:
+₹{getTotalPaid(currentData)}
+</h4>
+
+<h4>
+Remaining:
+₹{getRemainingAmount(currentData)}
+</h4>
+
+</div>
+
+</div>
+
+{/* PAYMENTS */}
+
+<div className="details-card">
+
+<h3>Payment History</h3>
+
+<div className="payment-add">
+
+<input
+type="number"
+placeholder="Amount"
+value={
+newPayment[seller.id]?.amount || ""
+}
+onChange={e=>
+setNewPayment({
+...newPayment,
+
+[seller.id]:{
+...newPayment[seller.id],
+amount:e.target.value
+}
+})
+}
+/>
+
+<input
+type="date"
+value={
+newPayment[seller.id]?.paidDate || ""
+}
+onChange={e=>
+setNewPayment({
+...newPayment,
+
+[seller.id]:{
+...newPayment[seller.id],
+paidDate:e.target.value
+}
+})
+}
+/>
+
+<input
+placeholder="Method"
+value={
+newPayment[seller.id]?.method || ""
+}
+onChange={e=>
+setNewPayment({
+...newPayment,
+
+[seller.id]:{
+...newPayment[seller.id],
+method:e.target.value
+}
+})
+}
+/>
+
+<input
+placeholder="Note"
+value={
+newPayment[seller.id]?.note || ""
+}
+onChange={e=>
+setNewPayment({
+...newPayment,
+
+[seller.id]:{
+...newPayment[seller.id],
+note:e.target.value
+}
+})
+}
+/>
+
+<button
+onClick={()=>
+addPayment(currentData)
+}
+>
+Add Payment
+</button>
+
+</div>
+
+<div className="payments-list">
+
+{(
+currentData.subscription?.payments || []
+).map((payment,index)=>(
+
+<div
+key={index}
+className="payment-item"
+>
+
+<div>
+₹{payment.amount}
+</div>
+
+<div>
+{payment.paidDate}
+</div>
+
+<div>
+{payment.method}
+</div>
+
+<div>
+{payment.note}
+</div>
+
+</div>
+
+))}
+
+</div>
+
+</div>
+
+{/* SAVE */}
 
 <div className="save-area">
 

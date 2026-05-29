@@ -10,16 +10,19 @@ const StoreSignup = () => {
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [mobile, setMobile] = useState("");
     const [error, setError] = useState("");
+
     const location = useLocation();
     const redirectTo = location.state?.redirectTo || "/";
+
     const handleSubmit = async (e) => {
 
         e.preventDefault();
 
         try {
 
-            await signup(email, password);
+            await signup(email, password, mobile);
 
             navigate(redirectTo);
 
@@ -33,41 +36,50 @@ const StoreSignup = () => {
 
     return (
 
-       <div className="auth-container">
+        <div className="auth-container">
 
-<form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit}>
 
-<h2>Create Account</h2>
+                <h2>Create Account</h2>
 
-{error && <p className="auth-error">{error}</p>}
+                {error && <p className="auth-error">{error}</p>}
 
-<input
-type="email"
-placeholder="Email"
-value={email}
-onChange={(e)=>setEmail(e.target.value)}
-required
-/>
+                <input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                />
 
-<input
-type="password"
-placeholder="Password"
-value={password}
-onChange={(e)=>setPassword(e.target.value)}
-required
-/>
+                <input
+                    type="tel"
+                    placeholder="Mobile Number"
+                    value={mobile}
+                    onChange={(e) => setMobile(e.target.value)}
+                    required
+                />
 
-<button type="submit">
-Create Account
-</button>
+                <input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                />
 
-<p>
-Already have an account? <Link to="/store/login">Login</Link>
-</p>
+                <button type="submit">
+                    Create Account
+                </button>
 
-</form>
+                <p>
+                    Already have an account?{" "}
+                    <Link to="/store/login">Login</Link>
+                </p>
 
-</div>
+            </form>
+
+        </div>
 
     );
 

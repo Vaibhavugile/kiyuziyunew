@@ -38,14 +38,19 @@ return ()=>unsub();
 SIGNUP
 ========================= */
 
-const signup = async(email,password)=>{
+const signup = async(email,password,mobile)=>{
 
-const cred = await createUserWithEmailAndPassword(auth,email,password);
+const cred = await createUserWithEmailAndPassword(
+auth,
+email,
+password
+);
 
 await setDoc(
 doc(db,"storeCustomers",sellerId,"customers",cred.user.uid),
 {
 email,
+mobile,
 sellerId,
 createdAt:Date.now()
 }

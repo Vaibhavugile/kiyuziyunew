@@ -128,6 +128,7 @@ doc.setFontSize(11);
 doc.text("M/s: TANTISHKA ENTERPRISES", 14, 30);
 doc.text("Shop No 1, Xion Mall, Behind D-Mart", 14, 36);
 doc.text("Hinjewadi Phase 1, Hinjewadi", 14, 42);
+doc.text("GSTIN:27CRAPA0906N1Z0 ", 14, 48)
 
 doc.text(`Customer Name : ${order.customerName}`, 14, 55);
 doc.text(`GSTIN : ${order.customerGST}`, 14, 61);

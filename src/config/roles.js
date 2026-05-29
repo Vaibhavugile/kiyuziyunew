@@ -24,7 +24,7 @@ export const ROLE_CONFIG = {
 
   wholesaler: {
     label: 'Wholesaler',
-    minOrderValue: 0,
+    minOrderValue: 2500,
     canSeeBulkPricing: true,
     pricingKey: 'wholesale',
 
@@ -60,7 +60,7 @@ export const ROLE_CONFIG = {
   },
     dropshipping: {
     label: 'Dropshipping',
-    minOrderValue: 0,
+    minOrderValue: 2500,
     canSeeBulkPricing: true,
     pricingKey: 'dropshipping',
 

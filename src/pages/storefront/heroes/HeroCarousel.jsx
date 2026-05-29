@@ -114,16 +114,20 @@ const HeroCarousel = ({ data, theme }) => {
                 </p>
               )}
 
-              <div className="hcr-actions hcr-animate hcr-animate-4">
+             {slide.buttonText && (
 
-                <a
-                  href={slide.link || "#collections"}
-                  className="hcr-btn"
-                >
-                  {slide.buttonText || "Shop Now"}
-                </a>
+  <div className="hcr-actions hcr-animate hcr-animate-4">
 
-              </div>
+    <a
+      href={slide.link}
+      className="hcr-btn"
+    >
+      {slide.buttonText}
+    </a>
+
+  </div>
+
+)}
 
             </div>
 

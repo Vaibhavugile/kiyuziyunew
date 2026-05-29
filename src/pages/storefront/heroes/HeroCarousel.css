@@ -6,9 +6,8 @@
 --accent:#e73e35;
 --bg-light:#ffffff;
 --text:#1b1b1b;
-
---hero-overlay-dark:rgba(0,0,0,0.88);
---hero-overlay-mid:rgba(0,0,0,0.40);
+--hero-overlay-dark:rgba(0,0,0,0.38);
+--hero-overlay-mid:rgba(0,0,0,0.12);
 }
 
 
@@ -45,8 +44,8 @@ background-position:center;
 background-repeat:no-repeat;
 
 opacity:0;
-
-transform:scale(1.12);
+filter: brightness(1.08) contrast(1.03);
+transform:scale(1.03);
 
 transition:
 opacity 1.2s ease,
@@ -74,10 +73,10 @@ inset:0;
 
 background:linear-gradient(
 90deg,
-var(--hero-overlay-dark) 0%,
-rgba(0,0,0,0.70) 35%,
-var(--hero-overlay-mid) 65%,
-rgba(0,0,0,0.12) 100%
+rgba(0,0,0,0.35) 0%,
+rgba(0,0,0,0.18) 35%,
+rgba(0,0,0,0.08) 60%,
+rgba(0,0,0,0.02) 100%
 );
 
 }
@@ -349,23 +348,22 @@ min-height:100vh;
 background-size:cover;
 background-position:center;
 transform:none;
+filter: brightness(1.08) contrast(1.03);
 }
 
 .hcr-slide.active{
 transform:none;
 }
-
 .hcr-overlay{
 
 background:linear-gradient(
 180deg,
-rgba(0,0,0,.75) 0%,
-rgba(0,0,0,.55) 40%,
-rgba(0,0,0,.25) 100%
+rgba(0,0,0,.38) 0%,
+rgba(0,0,0,.20) 45%,
+rgba(0,0,0,.08) 100%
 );
 
 }
-
 .hcr-content{
 
 bottom:10px;

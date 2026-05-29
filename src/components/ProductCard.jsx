@@ -196,8 +196,15 @@ const getTierPrice = (tiers, qty) => {
 
       {/* INFO */}
       <div className="product-info">
-        <h4 className="product-title">{productName}</h4>
-        <p className="product-code">{productCode}</p>
+        <div className="product-header-row">
+  <h4 className="product-title">{productName}</h4>
+
+  <span className="stock-badge">
+    {availableStock} pcs
+  </span>
+</div>
+
+<p className="product-code">{productCode}</p>
 
         {/* PRICE */}
         {cartQuantity > 0 ? (

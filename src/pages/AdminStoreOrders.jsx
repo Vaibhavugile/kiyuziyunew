@@ -22,6 +22,7 @@ const AdminStoreOrders = () => {
     const [search, setSearch] = useState("");
     const [statusFilter,setStatusFilter] = useState("All");
     const [downloadingId, setDownloadingId] = useState(null);
+    const [sellerFilter, setSellerFilter] = useState("All");
     /* ================= LOAD DATA ================= */
 
     useEffect(() => {
@@ -545,22 +546,44 @@ const generateOrderPDF = async (order) => {
 
     }
 };
-   const filteredOrders = orders.filter(order=>{
+const sellerOptions = Array.from(
+  new Map(
+    orders.map(order => {
+      const seller = sellers[order.sellerId];
 
-const seller = sellers[order.sellerId];
+      return [
+        order.sellerId,
+        {
+          id: order.sellerId,
+          name:
+            seller?.storeName ||
+            seller?.name ||
+            "Unknown Seller"
+        }
+      ];
+    })
+  ).values()
+);
+  const filteredOrders = orders.filter(order => {
 
-const searchText = search.toLowerCase();
+  const seller = sellers[order.sellerId];
 
-const matchesSearch =
-order.id.toLowerCase().includes(searchText) ||
-order.billingInfo?.fullName?.toLowerCase().includes(searchText) ||
-seller?.name?.toLowerCase().includes(searchText) ||
-seller?.storeName?.toLowerCase().includes(searchText);
+  const searchText = search.toLowerCase();
 
-const matchesStatus =
-statusFilter === "All" || order.status === statusFilter;
+  const matchesSearch =
+    order.id.toLowerCase().includes(searchText) ||
+    order.billingInfo?.fullName?.toLowerCase().includes(searchText) ||
+    seller?.name?.toLowerCase().includes(searchText) ||
+    seller?.storeName?.toLowerCase().includes(searchText);
 
-return matchesSearch && matchesStatus;
+  const matchesStatus =
+    statusFilter === "All" || order.status === statusFilter;
+
+  const matchesSeller =
+    sellerFilter === "All" ||
+    order.sellerId === sellerFilter;
+
+  return matchesSearch && matchesStatus && matchesSeller;
 
 });
     /* ================= DATE ================= */
@@ -588,31 +611,50 @@ return matchesSearch && matchesStatus;
         <div className="admin-orders">
 
             <h1>Marketplace Orders</h1>
-            <div className="orders-toolbar">
+           <div className="orders-toolbar">
 
-<input
-type="text"
-placeholder="Search order / customer / seller"
-value={search}
-onChange={(e)=>setSearch(e.target.value)}
-className="orders-search"
-/>
+  {/* SELLER FILTER */}
+  <select
+    value={sellerFilter}
+    onChange={(e) => setSellerFilter(e.target.value)}
+    className="orders-filter"
+  >
+    <option value="All">All Sellers</option>
+
+    {sellerOptions.map((seller) => (
+      <option
+        key={seller.id}
+        value={seller.id}
+      >
+        {seller.name}
+      </option>
+    ))}
+  </select>
+
+  {/* STATUS FILTER */}
+  <select
+    value={statusFilter}
+    onChange={(e) => setStatusFilter(e.target.value)}
+    className="orders-filter"
+  >
+    <option value="All">All Orders</option>
+    <option value="Pending">Pending</option>
+    <option value="ReadyToPack">Ready To Pack</option>
+    <option value="Packed">Packed</option>
+    <option value="Dispatched">Dispatched</option>
+    <option value="Cancelled">Cancelled</option>
+  </select>
+
+  {/* SEARCH */}
+  <input
+    type="text"
+    placeholder="Search order / customer / seller"
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+    className="orders-search"
+  />
 
 </div>
-<select
-value={statusFilter}
-onChange={(e)=>setStatusFilter(e.target.value)}
-className="orders-filter"
->
-
-<option value="All">All Orders</option>
-<option value="Pending">Pending</option>
-<option value="ReadyToPack">Ready To Pack</option>
-<option value="Packed">Packed</option>
-<option value="Dispatched">Dispatched</option>
-<option value="Cancelled">Cancelled</option>
-
-</select>
 
             <div className="orders-table">
 
