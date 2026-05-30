@@ -62,68 +62,90 @@ const CollectionCard = ({
     return () => clearInterval(interval);
   }, [imagesToDisplay.length]);
 
-  return (
-    <article
-      className="collection-card"
-      role="group"
-      aria-labelledby={id ? `collection-title-${id}` : undefined}
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if ((e.key === "Enter" || e.key === " ") && onClick) {
-          e.preventDefault();
-          onClick(e);
-        }
-      }}
-    >
-      {/* 🔧 ADMIN ACTIONS */}
-      {children && (
-        <div
-          className="collection-admin-actions"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {children}
-        </div>
+return (
+
+  <article
+    className="luxCollectionCard"
+    role="group"
+    aria-labelledby={id ? `lux-collection-title-${id}` : undefined}
+    tabIndex={0}
+    onClick={onClick}
+    onKeyDown={(e) => {
+      if ((e.key === "Enter" || e.key === " ") && onClick) {
+        e.preventDefault();
+        onClick(e);
+      }
+    }}
+  >
+
+    {children && (
+      <div
+        className="luxCollectionAdminActions"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    )}
+
+    <div className="luxCollectionMedia">
+
+      {imagesToDisplay.length > 0 ? (
+        imagesToDisplay.map((src, index) => (
+          <img
+            key={src}
+            src={src}
+            alt={alt || title}
+            className={`luxCollectionImage ${
+              index === currentImageIndex
+                ? "luxCollectionImageActive"
+                : ""
+            }`}
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+          />
+        ))
+      ) : (
+        <div className="luxCollectionPlaceholder" />
       )}
 
-      <div className="collection-card-media">
-        {imagesToDisplay.length > 0 ? (
-          imagesToDisplay.map((src, index) => (
-            <img
-              key={src}
-              src={src}
-              alt={alt || title}
-              className={`collection-image ${
-                index === currentImageIndex ? "active" : ""
-              }`}
-              loading="lazy"
-              decoding="async"
-              draggable={false}
-            />
-          ))
-        ) : (
-          <div className="collection-image--placeholder" />
-        )}
+    </div>
 
-        {/* Bottom overlay */}
-        <div className="bottom-overlay">
-          <div className="overlay-content">
-            <button
-              type="button"
-              className="btn-pill"
-              aria-label={`Explore ${title}`}
-            >
-                            <span className="pill-text">{title}</span>
+    <div className="luxCollectionContent">
 
-              <span className="arrow" aria-hidden="true">›</span>
-            </button>
+      <span className="luxCollectionLabel">
+        COLLECTION
+      </span>
 
-          
-          </div>
-        </div>
+      <h3
+        className="luxCollectionTitle"
+        id={
+          id
+            ? `lux-collection-title-${id}`
+            : undefined
+        }
+      >
+        {title}
+      </h3>
+
+      <div className="luxCollectionFooter">
+
+        <span className="luxCollectionLink">
+          Explore Collection
+        </span>
+
+        <span className="luxCollectionArrow">
+          →
+        </span>
+
       </div>
-    </article>
-  );
+
+    </div>
+
+  </article>
+
+);
+
 };
 
 export default CollectionCard;

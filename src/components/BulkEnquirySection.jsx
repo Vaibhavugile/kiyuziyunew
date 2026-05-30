@@ -194,7 +194,8 @@ const BulkEnquirySection = () => {
                 name="name"
                 value={bulkForm.name}
                 onChange={handleBulkChange}
-                placeholder="Your name (optional)"
+                placeholder="Your name"
+                required
               />
             </div>
 
@@ -204,7 +205,8 @@ const BulkEnquirySection = () => {
                 name="phone"
                 value={bulkForm.phone}
                 onChange={handleBulkChange}
-                placeholder="WhatsApp / Phone (optional)"
+                placeholder="WhatsApp / Phone "
+                required
               />
             </div>
 

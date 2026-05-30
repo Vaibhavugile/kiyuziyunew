@@ -69,56 +69,6 @@ body {
 }
 
 
-/* Collections Section */
-.collections-section {
-  padding: 5rem 2rem 4rem;
-  background-color: #fff;
-  text-align: center;
-}
-
-.collections-section h3 {
-  font-size: 2.2rem;
-  margin-bottom: 2.5rem;
-  font-weight: 600;
-  color: #d4af37;
-}
-
-.collections-grid {
-  display: grid;
-  gap: 2rem;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-/* Collection card */
-.collection-card {
-  border: 1px solid #eee;
-  border-radius: 10px;
-  overflow: hidden;
-  text-align: center;
-  background-color: #fff;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  transition: transform 0.3s ease;
-}
-
-.collection-card:hover {
-  transform: translateY(-5px);
-}
-
-.collection-image {
-  width: 100%;
-  height: 220px;
-  object-fit: cover;
-}
-
-.title {
-  padding: 1rem;
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--primary-color);
-}
-
 /* src/components/BrowseCollectionSection.css */
 
 .browse-section {
@@ -428,14 +378,8 @@ body {
   }
 
   /* Collections Section */
-  .collections-section h3 {
-    font-size: 1.6rem;
-  }
+  
 
-  .collections-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
 
   /* Browse Collection Section */
   .browse-section {

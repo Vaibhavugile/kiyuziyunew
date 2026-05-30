@@ -59,6 +59,7 @@ import OrdersProductsPage from './pages/OrdersProductsPage';
 import DropshipperCustomers from './pages/dropshipper/DropshipperCustomers';
 import PixelTracker from "./components/PixelTracker";
 import StockCheckPage from './pages/StockCheckPage';
+import Topbar from './components/Topbar';
 
 function App() {
     useEffect(() => {
@@ -69,7 +70,14 @@ function App() {
       <CartProvider>
         <Router>
             <PixelTracker />
-          {isMainDomain() && <Navbar />}
+          {isMainDomain() && (
+  <>
+    
+    <Navbar />
+        <Topbar />
+
+  </>
+)}
           <Routes>
             <Route
               path="/"

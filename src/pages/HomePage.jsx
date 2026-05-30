@@ -10,6 +10,7 @@ import TrendingSection from "../components/TrendingSection";
 import "./HomePage.css";
 import BulkEnquirySection from '../components/BulkEnquirySection';
 import InstagramReelsSection from "../components/InstagramReelsSection";
+import Topbar from "../components/Topbar";
 import { trackMetaEvent } from "../utils/pixels";
 const HomePage = () => {
   const [collections, setCollections] = useState([]);
@@ -78,7 +79,7 @@ const HomePage = () => {
           </div>
         ) : (
           // NOTE: use the class name that matches the grid CSS (.collection-grid)
-          <div className="collection-grid" role="list" aria-live="polite">
+          <div className="collection-gridmain" role="list" aria-live="polite">
             {collections.map((col) => (
             <Link
   to={`/collections/${col.id}/all-products`}
@@ -115,9 +116,9 @@ const HomePage = () => {
 
 
       {/* Other sections */}
-      <TrendingSection />
+      {/* <TrendingSection />
       <NewArrivalsSection />
-      
+       */}
     </>
   );
 };
