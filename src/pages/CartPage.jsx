@@ -183,59 +183,7 @@ const [couponUiError, setCouponUiError] = useState(null);
           {/* =====================
               CART ITEMS
           ===================== */}
-          <div className="cart-items-list">
-            {Object.keys(cart).map((cartItemId) => {
-              const item = cart[cartItemId];
-
-              return (
-                <div key={cartItemId} className="cart-item">
-                  <img
-                    src={
-                      item.images && item.images.length > 0
-                        ? item.images[0].url
-                        : item.image
-                    }
-                    alt={item.productName}
-                    className="cart-item-image1"
-                  />
-
-                  <div className="cart-item-info">
-                    <h4 className="cart-item-name">
-                      {item.productName}
-                      {item.variation && (
-                        <span>
-                          {' '}
-                          - {item.variation.color} {item.variation.size}
-                        </span>
-                      )}
-                    </h4>
-
-                    <p className="cart-item-code">
-                      Code: {item.productCode}
-                    </p>
-
-                    <p className="cart-item-price">
-                      Price: ₹{Number(item.price).toFixed(2)}
-                    </p>
-                  </div>
-
-                  <div className="cart-quantity-controls">
-                    <button onClick={() => handleDecrement(cartItemId)}>
-                      -
-                    </button>
-                    <span>{item.quantity}</span>
-                    <button onClick={() => handleIncrement(item)}>
-                      +
-                    </button>
-                  </div>
-
-                  <div className="cart-item-subtotal">
-                    ₹{(item.price * item.quantity).toFixed(2)}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          
 
           {/* =====================
               ORDER SUMMARY
@@ -354,6 +302,59 @@ const [couponUiError, setCouponUiError] = useState(null);
             </div>
 
             <p className="trust-message">🔒 Secure Checkout</p>
+          </div>
+          <div className="cart-items-list">
+            {Object.keys(cart).map((cartItemId) => {
+              const item = cart[cartItemId];
+
+              return (
+                <div key={cartItemId} className="cart-item">
+                  <img
+                    src={
+                      item.images && item.images.length > 0
+                        ? item.images[0].url
+                        : item.image
+                    }
+                    alt={item.productName}
+                    className="cart-item-image1"
+                  />
+
+                  <div className="cart-item-info">
+                    <h4 className="cart-item-name">
+                      {item.productName}
+                      {item.variation && (
+                        <span>
+                          {' '}
+                          - {item.variation.color} {item.variation.size}
+                        </span>
+                      )}
+                    </h4>
+
+                    <p className="cart-item-code">
+                      Code: {item.productCode}
+                    </p>
+
+                    <p className="cart-item-price">
+                      Price: ₹{Number(item.price).toFixed(2)}
+                    </p>
+                  </div>
+
+                  <div className="cart-quantity-controls">
+                    <button onClick={() => handleDecrement(cartItemId)}>
+                      -
+                    </button>
+                    <span>{item.quantity}</span>
+                    <button onClick={() => handleIncrement(item)}>
+                      +
+                    </button>
+                  </div>
+
+                  <div className="cart-item-subtotal">
+                    ₹{(item.price * item.quantity).toFixed(2)}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

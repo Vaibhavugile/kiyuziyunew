@@ -458,27 +458,7 @@ navigate("/order-success");
 
           <div className="order-details">
             <h3>Order Summary</h3>
-
-            {Object.values(cart).map(item => (
-              <div
-                key={item.id + (item.variation ? JSON.stringify(item.variation) : '')}
-                className="cart-item"
-              >
-                <img
-                  src={item.images?.[0]?.url || item.image}
-                  alt={item.productName}
-                />
-                <div>
-                  <h4>{item.productName}</h4>
-                  <p>Code: {item.productCode}</p>
-                  {item.variation && (
-                    <p>Variation: {item.variation.color} {item.variation.size}</p>
-                  )}
-                  <p>₹{item.price} × {item.quantity}</p>
-                </div>
-              </div>
-            ))}
-
+            
             <div className="cart-total-section">
               <p>Subtotal</p>
               <p>₹{getCartSubtotal().toFixed(2)}</p>
@@ -505,6 +485,11 @@ navigate("/order-success");
               <p>₹{SHIPPING_FEE.toFixed(2)}</p>
               
             </div>
+             <div className="cart-total-section">
+              <p>Courier Charges</p>
+
+              <p>Applicable As per Location</p>
+            </div>
 
 
             <div className="cart-total-section total-final">
@@ -512,11 +497,30 @@ navigate("/order-success");
               <p>₹{getFinalTotal() + SHIPPING_FEE}</p>
 
             </div>
-            <div className="cart-total-section">
-              <p>Courier Charges</p>
+           
+<h4 className="items-heading">
+  Items in Order ({Object.keys(cart).length})
+</h4>
+            {Object.values(cart).map(item => (
+              <div
+                key={item.id + (item.variation ? JSON.stringify(item.variation) : '')}
+                className="cart-item"
+              >
+                <img
+                  src={item.images?.[0]?.url || item.image}
+                  alt={item.productName}
+                />
+                <div>
+                  <h4>{item.productName}</h4>
+                  <p>Code: {item.productCode}</p>
+                  {item.variation && (
+                    <p>Variation: {item.variation.color} {item.variation.size}</p>
+                  )}
+                  <p>₹{item.price} × {item.quantity}</p>
+                </div>
+              </div>
+            ))}
 
-              <p>Applicable As per Location</p>
-            </div>
           </div>
         </div>
       ) : (
