@@ -1,88 +1,220 @@
 import React, { useState, useEffect } from "react";
 import "./HeroSection.css";
 
-/* Local image imports */
-import hero1 from "../assets/hero/hero1.jpg";
-import hero2 from "../assets/hero/hero2.jpg";
-import hero3 from "../assets/hero/hero3.jpg";
-import hero4 from "../assets/hero/hero7.jpg";
-import hero5 from "../assets/hero/hero5.jpg";
+import hero1 from "../assets/hero/hero8.png";
+import hero2 from "../assets/hero/hero8.png";
+import hero3 from "../assets/hero/hero8.png";
+import hero4 from "../assets/hero/hero8.png";
+import hero5 from "../assets/hero/hero8.png";
 
-export default function HeroSection() {
-  const imgs = [
-    { src: hero1, alt: "Timeless Elegance" },
-    { src: hero2, alt: "Luxury in Motion" },
-    { src: hero3, alt: "Bespoke Beauty" },
-    { src: hero4, alt: "Gilded Serenity" },
-    { src: hero5, alt: "Eternal Shine" },
-  ];
+const HeroSection = () => {
 
   const [index, setIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Auto-change slide
+  const slides = [
+    {
+      image: hero1,
+      mobileImage: hero1,
+      title: "",
+      desc: "",
+      buttonText: ""
+    },
+    {
+      image: hero2,
+      mobileImage: hero2,
+      title: "",
+      desc: "",
+      buttonText: ""
+    },
+    {
+      image: hero3,
+      mobileImage: hero3,
+      title: "",
+      desc: "",
+      buttonText: ""
+    },
+    {
+      image: hero4,
+      mobileImage: hero4,
+      title: "",
+      desc: "",
+      buttonText: ""
+    },
+    {
+      image: hero5,
+      mobileImage: hero5,
+      title: "",
+      desc: "",
+      buttonText: ""
+    }
+  ];
+
+  /* MOBILE DETECT */
+
   useEffect(() => {
+
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    checkMobile();
+
+    window.addEventListener("resize", checkMobile);
+
+    return () =>
+      window.removeEventListener("resize", checkMobile);
+
+  }, []);
+
+  /* AUTO SLIDE */
+
+  useEffect(() => {
+
+    if (slides.length <= 1) return;
+
     const interval = setInterval(() => {
-      setIndex((prev) => (prev + 1) % imgs.length);
-    }, 4500);
+
+      setIndex(prev =>
+        (prev + 1) % slides.length
+      );
+
+    }, 6000);
+
     return () => clearInterval(interval);
-  }, [imgs.length]);
+
+  }, [slides.length]);
+
+  /* NAVIGATION */
+
+  const nextSlide = () => {
+
+    setIndex(prev =>
+      (prev + 1) % slides.length
+    );
+
+  };
+
+  const prevSlide = () => {
+
+    setIndex(prev =>
+      prev === 0
+        ? slides.length - 1
+        : prev - 1
+    );
+
+  };
 
   return (
-    <div className="split-hero-wrap">
-      <section className="split-hero" aria-label="Luxury Jewelry Hero">
-        {/* LEFT SIDE (image slideshow) */}
-        <div className="split-left">
-          {imgs.map((it, i) => (
-            <figure
-              key={i}
-              className={`slide ${i === index ? "active" : ""}`}
-              aria-hidden={i === index ? "false" : "true"}
-            >
-              <img src={it.src} alt={it.alt} loading={i === index ? "eager" : "lazy"} />
-            </figure>
-          ))}
-        </div>
 
-        {/* RIGHT SIDE (content) */}
-        <aside className="split-right">
-          <div className="right-inner">
-            <h2 className="right-title">India's Leading Anti-Tarnish Imitation Jewellery Brand</h2>
-            <p className="right-sub">
-              Limited collections • Anti-Tarnish • Responsibly sourced
-            </p>
+    <section className="hcr-slider">
 
-            <div className="feature-cards">
-              <div className="card">
-                <div className="card-dot" />
-                <div>
-                  <strong>Guaranteed Plating</strong>
+      {slides.map((slide, i) => {
+
+        const bgImage =
+          isMobile && slide.mobileImage
+            ? slide.mobileImage
+            : slide.image;
+
+        return (
+
+          <div
+            key={i}
+            className={`hcr-slide ${
+              i === index ? "active" : ""
+            }`}
+            style={{
+              backgroundImage: `url(${bgImage})`
+            }}
+          >
+
+            <div className="hcr-overlay" />
+
+            <div className="hcr-content">
+
+              {slide.tagline && (
+                <p className="hcr-tagline">
+                  {slide.tagline}
+                </p>
+              )}
+
+              {slide.title && (
+                <h2 className="hcr-title">
+                  {slide.title}
+                </h2>
+              )}
+
+              {slide.desc && (
+                <p className="hcr-desc">
+                  {slide.desc}
+                </p>
+              )}
+
+              {slide.buttonText && (
+
+                <div className="hcr-actions">
+
+                  <a
+                    href={slide.link}
+                    className="hcr-btn"
+                  >
+                    {slide.buttonText}
+                  </a>
+
                 </div>
-              </div>
-              <div className="card">
-                <div className="card-dot" />
-                <div>
-                  <strong>New Designs Every Week</strong>
-                </div>
-              </div>
-              <div className="card">
-                <div className="card-dot" />
-                <div>
-                  <strong>Superior Quality Packaging</strong>
-                </div>
-              </div>
+
+              )}
+
             </div>
 
-            <div className="right-actions">
-              <a className="btn-primary" href="#collections">
-                Shop New
-              </a>
-              <a className="btn-ghost" href="#collections">
-                Our Studio
-              </a>
-            </div>
           </div>
-        </aside>
-      </section>
-    </div>
+
+        );
+
+      })}
+
+      {slides.length > 1 && (
+
+        <>
+
+          <div
+            className="hcr-nav hcr-prev"
+            onClick={prevSlide}
+          >
+            ‹
+          </div>
+
+          <div
+            className="hcr-nav hcr-next"
+            onClick={nextSlide}
+          >
+            ›
+          </div>
+
+          <div className="hcr-dots">
+
+            {slides.map((_, i) => (
+
+              <span
+                key={i}
+                className={`hcr-dot ${
+                  i === index ? "active" : ""
+                }`}
+                onClick={() => setIndex(i)}
+              />
+
+            ))}
+
+          </div>
+
+        </>
+
+      )}
+
+    </section>
+
   );
-}
+
+};
+
+export default HeroSection;
