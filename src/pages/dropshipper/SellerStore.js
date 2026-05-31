@@ -19,6 +19,7 @@ import { FaShoppingCart, FaArrowLeft, FaFilter, FaTimes, FaSpinner, FaDownload }
 import StoreProductCard from "../../components/StoreProductCard";
 import { useStoreCart } from "../store/StoreCartContext";
 import { getCleanDomain } from "../../utils/domain";
+import "../../pages/ProductsPage.css"
 const SellerStore = () => {
 
   const location = useLocation();
@@ -779,7 +780,7 @@ const description =
 
 </Helmet>
       {/* <h1>{seller.name}'s Store</h1> */}
-      <div className="page-header-container">
+      {/* <div className="page-header-container">
                 <Link
                   to="/"
                   className="back-to-collections-icon"
@@ -798,52 +799,60 @@ const description =
                     {isControlsVisible ? <FaTimes /> : <FaFilter />}
                   </button>
                 </div>
-              </div>
+              </div> */}
 
       {/* FILTERS */}
-        <div className={`product-controls ${isControlsVisible ? 'open' : ''}`}>
+        <div className={`product-controlss ${isControlsVisible ? 'open' : ''}`}>
 
-        <select
-          value={selectedCollection}
-          onChange={(e) => {
-            const col = e.target.value;
-            setSelectedCollection(col);
-            setSelectedSubcollection("");
-          }}
-        >
-          {collections.map(c => (
-            <option key={c.id} value={c.id}>
-              {c.title}
-            </option>
-          ))}
-        </select>
+  <Link
+    to="/"
+    className="back-to-collections-icon"
+    aria-label="Back to Collections"
+  >
+    <FaArrowLeft />
+  </Link>
 
-        <select
-  value={selectedSubcollection}
-  onChange={(e) => setSelectedSubcollection(e.target.value)}
->
-  <option value="">All</option>
+  <select
+    value={selectedCollection}
+    onChange={(e) => {
+      const col = e.target.value;
+      setSelectedCollection(col);
+      setSelectedSubcollection("");
+    }}
+  >
+    {collections.map(c => (
+      <option key={c.id} value={c.id}>
+        {c.title}
+      </option>
+    ))}
+  </select>
 
-  {subcollectionsMap[selectedCollection]?.map(sub => (
-    <option key={sub.id} value={sub.id}>
-      {sub.name}
-    </option>
-  ))}
-</select>
+  <select
+    value={selectedSubcollection}
+    onChange={(e) => setSelectedSubcollection(e.target.value)}
+  >
+    <option value="">All</option>
 
-        <input
-  placeholder="Search..."
-  value={search}
-  onChange={(e) => setSearch(e.target.value)}
-/>
+    {subcollectionsMap[selectedCollection]?.map(sub => (
+      <option key={sub.id} value={sub.id}>
+        {sub.name}
+      </option>
+    ))}
+  </select>
 
-<button
-  onClick={() => setSearchTerm(search)}
->
-  Search
-</button>
+  <input
+    placeholder="Search..."
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+  />
 
-      </div>
+  <button
+    onClick={() => setSearchTerm(search)}
+  >
+    Search
+  </button>
+
+</div>
 
       {/* PRODUCTS */}
       <div className="products-grid collections-grid">

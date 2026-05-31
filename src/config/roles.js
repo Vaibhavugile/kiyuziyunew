@@ -52,7 +52,7 @@ export const ROLE_CONFIG = {
 
   vip: {
     label: 'VIP Customer',
-    minOrderValue: 20000,
+    minOrderValue: 150000,
     canSeeBulkPricing: true,
     pricingKey: 'vip',
 

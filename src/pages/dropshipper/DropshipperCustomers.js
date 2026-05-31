@@ -586,14 +586,17 @@ const DropshipperCustomers = () => {
 
                                 </td>
 
-                                <td>
+                               <td>
+  {customer.phoneNumber || customer.mobile}
 
-                                    {
-                                        customer.phoneNumber ||
-                                        "-"
-                                    }
-
-                                </td>
+  {customer.phoneNumber &&
+   customer.mobile &&
+   customer.phoneNumber !== customer.mobile && (
+    <div style={{fontSize:"12px",color:"#666"}}>
+      Signup: {customer.mobile}
+    </div>
+  )}
+</td>
 
                                 <td>
 
