@@ -675,16 +675,9 @@ setTimeout(() => navigate('/'), 1000);
     <div className="login-page-container">
       <div className="login-image-section">
         {/* 👇 REPLACE THIS DIV CONTENT */}
-        <div className="logo">
-          <img
-            src={LogoImage}
-            alt="Your Company Logo"
-            className="logo-img" // Optional: Add a class for styling
-          />
-        </div>
+        
         {/* 👆 WITH THIS */}
 
-        <p className="welcome-text">Welcome to your dashboard. We're happy to have you back!</p>
       </div>
       <div className="login-form-section">
         <div className="login-container">

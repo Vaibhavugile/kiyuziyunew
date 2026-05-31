@@ -1,268 +1,382 @@
-/* Overall Page Layout - New Container */
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    margin: 0;
-    padding: 0;
+:root{
+  --primary:#e73e35;
+  --primary-light:#ff6b61;
+
+  --dark:#111827;
+  --text:#374151;
+  --muted:#6b7280;
+
+  --bg:#fafafa;
+  --white:#ffffff;
+
+  --border:#e5e7eb;
 }
 
-.login-page-container {
-    display: flex;
-    height: 100vh;
-    width: 100vw;
-    background-color: #f0f2f5;
+/* =========================
+GLOBAL
+========================= */
+
+body{
+  margin:0;
+  padding:0;
+
+  font-family:
+  Inter,
+  Segoe UI,
+  sans-serif;
+
+  background:#f8fafc;
 }
 
-/* Image/Info Section - The left side */
-.login-image-section {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    background: linear-gradient(to bottom, #4a69bd, #5499c7);
-    color: #fff;
-    text-align: center;
-    padding: 2rem;
+/* =========================
+PAGE LAYOUT
+========================= */
+
+.login-page-container{
+  display:flex;
+
+  min-height:100vh;
+
+  background:#f8fafc;
 }
 
-.login-image-section .logo {
-    font-size: 2.5rem;
-    font-weight: bold;
-    margin-bottom: 1rem;
+/* =========================
+LEFT BRAND SECTION
+========================= */
+
+.login-image-section{
+  flex:1.15;
+
+  position:relative;
+
+  overflow:hidden;
+
+  background:
+  linear-gradient(
+    rgba(0,0,0,.45),
+    rgba(0,0,0,.55)
+  ),
+  url("../assets/hero/hero8.webp");
+
+  background-size:cover;
+  background-position:center;
+
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+
+  padding:60px;
+
+  color:white;
 }
 
-.login-image-section .welcome-text {
-    font-size: 1.2rem;
-    max-width: 400px;
-    line-height: 1.6;
+.logo-img{
+  width:160px;
+
+  margin-bottom:24px;
+
+  filter:
+  drop-shadow(
+    0 12px 30px rgba(0,0,0,.3)
+  );
 }
 
-/* Form Section - The right side */
-.login-form-section {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 2rem;
-    background-color: #fff;
+.welcome-text{
+  max-width:500px;
+
+  font-size:1.15rem;
+
+  line-height:1.8;
+
+  color:
+  rgba(255,255,255,.92);
+
+  margin:0;
 }
 
-/* Login/Signup Box */
-.login-container {
-    background-color: #fff;
-    padding: 2.5rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    width: 100%;
-    max-width: 450px;
+/* =========================
+RIGHT FORM SECTION
+========================= */
+
+.login-form-section{
+  flex:.85;
+
+  display:flex;
+  justify-content:center;
+  align-items:center;
+
+  padding:40px;
+
+  background:#fafafa;
 }
 
-/* Headings */
-h1 {
-    font-size: 2rem;
-    color: #333;
-    text-align: center;
-    margin-bottom: 0.5rem;
+/* =========================
+LOGIN CARD
+========================= */
+
+.login-container{
+  width:100%;
+  max-width:500px;
+
+  background:white;
+
+  padding:42px;
+
+  border-radius:30px;
+
+  border:1px solid #f1f5f9;
+
+  box-shadow:
+  0 25px 80px rgba(0,0,0,.08);
 }
 
-h2 {
-    font-size: 1.5rem;
-    color: #555;
-    text-align: left;
-    margin-bottom: 1.5rem;
+/* =========================
+HEADINGS
+========================= */
+
+.login-container h1{
+  font-size:2.5rem;
+  font-weight:800;
+
+  color:var(--dark);
+
+  margin-bottom:10px;
+
+  text-align:center;
 }
 
-/* Form Groups */
-.form-group {
-    margin-bottom: 1.25rem;
+.login-container h2{
+  font-size:1.6rem;
+
+  color:var(--dark);
+
+  margin-bottom:24px;
 }
 
-.form-group label {
-    display: block;
-    font-size: 0.9rem;
-    color: #666;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
+.login-container p{
+  color:var(--muted);
+}
+
+/* =========================
+FORM
+========================= */
+
+.form-group{
+  margin-bottom:18px;
+}
+
+.form-group label{
+  display:block;
+
+  margin-bottom:8px;
+
+  font-size:.92rem;
+
+  font-weight:600;
+
+  color:var(--text);
 }
 
 .form-group input,
-.form-group select {
-    width: 100%;
-    padding: 0.9rem;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 1rem;
-    box-sizing: border-box;
-    transition: border-color 0.3s;
+.form-group select,
+.input{
+  width:100%;
+
+  height:58px;
+
+  border-radius:16px;
+
+  border:1px solid var(--border);
+
+  background:#fafafa;
+
+  padding:0 18px;
+
+  font-size:15px;
+
+  box-sizing:border-box;
+
+  transition:.25s ease;
 }
 
 .form-group input:focus,
-.form-group select:focus {
-    border-color: #4a69bd;
-    outline: none;
+.form-group select:focus,
+.input:focus{
+  outline:none;
+
+  background:white;
+
+  border-color:var(--primary);
+
+  box-shadow:
+  0 0 0 4px rgba(231,62,53,.08);
 }
 
-/* Button */
-.login-button {
-    width: 100%;
-    padding: 1rem;
-    background-color: #4a69bd;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.3s;
+/* =========================
+BUTTON
+========================= */
+
+.login-button{
+  width:100%;
+
+  height:60px;
+
+  border:none;
+
+  border-radius:16px;
+
+  background:
+  linear-gradient(
+    135deg,
+    var(--primary),
+    var(--primary-light)
+  );
+
+  color:white;
+
+  font-size:15px;
+  font-weight:700;
+
+  cursor:pointer;
+
+  transition:.25s ease;
 }
 
-.login-button:hover {
-    background-color: #3b5085;
+.login-button:hover{
+  transform:translateY(-2px);
+
+  box-shadow:
+  0 15px 35px rgba(231,62,53,.25);
 }
 
-/* Messages */
-.error-message, .info-message {
-    font-size: 0.9rem;
-    padding: 0.8rem;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-    text-align: center;
+.login-button:disabled{
+  opacity:.6;
+  cursor:not-allowed;
 }
 
-.error-message {
-    background-color: #ffebee;
-    color: #c62828;
+/* =========================
+MESSAGES
+========================= */
+
+.error-message{
+  padding:14px;
+
+  border-radius:14px;
+
+  background:#fff1f2;
+
+  color:#dc2626;
+
+  border:1px solid #fecdd3;
+
+  margin-bottom:20px;
+
+  text-align:center;
 }
 
-.info-message {
-    background-color: #e8f5e9;
-    color: #2e7d32;
+.info-message{
+  padding:14px;
+
+  border-radius:14px;
+
+  background:#ecfdf5;
+
+  color:#16a34a;
+
+  border:1px solid #bbf7d0;
+
+  margin-bottom:20px;
+
+  text-align:center;
 }
 
-/* Toggle Text */
-.toggle-text {
-    margin-top: 1.5rem;
-    text-align: center;
-    font-size: 0.9rem;
-    color: #666;
+/* =========================
+HINT
+========================= */
+
+.hint{
+  display:block;
+
+  margin-top:8px;
+
+  font-size:12px;
+
+  color:var(--muted);
 }
 
-.toggle-text span {
-    color: #4a69bd;
-    font-weight: bold;
-    cursor: pointer;
+.hint strong{
+  color:var(--dark);
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    .login-page-container {
-        flex-direction: column;
-        height: auto;
-        min-height: 100vh;
-    }
+/* =========================
+RECAPTCHA
+========================= */
 
-    .login-image-section {
-        padding: 1.5rem;
-        min-height: 200px;
-    }
-
-    .login-image-section .logo {
-        font-size: 2rem;
-    }
-
-    .login-image-section .welcome-text {
-        font-size: 1rem;
-        max-width: none;
-    }
-
-    .login-form-section {
-        padding: 1.5rem;
-    }
-}
-.input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #d7d7d7;
-  border-radius: 8px;
-  font-size: 14px;
+#recaptcha-container{
+  margin-top:20px;
 }
 
-.hint {
-  display: block;
-  margin-top: 6px;
-  color: #666;
-  font-size: 12px;
-}
-/* =========================================================
-   Dropbox-like Styles for Form Elements
-   (Applied to your existing class names)
-   ========================================================= */
+/* =========================
+MOBILE
+========================= */
 
-/* --- Form Group Container --- */
-.form-group {
-    /* Use your existing styles for margin, but ensure a clear block */
-    margin-bottom: 20px; 
-    position: relative; /* Essential for positioning hint/error messages */
-}
+@media(max-width:992px){
 
-/* --- Label Style --- */
-.form-group label {
-    display: block;
-    font-size: 0.9rem;
-    color: #6a6a6a; /* Soft gray for the label */
-    margin-bottom: 8px; /* Space between label and input */
-    font-weight: 500; /* Slightly bold label */
-}
+  .login-page-container{
+    flex-direction:column;
+  }
 
-/* --- The Main Input Element (.input) --- */
-.input {
-    /* Box Model & Layout */
-    width: 100%;
-    padding: 12px 14px; /* Generous padding */
-    box-sizing: border-box; /* Include padding/border in the element's total width */
+  .login-image-section{
+    min-height:280px;
 
-    /* Typography & Color */
-    font-size: 16px; /* Important for mobile readability and avoiding iOS zoom */
-    color: #333333; /* Dark text */
-    
-    /* Border & Aesthetics (The Dropbox Look) */
-    border: 1px solid #dddddd; /* Light, subtle border */
-    border-radius: 8px; /* Gently rounded corners */
-    transition: 
-        border-color 0.2s ease, 
-        box-shadow 0.2s ease, 
-        background-color 0.2s ease;
+    justify-content:flex-end;
+
+    padding:32px;
+  }
+
+  .logo-img{
+    width:120px;
+  }
+
+  .welcome-text{
+    font-size:1rem;
+  }
+
+  .login-form-section{
+    padding:20px;
+  }
+
+  .login-container{
+    padding:26px;
+
+    border-radius:24px;
+  }
+
+  .login-container h1{
+    font-size:2rem;
+  }
+
 }
 
-/* --- Focus State (The subtle blue glow) --- */
-.input:focus {
-    outline: none; /* Remove default browser focus ring */
-    border-color: #0070e0; /* Dropbox-blue border on focus */
-    box-shadow: 0 0 0 3px rgba(0, 112, 224, 0.15); /* Light blue glow/shadow */
-    background-color: #ffffff; /* Ensure white background */
-}
+@media(max-width:600px){
 
-/* --- Placeholder Text Color --- */
-.input::placeholder {
-    color: #aaaaaa;
-    opacity: 1; /* Ensures color applies correctly in Firefox */
-}
+  .login-image-section{
+    min-height:220px;
+    padding:24px;
+  }
 
-/* --- Disabled State --- */
-.input:disabled {
-    background-color: #f7f7f7;
-    cursor: not-allowed;
-    border-color: #eeeeee;
-}
+  .login-container{
+    padding:22px;
+  }
 
-/* --- Hint/Small Text (Selected Code) --- */
-.form-group .hint {
-    display: block;
-    margin-top: 5px;
-    font-size: 0.85rem;
-    color: #999999;
-}
-.form-group .hint strong {
-    color: #333333; /* Make the actual code stand out */
-    font-weight: 600;
+  .form-group input,
+  .form-group select,
+  .input{
+    height:54px;
+  }
+
+  .login-button{
+    height:56px;
+  }
+
 }

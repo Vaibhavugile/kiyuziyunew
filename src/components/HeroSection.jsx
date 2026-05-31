@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from "react";
 import "./HeroSection.css";
 
-import hero1 from "../assets/hero/hero8.png";
-import hero2 from "../assets/hero/hero8.png";
-import hero3 from "../assets/hero/hero8.png";
-import hero4 from "../assets/hero/hero8.png";
-import hero5 from "../assets/hero/hero8.png";
+import hero1 from "../assets/hero/hero8.webp";
+import hero2 from "../assets/hero/hero9.webp";
+import hero3 from "../assets/hero/hero10.webp";
+import hero4 from "../assets/hero/hero11.webp";
+import hero5 from "../assets/hero/hero12.webp";
+import herom1 from "../assets/hero/hero17.webp";
+import herom2 from "../assets/hero/hero13.webp";
+import herom3 from "../assets/hero/hero14.webp";
+import herom4 from "../assets/hero/hero15.webp";
+import herom5 from "../assets/hero/hero16.webp";
 
 const HeroSection = () => {
 
@@ -15,35 +20,35 @@ const HeroSection = () => {
   const slides = [
     {
       image: hero1,
-      mobileImage: hero1,
+      mobileImage: herom1,
       title: "",
       desc: "",
       buttonText: ""
     },
     {
       image: hero2,
-      mobileImage: hero2,
+      mobileImage: herom2,
       title: "",
       desc: "",
       buttonText: ""
     },
     {
       image: hero3,
-      mobileImage: hero3,
+      mobileImage: herom3,
       title: "",
       desc: "",
       buttonText: ""
     },
     {
       image: hero4,
-      mobileImage: hero4,
+      mobileImage: herom4,
       title: "",
       desc: "",
       buttonText: ""
     },
     {
       image: hero5,
-      mobileImage: hero5,
+      mobileImage: herom5,
       title: "",
       desc: "",
       buttonText: ""
