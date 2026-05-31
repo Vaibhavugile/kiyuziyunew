@@ -35,6 +35,7 @@ const [homepage, setHomepage] = useState(null);
 const [lastDoc, setLastDoc] = useState(null);
 const [hasMore, setHasMore] = useState(true);
   const [collections, setCollections] = useState([]);
+  
   const [subcollectionsMap, setSubcollectionsMap] = useState({});
  const initialCollection =
     location.state?.collectionId ||
@@ -47,7 +48,7 @@ const [selectedCollection, setSelectedCollection] = useState(initialCollection |
 
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("default");
-
+const [searchTerm, setSearchTerm] = useState("");
   /* ===============================
   NAVIGATION DATA
   =============================== */
@@ -166,22 +167,26 @@ const [selectedCollection, setSelectedCollection] = useState(initialCollection |
 
     if (selectedSubcollection) {
 
-      q = query(
-        baseRef,
-        where("collectionId", "==", selectedCollection),
-        where("subcollectionId", "==", selectedSubcollection),
-        where("enabled", "==", true),
-        limit(24)
-      );
+     q = query(
+  baseRef,
+  where("collectionId", "==", selectedCollection),
+  where("subcollectionId", "==", selectedSubcollection),
+  where("enabled", "==", true),
+  ...(searchTerm.trim()
+    ? [where("productCode", "==", searchTerm.trim())]
+    : [limit(24)])
+);
 
     } else {
 
       q = query(
-        baseRef,
-        where("collectionId", "==", selectedCollection),
-        where("enabled", "==", true),
-        limit(24)
-      );
+  baseRef,
+  where("collectionId", "==", selectedCollection),
+  where("enabled", "==", true),
+  ...(searchTerm.trim()
+    ? [where("productCode", "==", searchTerm.trim())]
+    : [limit(24)])
+);
 
     }
 
@@ -453,9 +458,7 @@ console.log(
   return () => {
     inventoryListeners.forEach(unsub => unsub());
   };
-}, [selectedCollection, selectedSubcollection]);
-
-
+}, [selectedCollection, selectedSubcollection, searchTerm]);
   /* ===============================
   SAVE SELECTION (REFRESH SAFE)
   =============================== */
@@ -829,10 +832,16 @@ const description =
 </select>
 
         <input
-          placeholder="Search..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+  placeholder="Search..."
+  value={search}
+  onChange={(e) => setSearch(e.target.value)}
+/>
+
+<button
+  onClick={() => setSearchTerm(search)}
+>
+  Search
+</button>
 
       </div>
 

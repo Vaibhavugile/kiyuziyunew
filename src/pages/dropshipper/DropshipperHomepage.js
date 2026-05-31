@@ -60,6 +60,11 @@ const DropshipperHomepage = () => {
       accent: "#C9A34E"
     }
   });
+  const [floatingContact, setFloatingContact] = useState({
+  whatsapp: "",
+  instagram: "",
+  phone: ""
+});
   const [testimonials, setTestimonials] = useState({
     title: "What Our Customers Say",
     items: [
@@ -70,6 +75,16 @@ const DropshipperHomepage = () => {
       }
     ]
   });
+  const [topbar, setTopbar] = useState({
+  items: [
+    "Wholesale Price",
+    "Anti-Tarnish Jewellery",
+    "24*7 Support",
+    "Login To View Wholesale Price",
+    "Delivering Elegance Across India",
+    "Minimum Order Value 2500"
+  ]
+});
   /* ================= STATES ================= */
 
   const [navbar, setNavbar] = useState({
@@ -142,6 +157,18 @@ const DropshipperHomepage = () => {
           const data = snap.data();
 
           setNavbar(data.navbar || {});
+          setTopbar(
+  data.topbar || {
+    items: [
+      "Wholesale Price",
+      "Anti-Tarnish Jewellery",
+      "24*7 Support",
+      "Login To View Wholesale Price",
+      "Delivering Elegance Across India",
+      "Minimum Order Value 2500"
+    ]
+  }
+);
           setHero(prev => ({ ...prev, ...data.hero }));
           setTheme(data.theme || theme);
           setSections(data.sections || []);
@@ -154,6 +181,13 @@ const DropshipperHomepage = () => {
             title: "What Our Customers Say",
             items: []
           });
+          setFloatingContact(
+  data.floatingContact || {
+    whatsapp: "",
+    instagram: "",
+    phone: ""
+  }
+);
           setFooter({
             brand: data.footer?.brand || "",
             description: data.footer?.description || "",
@@ -393,6 +427,8 @@ const DropshipperHomepage = () => {
           about,
           testimonials,
           footer,
+           floatingContact,
+             topbar,
         },
         { merge: true }
       );
@@ -453,6 +489,28 @@ const DropshipperHomepage = () => {
               </div>
             )}
           </div>
+          <div className="section-card">
+  <h3>Top Bar Text</h3>
+
+  {topbar.items.map((item, index) => (
+    <input
+      key={index}
+      value={item}
+      placeholder={`Message ${index + 1}`}
+      onChange={(e) => {
+
+        const updated = [...topbar.items];
+        updated[index] = e.target.value;
+
+        setTopbar({
+          ...topbar,
+          items: updated
+        });
+
+      }}
+    />
+  ))}
+</div>
 
 
           {/* HERO */}
@@ -1118,6 +1176,42 @@ const DropshipperHomepage = () => {
             />
 
           </div>
+          <div className="section-card">
+  <h3>Floating Contact</h3>
+
+  <input
+    placeholder="WhatsApp Number"
+    value={floatingContact.whatsapp}
+    onChange={(e) =>
+      setFloatingContact(prev => ({
+        ...prev,
+        whatsapp: e.target.value
+      }))
+    }
+  />
+
+  <input
+    placeholder="Phone Number"
+    value={floatingContact.phone}
+    onChange={(e) =>
+      setFloatingContact(prev => ({
+        ...prev,
+        phone: e.target.value
+      }))
+    }
+  />
+
+  <input
+    placeholder="Instagram URL"
+    value={floatingContact.instagram}
+    onChange={(e) =>
+      setFloatingContact(prev => ({
+        ...prev,
+        instagram: e.target.value
+      }))
+    }
+  />
+</div>
           <h4>Footer Colors</h4>
 
           <label>Background</label>

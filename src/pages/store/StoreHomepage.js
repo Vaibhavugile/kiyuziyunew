@@ -11,6 +11,8 @@ import { HERO_LAYOUTS } from "../storefront/heroes/HeroRegistry";
 import AboutSection from "./AboutSection";
 import TestimonialsSection from "./TestimonialsSection";
 import FooterSection from "./FooterSection";
+import StoreFloatingContact from "./StoreFloatingContact";
+import StoreTopbar from "./StoreTopbar";
 const StoreHomepage = () => {
 
   const [homepage, setHomepage] = useState(null);
@@ -167,6 +169,7 @@ const StoreHomepage = () => {
     content={homepage?.hero?.images?.[0]?.src || "/default-og.jpg"}
   />
 </Helmet>
+<StoreTopbar data={homepage?.topbar} />
 
       {/* NAVBAR */}
       <StoreNavbar
@@ -213,6 +216,9 @@ const StoreHomepage = () => {
     data={homepage.footer}
     theme={theme}
   />
+  <StoreFloatingContact
+  data={homepage?.floatingContact}
+/>
 
       {/* TRUST SECTION (optional) */}
       {/* <TrustSection theme={theme} /> */}

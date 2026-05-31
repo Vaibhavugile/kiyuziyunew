@@ -60,6 +60,7 @@ import DropshipperCustomers from './pages/dropshipper/DropshipperCustomers';
 import PixelTracker from "./components/PixelTracker";
 import StockCheckPage from './pages/StockCheckPage';
 import Topbar from './components/Topbar';
+import FloatingContact from './components/FloatingContact';
 
 function App() {
     useEffect(() => {
@@ -183,8 +184,14 @@ function App() {
 
 
           </Routes>
-          {isMainDomain() && <Footer />}
-        </Router>
+     {isMainDomain() && (
+  <>
+    
+    <FloatingContact />
+        <Footer/>
+
+  </>
+)}        </Router>
       </CartProvider>
     </AuthProvider>
   );

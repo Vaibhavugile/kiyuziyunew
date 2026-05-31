@@ -571,6 +571,46 @@ trackMetaEvent("ViewContent", {
         return (priceB ?? -Infinity) - (priceA ?? -Infinity);
       });
     }
+    else if (sortBy === 'qty-asc') {
+  currentProducts.sort((a, b) => {
+
+    const qtyA = Array.isArray(a.variations) && a.variations.length > 0
+      ? a.variations.reduce(
+          (sum, v) => sum + (Number(v.quantity) || 0),
+          0
+        )
+      : (Number(a.quantity) || 0);
+
+    const qtyB = Array.isArray(b.variations) && b.variations.length > 0
+      ? b.variations.reduce(
+          (sum, v) => sum + (Number(v.quantity) || 0),
+          0
+        )
+      : (Number(b.quantity) || 0);
+
+    return qtyA - qtyB;
+  });
+}
+else if (sortBy === 'qty-desc') {
+  currentProducts.sort((a, b) => {
+
+    const qtyA = Array.isArray(a.variations) && a.variations.length > 0
+      ? a.variations.reduce(
+          (sum, v) => sum + (Number(v.quantity) || 0),
+          0
+        )
+      : (Number(a.quantity) || 0);
+
+    const qtyB = Array.isArray(b.variations) && b.variations.length > 0
+      ? b.variations.reduce(
+          (sum, v) => sum + (Number(v.quantity) || 0),
+          0
+        )
+      : (Number(b.quantity) || 0);
+
+    return qtyB - qtyA;
+  });
+}
 
     return currentProducts;
   }, [
@@ -1176,6 +1216,8 @@ if (qty < minQty || qty > maxQty) {
               <option value="default">Default (By Code)</option>
               <option value="price-asc">Price: Low to High</option>
               <option value="price-desc">Price: High to Low</option>
+              <option value="qty-asc">Qty: Low to High</option>
+<option value="qty-desc">Qty: High to Low</option>
             </select>
           </div>
 
