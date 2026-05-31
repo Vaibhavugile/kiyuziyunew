@@ -65,296 +65,388 @@ const [selectedCollection, setSelectedCollection] = useState(initialCollection |
 
   let inventoryListeners = [];
 
-  const loadStore = async () => {
-    
+ const loadStore = async () => {
 
-    try {
+  console.time("TOTAL STORE LOAD");
 
-      setLoading(true);
-      setProducts([]);
-setLastDoc(null);
-setHasMore(true);
+  try {
 
-      console.log("STORE LOADING...");
+    setLoading(true);
+    setProducts([]);
+    setLastDoc(null);
+    setHasMore(true);
 
-      /* ===============================
-      FIND SELLER (DOMAIN BASED)
-      =============================== */
+    console.log("STORE LOADING...");
 
-      const domain = getCleanDomain();
+    /* ===============================
+       HOMEPAGE
+    =============================== */
 
-      const homepageRef = doc(db, "storeHomepages", domain);
-      const homepageSnap = await getDoc(homepageRef);
+    console.time("homepage");
 
-      if (homepageSnap.exists()) {
-        setHomepage(homepageSnap.data());
-      }
+    const domain = getCleanDomain();
 
-      const sellerSnap = await getDocs(
-        query(
-          collection(db, "users"),
-          where("storeDomain", "==", passedDomain)
-        )
+    const homepageRef = doc(db, "storeHomepages", domain);
+    const homepageSnap = await getDoc(homepageRef);
+
+    console.timeEnd("homepage");
+
+    if (homepageSnap.exists()) {
+      setHomepage(homepageSnap.data());
+    }
+
+    /* ===============================
+       SELLER
+    =============================== */
+
+    console.time("seller");
+
+    const sellerSnap = await getDocs(
+      query(
+        collection(db, "users"),
+        where("storeDomain", "==", passedDomain)
+      )
+    );
+
+    console.timeEnd("seller");
+
+    if (sellerSnap.empty) {
+      console.log("Seller not found");
+      setLoading(false);
+      return;
+    }
+
+    const sellerDoc = sellerSnap.docs[0];
+    const sellerId = sellerDoc.id;
+
+    setSeller({
+      id: sellerId,
+      ...sellerDoc.data()
+    });
+
+    console.log("Seller ID:", sellerId);
+
+    /* ===============================
+       PRICING
+    =============================== */
+
+    console.time("pricing");
+
+    const pricingSnap = await getDocs(
+      collection(db, "dropshipperPricing", sellerId, "pricing")
+    );
+
+    console.timeEnd("pricing");
+
+    const pricingMap = {};
+
+    pricingSnap.docs.forEach(d => {
+      pricingMap[d.id] = d.data();
+    });
+
+    console.log(
+      "Pricing loaded:",
+      Object.keys(pricingMap).length
+    );
+
+    /* ===============================
+       PRODUCTS
+    =============================== */
+
+    console.time("products");
+
+    const baseRef = collection(
+      db,
+      "storeProducts",
+      sellerId,
+      "products"
+    );
+
+    let q;
+
+    if (selectedSubcollection) {
+
+      q = query(
+        baseRef,
+        where("collectionId", "==", selectedCollection),
+        where("subcollectionId", "==", selectedSubcollection),
+        where("enabled", "==", true),
+        limit(24)
       );
 
-      if (sellerSnap.empty) {
-        console.log("Seller not found");
-        setLoading(false);
-        return;
-      }
+    } else {
 
-      const sellerDoc = sellerSnap.docs[0];
-      console.log("SELLER DATA", sellerDoc.data());
-      const sellerId = sellerDoc.id;
-
-      setSeller({
-        id: sellerId,
-        ...sellerDoc.data()
-      });
-
-      console.log("Seller ID:", sellerId);
-
-      /* ===============================
-      LOAD PRICING
-      =============================== */
-
-      const pricingSnap = await getDocs(
-        collection(db, "dropshipperPricing", sellerId, "pricing")
+      q = query(
+        baseRef,
+        where("collectionId", "==", selectedCollection),
+        where("enabled", "==", true),
+        limit(24)
       );
-
-      const pricingMap = {};
-
-      pricingSnap.docs.forEach(d => {
-        pricingMap[d.id] = d.data();
-      });
-
-      console.log("Pricing loaded:", Object.keys(pricingMap).length);
-
-      /* ===============================
-      LOAD PRODUCTS (PAGINATED)
-      =============================== */
-
-      const baseRef = collection(db, "storeProducts", sellerId, "products");
-
-      let q;
-
-      if (selectedSubcollection) {
-
-        q = query(
-          baseRef,
-          where("collectionId", "==", selectedCollection),
-          where("subcollectionId", "==", selectedSubcollection),
-          where("enabled", "==", true),
-          limit(24)
-        );
-
-      } else {
-
-        q = query(
-          baseRef,
-          where("collectionId", "==", selectedCollection),
-          where("enabled", "==", true),
-          limit(24)
-        );
-
-      }
-
-      const storeSnap = await getDocs(q);
-
-      console.log("FIRST QUERY DOC COUNT:", storeSnap.docs.length);
-      console.log("FIRST QUERY IDS:", storeSnap.docs.map(d => d.id));
-
-      /* ===============================
-      PAGINATION TRACKING
-      =============================== */
-
-      if (!storeSnap.empty) {
-
-        const last = storeSnap.docs[storeSnap.docs.length - 1];
-
-        console.log("LAST DOC SET:", last.id);
-
-        setLastDoc(last);
-
-      }
-
-      if (storeSnap.docs.length < 24) {
-
-        console.log("LESS THAN LIMIT → NO MORE PRODUCTS");
-
-        setHasMore(false);
-
-      } else {
-
-        setHasMore(true);
-
-      }
-
-      /* ===============================
-      MAP PRODUCTS
-      =============================== */
-
-      let storeProducts = storeSnap.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      }));
-
-      /* ===============================
-      APPLY PRICING
-      =============================== */
-
-      storeProducts = storeProducts.map(p => {
-
-        const pricingKey = `${p.collectionId}_${p.subcollectionId}`;
-        const tiers = pricingMap[pricingKey]?.tieredPricing || [];
-
-        const normalized = tiers.map(t => ({
-          min_quantity: Number(t.min_quantity),
-          max_quantity: Number(t.max_quantity),
-          price: Number(t.price),
-          costPrice: Number(t.costPrice ?? 0)
-        }));
-
-        return {
-          ...p,
-          sellerId,
-            minimumOrderValue:
-    sellerDoc.data().minimumOrderValue ?? 0,
-    shippingSettings:
-sellerDoc.data().shippingSettings ?? null,
-          tieredPricing: {
-            retail: normalized,
-            wholesale: normalized,
-            dealer: normalized,
-            distributor: normalized,
-            vip: normalized
-          }
-        };
-
-      });
-
-      console.log("PRODUCTS AFTER PRICING:", storeProducts.length);
-
-      setProducts(storeProducts);
-
-      /* ===============================
-      LIVE INVENTORY LISTENERS
-      =============================== */
-
-      storeProducts.forEach(p => {
-
-        const ref = doc(
-          db,
-          "collections",
-          p.collectionId,
-          "subcollections",
-          p.subcollectionId,
-          "products",
-          p.productId
-        );
-
-        const unsub = onSnapshot(ref, (snap) => {
-
-          if (!snap.exists()) return;
-
-          const data = snap.data();
-
-          setProducts(prev =>
-            prev.map(prod => {
-
-              if (prod.productId !== p.productId) return prod;
-
-              if (data.variations && data.variations.length > 0) {
-
-                const totalStock = data.variations.reduce(
-                  (sum,v)=> sum + Number(v.quantity || 0),
-                  0
-                );
-
-                return {
-                  ...prod,
-                  variations: data.variations,
-                  quantity: totalStock
-                };
-
-              }
-
-              return {
-                ...prod,
-                quantity: data.quantity ?? 0
-              };
-
-            })
-          );
-
-        });
-
-        inventoryListeners.push(unsub);
-
-      });
-
-      /* ===============================
-      COLLECTION DETECTION
-      =============================== */
-
-      const collectionsSet = {};
-      const subMap = {};
-
-      storeProducts.forEach(p => {
-
-        collectionsSet[p.collectionId] = true;
-
-        if (!subMap[p.collectionId]) {
-          subMap[p.collectionId] = new Set();
-        }
-
-        subMap[p.collectionId].add(p.subcollectionId);
-
-      });
-
-      /* ===============================
-      LOAD COLLECTIONS
-      =============================== */
-
-      const collectionsSnap = await getDocs(collection(db, "collections"));
-
-      const validCollections = collectionsSnap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(c => collectionsSet[c.id]);
-
-      setCollections(validCollections);
-
-      /* ===============================
-      LOAD SUBCOLLECTIONS
-      =============================== */
-
-      const finalSubMap = {};
-
-      for (const colId in subMap) {
-
-        const snap = await getDocs(
-          collection(db, "collections", colId, "subcollections")
-        );
-
-        finalSubMap[colId] = snap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(s => subMap[colId].has(s.id));
-
-      }
-
-      setSubcollectionsMap(finalSubMap);
-
-      console.log("Collections loaded:", validCollections.length);
-
-    } catch (err) {
-
-      console.error("Store load error:", err);
 
     }
 
-    setLoading(false);
+    const storeSnap = await getDocs(q);
 
-  };
+    console.timeEnd("products");
+
+    console.log(
+      "FIRST QUERY DOC COUNT:",
+      storeSnap.docs.length
+    );
+
+    if (!storeSnap.empty) {
+
+      const last =
+        storeSnap.docs[storeSnap.docs.length - 1];
+
+      setLastDoc(last);
+
+    }
+
+    if (storeSnap.docs.length < 24) {
+      setHasMore(false);
+    } else {
+      setHasMore(true);
+    }
+
+    let storeProducts = storeSnap.docs.map(d => ({
+      id: d.id,
+      ...d.data()
+    }));
+
+    storeProducts = storeProducts.map(p => {
+
+      const pricingKey =
+        `${p.collectionId}_${p.subcollectionId}`;
+
+      const tiers =
+        pricingMap[pricingKey]?.tieredPricing || [];
+
+      const normalized = tiers.map(t => ({
+        min_quantity: Number(t.min_quantity),
+        max_quantity: Number(t.max_quantity),
+        price: Number(t.price),
+        costPrice: Number(t.costPrice ?? 0)
+      }));
+
+      return {
+        ...p,
+        sellerId,
+        minimumOrderValue:
+          sellerDoc.data().minimumOrderValue ?? 0,
+        shippingSettings:
+          sellerDoc.data().shippingSettings ?? null,
+        tieredPricing: {
+          retail: normalized,
+          wholesale: normalized,
+          dealer: normalized,
+          distributor: normalized,
+          vip: normalized
+        }
+      };
+
+    });
+
+    console.log(
+      "PRODUCTS AFTER PRICING:",
+      storeProducts.length
+    );
+
+    setProducts(storeProducts);
+
+    /* ===============================
+       INVENTORY LISTENERS
+    =============================== */
+
+    console.time("listeners");
+
+    console.log(
+      "Inventory listeners being created:",
+      storeProducts.length
+    );
+
+    storeProducts.forEach(p => {
+
+      const ref = doc(
+        db,
+        "collections",
+        p.collectionId,
+        "subcollections",
+        p.subcollectionId,
+        "products",
+        p.productId
+      );
+
+      const unsub = onSnapshot(ref, (snap) => {
+
+        if (!snap.exists()) return;
+
+        const data = snap.data();
+
+        setProducts(prev =>
+          prev.map(prod => {
+
+            if (prod.productId !== p.productId)
+              return prod;
+
+            if (
+              data.variations &&
+              data.variations.length > 0
+            ) {
+
+              const totalStock =
+                data.variations.reduce(
+                  (sum, v) =>
+                    sum + Number(v.quantity || 0),
+                  0
+                );
+
+              return {
+                ...prod,
+                variations: data.variations,
+                quantity: totalStock
+              };
+
+            }
+
+            return {
+              ...prod,
+              quantity: data.quantity ?? 0
+            };
+
+          })
+        );
+
+      });
+
+      inventoryListeners.push(unsub);
+
+    });
+
+    console.timeEnd("listeners");
+
+    /* ===============================
+       COLLECTIONS
+    =============================== */
+
+/* ===============================
+   COLLECTIONS + SUBCOLLECTIONS
+   OPTIMIZED
+=============================== */
+
+console.time("collections + subcollections");
+
+const subMap = {};
+
+storeProducts.forEach(p => {
+
+  if (!subMap[p.collectionId]) {
+    subMap[p.collectionId] = new Set();
+  }
+
+  subMap[p.collectionId].add(
+    p.subcollectionId
+  );
+
+});
+
+const validCollections = [];
+const finalSubMap = {};
+
+/*
+  Load ONLY collections used
+  by current products
+*/
+
+for (const colId of Object.keys(subMap)) {
+
+  try {
+
+    /* ===============================
+       COLLECTION DOC
+    =============================== */
+
+    const collectionDoc = await getDoc(
+      doc(
+        db,
+        "collections",
+        colId
+      )
+    );
+
+    if (collectionDoc.exists()) {
+
+      validCollections.push({
+        id: collectionDoc.id,
+        ...collectionDoc.data()
+      });
+
+    }
+
+    /* ===============================
+       SUBCOLLECTIONS
+    =============================== */
+
+    const subSnap = await getDocs(
+      collection(
+        db,
+        "collections",
+        colId,
+        "subcollections"
+      )
+    );
+
+    finalSubMap[colId] = subSnap.docs
+      .map(d => ({
+        id: d.id,
+        ...d.data()
+      }))
+      .filter(s =>
+        subMap[colId].has(s.id)
+      );
+
+  } catch (err) {
+
+    console.error(
+      "Collection load error:",
+      colId,
+      err
+    );
+
+  }
+
+}
+
+setCollections(validCollections);
+setSubcollectionsMap(finalSubMap);
+
+console.timeEnd(
+  "collections + subcollections"
+);
+
+console.log(
+  "Collections loaded:",
+  validCollections.length
+);
+
+} catch (err) {
+
+  console.error(
+    "Store load error:",
+    err
+  );
+
+} finally {
+
+  setLoading(false);
+
+  console.timeEnd(
+    "TOTAL STORE LOAD"
+  );
+
+}
+
+};
 
   loadStore();
 
