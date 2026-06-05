@@ -260,7 +260,13 @@ const DropshipperCustomers = () => {
                 );
 
                 break;
+case "signupLatest":
 
+  list.sort(
+    (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
+  );
+
+  break;
             case "latest":
 
             default:
@@ -479,10 +485,14 @@ const DropshipperCustomers = () => {
                         setSortBy(e.target.value)
                     }
                 >
+                    
 
                     <option value="latest">
                         Latest Activity
                     </option>
+                    <option value="signupLatest">
+  Latest Signup
+</option>
 
                     <option value="name">
                         Name
@@ -532,6 +542,7 @@ const DropshipperCustomers = () => {
                             <th>Total Spent</th>
 
                             <th>Status</th>
+                            <th>Signup Date</th>
 
                         </tr>
 
@@ -640,6 +651,11 @@ const DropshipperCustomers = () => {
                                     )}
 
                                 </td>
+                                <td>
+  {customer.createdAt
+    ? new Date(customer.createdAt).toLocaleDateString()
+    : "-"}
+</td>
 
                             </tr>
 

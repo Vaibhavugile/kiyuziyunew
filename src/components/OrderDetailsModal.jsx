@@ -166,6 +166,7 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus, onCancelOrder }) =>
           <select
             value={order.status}
             onChange={(e) => onUpdateStatus(order.id, e.target.value)}
+            disabled={order.status === "Cancelled"}
           >
             {/* Standard status options */}
             <option value="">Select Stautus</option>

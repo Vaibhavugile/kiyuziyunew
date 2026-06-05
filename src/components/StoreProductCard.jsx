@@ -195,19 +195,23 @@ return (
 
     {/* INFO */}
     <div className="storeproductcard-info">
+              <div className="product-header-row">
+
 
       {/* TITLE */}
       <h4 className="storeproductcard-title">{productName}</h4>
-
+        <span className="stock-badge">
+     Stock - {availableStock} pcs
+  </span>
+      </div>
       {/* PRICE */}
       <p className="storeproductcard-price">
-        ₹{Number(cartQuantity > 0 ? unitPrice : startingPrice || 0).toFixed(2)}
+        ₹{Number(cartQuantity > 0 ? unitPrice : startingPrice || 0).toFixed(2)}/Unit
       </p>
 
       {/* CODE + STOCK */}
       <div className="storeproductcard-meta">
         <span className="storeproductcard-code">{productCode}</span>
-        <span className="storeproductcard-stock">Stock {availableStock}</span>
       </div>
 
       {/* BULK PRICING */}

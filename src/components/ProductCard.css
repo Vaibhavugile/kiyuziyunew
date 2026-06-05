@@ -325,7 +325,7 @@ border-radius:0 0 42px 42px;
   border:none;
   border-radius:999px;
 
-  background:#111827;
+  background:#e73e35;
   color:white;
 
   font-size:13px;
@@ -337,7 +337,8 @@ border-radius:0 0 42px 42px;
 }
 
 .add-to-cart-btn:hover{
-  background:#000;
+color:white;
+  background:#ff0e02;
 }
 
 .add-to-cart-btn:disabled{

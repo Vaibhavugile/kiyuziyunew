@@ -4,6 +4,7 @@ import {
   collection,
   getDocs,
   addDoc,
+  
   updateDoc,
   deleteDoc,
   doc,
@@ -20,6 +21,7 @@ import {
   setDoc,
 
 } from '../firebase';
+import { onSnapshot } from "firebase/firestore";
 import CollectionCard from '../components/CollectionCard';
 import ProductCard from '../components/ProductCard';
 import OrderDetailsModal from '../components/OrderDetailsModal';
@@ -560,6 +562,7 @@ const [isShippingApplied, setIsShippingApplied] = useState(false);
     setSelectedOrder(order);
     setShowOrderModal(true);
   };
+  
 
   const closeOrderModal = () => {
     setShowOrderModal(false);
@@ -790,21 +793,31 @@ useEffect(() => {
 
   // New: Fetches all orders
   useEffect(() => {
-    const fetchOrders = async () => {
-      if (activeTab === 'orders') {
-        setIsOrderLoading(true);
-        const ordersCollectionRef = collection(db, 'orders');
-        const querySnapshot = await getDocs(ordersCollectionRef);
-        const fetchedOrders = querySnapshot.docs.map((doc) => ({
-          ...doc.data(),
-          id: doc.id,
-        }));
-        setOrders(fetchedOrders);
-        setIsOrderLoading(false);
-      }
-    };
-    fetchOrders();
-  }, [activeTab]);
+  if (activeTab !== "orders") return;
+
+  setIsOrderLoading(true);
+
+  const ordersCollectionRef = collection(db, "orders");
+
+  const unsubscribe = onSnapshot(
+    ordersCollectionRef,
+    (snapshot) => {
+      const fetchedOrders = snapshot.docs.map((doc) => ({
+        ...doc.data(),
+        id: doc.id,
+      }));
+
+      setOrders(fetchedOrders);
+      setIsOrderLoading(false);
+    },
+    (error) => {
+      console.error("Error listening to orders:", error);
+      setIsOrderLoading(false);
+    }
+  );
+
+  return () => unsubscribe();
+}, [activeTab]);
   // NEW: Filtered orders based on search and date range
   // Updated: Filtered orders based on search, date, and now status
   const filteredOrders = useMemo(() => {
@@ -2204,18 +2217,17 @@ for (const product of newProducts) {
       const result = await response.json();
 
       if (response.ok) {
-        alert(result.message);
-        // 🔄 Crucial: Reload the orders list to reflect the status change and stock reversal
-        // You must call your main data fetching function here (e.g., fetchOrders)
-        // Example:
-        // if (typeof fetchOrders === 'function') {
-        //     fetchOrders(); 
-        // }
+  alert(result.message);
 
-        // For now, let's just close the modal and trust the next refresh cycle
-        setSelectedOrder(null);
-
-      } else {
+  setSelectedOrder(prev =>
+    prev
+      ? {
+          ...prev,
+          status: "Cancelled",
+        }
+      : prev
+  );
+} else {
         alert(`Cancellation Failed: ${result.error || 'An unknown error occurred.'}`);
       }
     } catch (error) {

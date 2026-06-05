@@ -12,14 +12,16 @@ import {
 } from "firebase/firestore";
 
 import { db } from "../../firebase";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { FaShoppingCart, FaArrowLeft, FaFilter, FaTimes, FaSpinner, FaDownload } from 'react-icons/fa';
 
 import StoreProductCard from "../../components/StoreProductCard";
 import { useStoreCart } from "../store/StoreCartContext";
+import { useStoreAuth } from "../store/StoreAuthContext"; 
 import { getCleanDomain } from "../../utils/domain";
 import "../../pages/ProductsPage.css"
+import StoreTopbar from "../store/StoreTopbar";
 const SellerStore = () => {
 
   const location = useLocation();
@@ -46,7 +48,8 @@ const [selectedCollection, setSelectedCollection] = useState(initialCollection |
   const [selectedSubcollection, setSelectedSubcollection] = useState("");
 
   const [loading, setLoading] = useState(true);
-
+ const { user } = useStoreAuth();
+   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("default");
 const [searchTerm, setSearchTerm] = useState("");
@@ -753,6 +756,7 @@ const description =
 
   return (
     <div className="products-page-container">
+      <StoreTopbar data={homepage?.topbar} />
 <Helmet>
 
 <title>{storeName}</title>
@@ -861,12 +865,24 @@ const description =
           <StoreProductCard
             key={product.id}
             product={product}
-            onIncrement={(product) => {
+        onIncrement={(product) => {
+
+  if (!user) {
+
+    alert("Please login first");
+
+    navigate("/store/signup", {
+  state: {
+    redirectTo: location.pathname + location.search
+  }
+});
+
+    return;
+  }
 
   addToCart(product);
 
   if (window.fbq) {
-
     window.fbq("track", "AddToCart", {
       content_name: product.productName,
       content_ids: [product.productId],
@@ -874,7 +890,6 @@ const description =
       value: product.displayPrice || 0,
       currency: "INR"
     });
-
   }
 
 }}
