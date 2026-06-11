@@ -1,13 +1,33 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 const AboutSection = ({ data, theme }) => {
-
-  if (!data) return null;
 
   const isMobile = window.innerWidth < 768;
 
   const textColor = theme?.colors?.text || "#000";
   const primaryColor = theme?.colors?.primary || "#000";
+
+const images =
+  Array.isArray(data.images) && data.images.length > 0
+    ? data.images
+    : data.image
+    ? [data.image]
+    : [];
+
+  const [currentImage, setCurrentImage] = useState(0);
+
+  // Auto change image every 3 seconds
+  useEffect(() => {
+    if (images.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentImage((prev) => (prev + 1) % images.length);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [images.length]);
+    if (!data) return null;
+
 
   return (
     <section
@@ -27,31 +47,64 @@ const AboutSection = ({ data, theme }) => {
           alignItems: "center"
         }}
       >
-
-        {/* IMAGE */}
-        {data.image && (
+        {/* IMAGE SLIDER */}
+        {images.length > 0 && (
           <div
             style={{
               borderRadius: "18px",
               overflow: "hidden",
-              boxShadow: "0 25px 60px rgba(0,0,0,0.25)"
+              boxShadow: "0 25px 60px rgba(0,0,0,0.25)",
+              position: "relative"
             }}
           >
             <img
-              src={data.image}
+              src={images[currentImage]}
               alt="About"
               style={{
                 width: "100%",
-                height: "100%",
-                objectFit: "cover"
+                height: isMobile ? "600px" : "800px",
+                objectFit: "cover",
+                display: "block",
+                transition: "all 0.5s ease"
               }}
             />
+
+            {/* Navigation Dots */}
+            {images.length > 1 && (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "15px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  display: "flex",
+                  gap: "8px"
+                }}
+              >
+                {images.map((_, index) => (
+                  <div
+                    key={index}
+                    onClick={() => setCurrentImage(index)}
+                    style={{
+                      width: "10px",
+                      height: "10px",
+                      borderRadius: "50%",
+                      cursor: "pointer",
+                      background:
+                        currentImage === index
+                          ? "#fff"
+                          : "rgba(255,255,255,0.5)",
+                      transition: "0.3s"
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {/* TEXT */}
         <div>
-
           {/* Small Label */}
           <div
             style={{
@@ -109,9 +162,7 @@ const AboutSection = ({ data, theme }) => {
               gap: "25px"
             }}
           >
-
             {data.features?.map((f, i) => (
-
               <div
                 key={i}
                 style={{
@@ -120,7 +171,6 @@ const AboutSection = ({ data, theme }) => {
                   background: "rgba(0,0,0,0.03)"
                 }}
               >
-
                 <strong
                   style={{
                     color: textColor,
@@ -140,15 +190,10 @@ const AboutSection = ({ data, theme }) => {
                 >
                   {f.text}
                 </p>
-
               </div>
-
             ))}
-
           </div>
-
         </div>
-
       </div>
     </section>
   );

@@ -15,25 +15,30 @@ const DropshipperHomepage = () => {
   /* 🔥 NEW: COLLECTION LIST */
   const [collectionsList, setCollectionsList] = useState([]);
 
-  const [about, setAbout] = useState({
-    title: "",
-    description: "",
-    image: "",
-    features: [
-      {
-        title: "Premium Materials",
-        text: "Crafted with high quality metals & stones."
-      },
-      {
-        title: "Timeless Design",
-        text: "Elegant jewelry made for everyday luxury."
-      },
-      {
-        title: "Trusted Quality",
-        text: "Loved by customers worldwide."
-      }
-    ]
-  });
+ const [about, setAbout] = useState({
+  title: "",
+  description: "",
+  images: [],
+  features: [
+    {
+      title: "Premium Materials",
+      text: "Crafted with high quality metals & stones."
+    },
+    {
+      title: "Timeless Design",
+      text: "Elegant jewelry made for everyday luxury."
+    },
+    {
+      title: "Trusted Quality",
+      text: "Loved by customers worldwide."
+    }
+  ]
+});
+const [enquiryForm, setEnquiryForm] = useState({
+  enabled: false,
+  title: "Get In Touch",
+  subtitle: "Have questions? Send us an enquiry and we'll contact you shortly."
+});
   const [footer, setFooter] = useState({
     brand: "",
     description: "",
@@ -172,15 +177,26 @@ const DropshipperHomepage = () => {
           setHero(prev => ({ ...prev, ...data.hero }));
           setTheme(data.theme || theme);
           setSections(data.sections || []);
-          setAbout(data.about || {
-            title: "",
-            description: "",
-            image: ""
-          });
+          setAbout(
+  data.about || {
+    title: "",
+    description: "",
+    images: [],
+    features: []
+  }
+);
           setTestimonials(data.testimonials || {
             title: "What Our Customers Say",
             items: []
           });
+          setEnquiryForm(
+  data.enquiryForm || {
+    enabled: false,
+    title: "Get In Touch",
+    subtitle:
+      "Have questions? Send us an enquiry and we'll contact you shortly."
+  }
+);
           setFloatingContact(
   data.floatingContact || {
     whatsapp: "",
@@ -429,6 +445,7 @@ const DropshipperHomepage = () => {
           footer,
            floatingContact,
              topbar,
+             enquiryForm,
         },
         { merge: true }
       );
@@ -936,28 +953,47 @@ const DropshipperHomepage = () => {
               }
             />
 
-            <input
-              type="file"
-              onChange={async (e) => {
+           <input
+  type="file"
+  multiple
+  onChange={async (e) => {
+    const files = Array.from(e.target.files);
 
-                const url = await uploadImage(
-                  e.target.files[0],
-                  "about"
-                )
+    const urls = [];
 
-                setAbout(prev => ({
-                  ...prev,
-                  image: url
-                }))
+    for (const file of files) {
+      const url = await uploadImage(file, "about");
 
-              }}
-            />
+      if (url) {
+        urls.push(url);
+      }
+    }
 
-            {about.image && (
-              <div className="image-preview">
-                <img src={about.image} alt="" />
-              </div>
-            )}
+    setAbout(prev => ({
+      ...prev,
+      images: [...(prev.images || []), ...urls]
+    }));
+  }}
+/>
+<div className="image-preview">
+  {about.images?.map((img, index) => (
+    <div key={index}>
+      <img src={img} alt="" />
+
+      <button
+        className="secondary"
+        onClick={() =>
+          setAbout(prev => ({
+            ...prev,
+            images: prev.images.filter((_, i) => i !== index)
+          }))
+        }
+      >
+        Remove
+      </button>
+    </div>
+  ))}
+</div>
             <h4>Features</h4>
 
             <button
@@ -1031,6 +1067,48 @@ const DropshipperHomepage = () => {
 
             ))}
           </div>
+          <div className="section-card">
+
+  <h3>Enquiry Form</h3>
+
+  <label>
+    <input
+      type="checkbox"
+      checked={enquiryForm.enabled}
+      onChange={(e) =>
+        setEnquiryForm(prev => ({
+          ...prev,
+          enabled: e.target.checked
+        }))
+      }
+    />
+
+    Enable Enquiry Form
+  </label>
+
+  <input
+    placeholder="Title"
+    value={enquiryForm.title}
+    onChange={(e) =>
+      setEnquiryForm(prev => ({
+        ...prev,
+        title: e.target.value
+      }))
+    }
+  />
+
+  <textarea
+    placeholder="Subtitle"
+    value={enquiryForm.subtitle}
+    onChange={(e) =>
+      setEnquiryForm(prev => ({
+        ...prev,
+        subtitle: e.target.value
+      }))
+    }
+  />
+
+</div>
           <div className="section-card">
 
             <h3>Testimonials</h3>

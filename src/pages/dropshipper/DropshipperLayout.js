@@ -81,6 +81,12 @@ Orders
 >
   Customers
 </Link>
+<Link
+  to="/dropshipper/enquiries"
+  className={isActive("enquiries")}
+>
+  Enquiries
+</Link>
 
 </nav>
 

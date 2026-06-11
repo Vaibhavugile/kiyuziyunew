@@ -61,6 +61,7 @@ import PixelTracker from "./components/PixelTracker";
 import StockCheckPage from './pages/StockCheckPage';
 import Topbar from './components/Topbar';
 import FloatingContact from './components/FloatingContact';
+import DropshipperEnquiries from './pages/dropshipper/DropshipperEnquiries';
 
 function App() {
     useEffect(() => {
@@ -165,6 +166,10 @@ function App() {
               <Route
     path="customers"
     element={<DropshipperCustomers />}
+/>
+<Route
+  path="enquiries"
+  element={<DropshipperEnquiries />}
 />
 
             </Route>

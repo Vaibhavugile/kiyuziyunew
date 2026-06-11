@@ -345,7 +345,7 @@ min-height:100vh;
 }
 
 .hcr-slide{
-background-size:cover;
+background-size:contain;
 background-position:center;
 transform:none;
 filter: brightness(1.08) contrast(1.03);

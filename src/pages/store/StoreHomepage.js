@@ -13,6 +13,7 @@ import TestimonialsSection from "./TestimonialsSection";
 import FooterSection from "./FooterSection";
 import StoreFloatingContact from "./StoreFloatingContact";
 import StoreTopbar from "./StoreTopbar";
+import EnquiryFormSection from "./StoreEnquiryFormSection";
 const StoreHomepage = () => {
 
   const [homepage, setHomepage] = useState(null);
@@ -204,10 +205,17 @@ const StoreHomepage = () => {
         }
 
       })}
+      {homepage?.enquiryForm?.enabled && (
+  <EnquiryFormSection
+    data={homepage.enquiryForm}
+    theme={theme}
+  />
+)}
        <AboutSection
     data={homepage.about}
     theme={theme}
   />
+  
     <TestimonialsSection
     data={homepage.testimonials}
     theme={theme}

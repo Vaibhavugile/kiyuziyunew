@@ -34,7 +34,7 @@ export const ROLE_CONFIG = {
 
   distributor: {
     label: 'Distributor',
-    minOrderValue: 70000,
+    minOrderValue: 30000,
     canSeeBulkPricing: true,
     pricingKey: 'distributor',
 
@@ -43,7 +43,7 @@ export const ROLE_CONFIG = {
 
   dealer: {
     label: 'Dealer',
-    minOrderValue: 50000,
+    minOrderValue: 60000,
     canSeeBulkPricing: true,
     pricingKey: 'dealer',
 
@@ -52,7 +52,7 @@ export const ROLE_CONFIG = {
 
   vip: {
     label: 'VIP Customer',
-    minOrderValue: 150000,
+    minOrderValue: 100000,
     canSeeBulkPricing: true,
     pricingKey: 'vip',
 
@@ -60,7 +60,7 @@ export const ROLE_CONFIG = {
   },
     dropshipping: {
     label: 'Dropshipping',
-    minOrderValue: 2500,
+    minOrderValue: 10000,
     canSeeBulkPricing: true,
     pricingKey: 'dropshipping',
 
