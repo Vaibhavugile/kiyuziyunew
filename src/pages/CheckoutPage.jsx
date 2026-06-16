@@ -7,7 +7,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase'
 import { getRoleConfig } from '../config/roles';
 import { trackMetaEvent } from "../utils/pixels";
-const SHIPPING_FEE = 99;
+const SHIPPING_FEE = 199;
 
 const CheckoutPage = () => {
   const {
@@ -440,6 +440,21 @@ navigate("/order-success");
                   Add ₹{minimumRemaining.toFixed(2)} more.
                 </p>
               )}
+              {invalidItems.length > 0 && (
+  <div className="fix-cart-box">
+    <p className="fix-cart-title">
+      ⚠ Some items are no longer available
+    </p>
+
+    <button
+      type="button"
+      className="auto-fix-cart-btn"
+      onClick={handleAutoFixCart}
+    >
+      Fix Cart Automatically
+    </button>
+  </div>
+)}
 
               <button
                 type="submit"

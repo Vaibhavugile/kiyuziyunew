@@ -34,6 +34,12 @@ const DropshipperHomepage = () => {
     }
   ]
 });
+const [instagramReels, setInstagramReels] = useState({
+  enabled: true,
+  title: "Trending on Instagram",
+  subtitle: "Real styles. Real moments.",
+  reels: []
+});
 const [enquiryForm, setEnquiryForm] = useState({
   enabled: false,
   title: "Get In Touch",
@@ -69,6 +75,11 @@ const [enquiryForm, setEnquiryForm] = useState({
   whatsapp: "",
   instagram: "",
   phone: ""
+});
+const [shopTheLook, setShopTheLook] = useState({
+  enabled: true,
+  title: "SHOP THE LOOK",
+  reels: []
 });
   const [testimonials, setTestimonials] = useState({
     title: "What Our Customers Say",
@@ -183,6 +194,21 @@ const [enquiryForm, setEnquiryForm] = useState({
     description: "",
     images: [],
     features: []
+  }
+);
+setInstagramReels(
+  data.instagramReels || {
+    enabled: true,
+    title: "Trending on Instagram",
+    subtitle: "Real styles. Real moments.",
+    reels: []
+  }
+);
+setShopTheLook(
+  data.shopTheLook || {
+    enabled: true,
+    title: "SHOP THE LOOK",
+    reels: []
   }
 );
           setTestimonials(data.testimonials || {
@@ -446,6 +472,8 @@ const [enquiryForm, setEnquiryForm] = useState({
            floatingContact,
              topbar,
              enquiryForm,
+              instagramReels,
+                shopTheLook,
         },
         { merge: true }
       );
@@ -928,6 +956,240 @@ const [enquiryForm, setEnquiryForm] = useState({
               </div>
             ))}
           </div>
+          {/* <div className="section-card">
+  <h3>Instagram Reels</h3>
+
+  <label>
+    <input
+      type="checkbox"
+      checked={instagramReels.enabled}
+      onChange={(e) =>
+        setInstagramReels(prev => ({
+          ...prev,
+          enabled: e.target.checked
+        }))
+      }
+    />
+    Enable Instagram Reels
+  </label>
+
+  <input
+    placeholder="Section Title"
+    value={instagramReels.title}
+    onChange={(e) =>
+      setInstagramReels(prev => ({
+        ...prev,
+        title: e.target.value
+      }))
+    }
+  />
+
+  <input
+    placeholder="Section Subtitle"
+    value={instagramReels.subtitle}
+    onChange={(e) =>
+      setInstagramReels(prev => ({
+        ...prev,
+        subtitle: e.target.value
+      }))
+    }
+  />
+
+  <button
+    className="add-btn"
+    onClick={() =>
+      setInstagramReels(prev => ({
+        ...prev,
+        reels: [
+          ...(prev.reels || []),
+          {
+            videoUrl: "",
+            thumbnail: ""
+          }
+        ]
+      }))
+    }
+  >
+    + Add Reel
+  </button>
+
+  {instagramReels.reels?.map((reel, index) => (
+    <div key={index} className="collection-card">
+
+      <label>Video</label>
+
+      <input
+        type="file"
+        accept="video/*"
+        onChange={async (e) => {
+          const url = await uploadImage(
+            e.target.files[0],
+            "instagram-reels"
+          );
+
+          if (!url) return;
+
+          const updated = [...instagramReels.reels];
+          updated[index].videoUrl = url;
+
+          setInstagramReels(prev => ({
+            ...prev,
+            reels: updated
+          }));
+        }}
+      />
+
+      <label>Thumbnail</label>
+
+      <input
+        type="file"
+        accept="image/*"
+        onChange={async (e) => {
+          const url = await uploadImage(
+            e.target.files[0],
+            "instagram-reels"
+          );
+
+          if (!url) return;
+
+          const updated = [...instagramReels.reels];
+          updated[index].thumbnail = url;
+
+          setInstagramReels(prev => ({
+            ...prev,
+            reels: updated
+          }));
+        }}
+      />
+
+      {reel.thumbnail && (
+        <div className="image-preview">
+          <img src={reel.thumbnail} alt="" />
+        </div>
+      )}
+
+      <button
+        className="secondary"
+        onClick={() => {
+          const updated = instagramReels.reels.filter(
+            (_, i) => i !== index
+          );
+
+          setInstagramReels(prev => ({
+            ...prev,
+            reels: updated
+          }));
+        }}
+      >
+        Remove Reel
+      </button>
+    </div>
+  ))}
+</div> */}
+{userData?.enabledFeatures?.shopTheLook && (
+<div className="section-card">
+  <h3>Shop The Look</h3>
+
+  <label>
+    <input
+      type="checkbox"
+      checked={shopTheLook.enabled}
+      onChange={(e) =>
+        setShopTheLook(prev => ({
+          ...prev,
+          enabled: e.target.checked
+        }))
+      }
+    />
+    Enable Shop The Look
+  </label>
+
+  <input
+    placeholder="Section Title"
+    value={shopTheLook.title}
+    onChange={(e) =>
+      setShopTheLook(prev => ({
+        ...prev,
+        title: e.target.value
+      }))
+    }
+  />
+
+  <button
+    className="add-btn"
+    onClick={() =>
+      setShopTheLook(prev => ({
+        ...prev,
+        reels: [
+          ...(prev.reels || []),
+          {
+            videoUrl: ""
+          }
+        ]
+      }))
+    }
+  >
+    + Add Reel
+  </button>
+
+  {shopTheLook.reels?.map((reel, index) => (
+    <div key={index} className="collection-card">
+
+      <label>Video Reel</label>
+
+      <input
+        type="file"
+        accept="video/*"
+        onChange={async (e) => {
+          const url = await uploadImage(
+            e.target.files[0],
+            "shop-the-look"
+          );
+
+          if (!url) return;
+
+          const updated = [...shopTheLook.reels];
+          updated[index].videoUrl = url;
+
+          setShopTheLook(prev => ({
+            ...prev,
+            reels: updated
+          }));
+        }}
+      />
+
+      {reel.videoUrl && (
+        <video
+          src={reel.videoUrl}
+          controls
+          style={{
+            width: "180px",
+            borderRadius: "12px",
+            marginTop: "10px"
+          }}
+        />
+      )}
+
+      <button
+        className="secondary"
+        onClick={() => {
+          const updated = shopTheLook.reels.filter(
+            (_, i) => i !== index
+          );
+
+          setShopTheLook(prev => ({
+            ...prev,
+            reels: updated
+          }));
+        }}
+      >
+        Remove Reel
+      </button>
+
+    </div>
+  ))}
+</div>
+)}
           <div className="section-card">
             <h3>About Section</h3>
 

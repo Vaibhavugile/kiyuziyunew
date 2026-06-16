@@ -4874,13 +4874,21 @@ alert(
                                 </select>
                               )}
 
-                              <span className={`product-quantity ${availableStock === 0 ? 'out-of-stock-text' : ''}`}>
-                                In Stock: {availableStock}
-                              </span>
+                             <span
+  style={{
+    display: "block",
+    color: "red",
+    fontWeight: "bold",
+    fontSize: "16px"
+  }}
+>
+  In Stock: {availableStock}
+</span>
                             </div>
 
                             {/* Add to Cart Control */}
                             <div className="product-actions-offline">
+                               
                               <span className="cart-item-quantity">In Cart: {currentQuantityInCart}</span>
                               <button
                                 // Pass the product and the currently selected variation to the handler

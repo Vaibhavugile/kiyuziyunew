@@ -124,7 +124,7 @@ export const CartProvider = ({ children }) => {
 const { roleConfig, userRole } = useAuth();
 
 
-  const pricingKey = roleConfig?.pricingKey || 'dropshipping';
+  const pricingKey = roleConfig?.pricingKey || 'wholesaler';
   const minOrderValue = roleConfig?.minOrderValue || 0;
 
   /* =======================

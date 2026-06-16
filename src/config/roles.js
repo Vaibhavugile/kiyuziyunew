@@ -52,7 +52,7 @@ export const ROLE_CONFIG = {
 
   vip: {
     label: 'VIP Customer',
-    minOrderValue: 100000,
+    minOrderValue: 150000,
     canSeeBulkPricing: true,
     pricingKey: 'vip',
 
@@ -60,7 +60,7 @@ export const ROLE_CONFIG = {
   },
     dropshipping: {
     label: 'Dropshipping',
-    minOrderValue: 10000,
+    minOrderValue: 5000,
     canSeeBulkPricing: true,
     pricingKey: 'dropshipping',
 
@@ -70,7 +70,7 @@ export const ROLE_CONFIG = {
 
 
 // 🛟 Safe fallback (VERY IMPORTANT)
-export const DEFAULT_ROLE = ROLES.DROPSHIPPING;
+export const DEFAULT_ROLE = ROLES.WHOLESALER;
 
 // ✅ Helper: get role config safely
 export const getRoleConfig = (role) => {

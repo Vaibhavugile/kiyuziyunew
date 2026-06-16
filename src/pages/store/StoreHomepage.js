@@ -14,6 +14,8 @@ import FooterSection from "./FooterSection";
 import StoreFloatingContact from "./StoreFloatingContact";
 import StoreTopbar from "./StoreTopbar";
 import EnquiryFormSection from "./StoreEnquiryFormSection";
+import InstagramReelsSection from "./InstagramReelsSection";
+import ShopTheLook from "./Shopthelook";
 const StoreHomepage = () => {
 
   const [homepage, setHomepage] = useState(null);
@@ -205,6 +207,12 @@ const StoreHomepage = () => {
         }
 
       })}
+    
+{homepage?.shopTheLook?.enabled && (
+  <ShopTheLook
+    data={homepage.shopTheLook}
+  />
+)}
       {homepage?.enquiryForm?.enabled && (
   <EnquiryFormSection
     data={homepage.enquiryForm}
