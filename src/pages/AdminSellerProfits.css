@@ -29,6 +29,8 @@ grid-template-columns:
 1fr
 1fr
 1fr
+1fr
+1fr
 1fr;
 
 padding:16px 20px;
@@ -48,11 +50,22 @@ grid-template-columns:
 1fr
 1fr
 1fr
+1fr
+1fr
 1fr;
 
 padding:16px 20px;
 border-top:1px solid #eee;
 align-items:center;
+}
+.table-row.clickable{
+  cursor:pointer;
+  transition:all .2s ease;
+}
+
+.table-row.clickable:hover{
+  background:#f8fafc;
+  transform:translateY(-2px);
 }
 
 .table-row:hover{

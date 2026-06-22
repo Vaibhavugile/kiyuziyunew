@@ -13,15 +13,22 @@ import { db } from "../../firebase";
 import { useAuth } from "../../components/AuthContext";
 
 import "./DropshipperPayments.css";
-
-const DropshipperPayments = () => {
+import { useParams } from "react-router-dom";
+const AdminResellerPayments = () => {
+const { sellerId } = useParams();
 
 const { currentUser } = useAuth();
 
 const [orders,setOrders] = useState([]);
 const [payments,setPayments] = useState([]);
 const [loading,setLoading] = useState(true);
+const getToday = () => {
+  const d = new Date();
+  return d.toISOString().split("T")[0];
+};
 
+const [fromDate, setFromDate] = useState(getToday);
+const [toDate, setToDate] = useState(getToday);
 const [search,setSearch] = useState("");
 const [sortBy,setSortBy] = useState("date");
 
@@ -34,7 +41,7 @@ useEffect(()=>{
 
 const loadOrders = async()=>{
 
-if(!currentUser) return;
+if(!sellerId) return;
 
 try{
 
@@ -42,7 +49,7 @@ try{
 
 const ordersQuery = query(
 collection(db,"storeOrders"),
-where("sellerId","==",currentUser.uid),
+where("sellerId","==",sellerId),
 orderBy("createdAt","desc")
 );
 
@@ -60,7 +67,7 @@ setOrders(ordersList);
 
 const paymentsQuery = query(
 collection(db,"adminPayments"),
-where("sellerId","==",currentUser.uid)
+where("sellerId","==",sellerId)
 );
 
 const paymentsSnap = await getDocs(paymentsQuery);
@@ -82,8 +89,7 @@ setLoading(false);
 
 loadOrders();
 
-},[currentUser]);
-
+},[sellerId]);
 /* ================= ORDER CALC ================= */
 
 const calculateOrder = (order)=>{
@@ -121,36 +127,111 @@ totalQty
 
 /* ================= FILTER + SORT ================= */
 
-const filteredOrders = useMemo(()=>{
+const filteredOrders = useMemo(() => {
 
-let filtered = orders.filter(o => o.status !== "Cancelled");
+  let filtered = orders.filter(
+    o => o.status !== "Cancelled"
+  );
 
-if(search){
+  /* ================= DATE FILTER ================= */
 
-const s = search.toLowerCase();
+  if (fromDate || toDate) {
 
-filtered = filtered.filter(o =>
-o.id.toLowerCase().includes(s) ||
-(o.billingInfo?.fullName || "").toLowerCase().includes(s)
-);
+    filtered = filtered.filter(order => {
 
-}
+      if (!order.createdAt?.seconds) return false;
 
-if(sortBy === "profit"){
-filtered.sort((a,b)=> calculateOrder(b).profit - calculateOrder(a).profit);
-}
+      const orderDate = new Date(
+        order.createdAt.seconds * 1000
+      );
 
-if(sortBy === "payable"){
-filtered.sort((a,b)=> calculateOrder(b).payableToAdmin - calculateOrder(a).payableToAdmin);
-}
+      if (fromDate) {
 
-if(sortBy === "date"){
-filtered.sort((a,b)=> (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-}
+        const from = new Date(fromDate);
+        from.setHours(0, 0, 0, 0);
 
-return filtered;
+        if (orderDate < from) {
+          return false;
+        }
 
-},[orders,search,sortBy]);
+      }
+
+      if (toDate) {
+
+        const to = new Date(toDate);
+        to.setHours(23, 59, 59, 999);
+
+        if (orderDate > to) {
+          return false;
+        }
+
+      }
+
+      return true;
+
+    });
+
+  }
+
+  /* ================= SEARCH ================= */
+
+  if (search) {
+
+    const s = search.toLowerCase();
+
+    filtered = filtered.filter(
+      o =>
+        o.id.toLowerCase().includes(s) ||
+        (o.billingInfo?.fullName || "")
+          .toLowerCase()
+          .includes(s)
+    );
+
+  }
+
+  /* ================= SORT ================= */
+
+  filtered = [...filtered];
+
+  if (sortBy === "profit") {
+
+    filtered.sort(
+      (a, b) =>
+        calculateOrder(b).profit -
+        calculateOrder(a).profit
+    );
+
+  }
+
+  if (sortBy === "payable") {
+
+    filtered.sort(
+      (a, b) =>
+        calculateOrder(b).payableToAdmin -
+        calculateOrder(a).payableToAdmin
+    );
+
+  }
+
+  if (sortBy === "date") {
+
+    filtered.sort(
+      (a, b) =>
+        (b.createdAt?.seconds || 0) -
+        (a.createdAt?.seconds || 0)
+    );
+
+  }
+
+  return filtered;
+
+}, [
+  orders,
+  search,
+  sortBy,
+  fromDate,
+  toDate
+]);
 
 /* ================= TOTAL SUMMARY ================= */
 
@@ -213,7 +294,7 @@ setPaying(true);
 
 await addDoc(collection(db,"adminPayments"),{
 
-sellerId: currentUser.uid,
+sellerId: sellerId,
 amount: Number(payAmount),
 createdAt: serverTimestamp()
 
@@ -222,7 +303,7 @@ createdAt: serverTimestamp()
 setPayments(prev=>[
 ...prev,
 {
-sellerId: currentUser.uid,
+sellerId: sellerId,
 amount: Number(payAmount)
 }
 ]);
@@ -283,8 +364,29 @@ onChange={(e)=>setSortBy(e.target.value)}
 <option value="payable">Sort by Payable</option>
 </select>
 
-</div>
 
+</div>
+<div className="date-range-filter">
+
+  <div className="date-field">
+    <label>From</label>
+    <input
+      type="date"
+      value={fromDate}
+      onChange={(e) => setFromDate(e.target.value)}
+    />
+  </div>
+
+  <div className="date-field">
+    <label>To</label>
+    <input
+      type="date"
+      value={toDate}
+      onChange={(e) => setToDate(e.target.value)}
+    />
+  </div>
+
+</div>
 <table className="payments-table">
 
 <thead>
@@ -386,7 +488,7 @@ return(
 <p><strong>Total Paid:</strong> ₹{totalPaid}</p>
 <p><strong>Pending:</strong> ₹{pendingToAdmin}</p>
 
-{/* <div className="admin-payment-form">
+<div className="admin-payment-form">
 
 <input
 type="number"
@@ -403,9 +505,10 @@ disabled={paying}
 {paying ? "Processing..." : "Pay"}
 </button>
 
-</div> */}
+</div>
 
 </div>
+
 <div className="payment-history">
 
   <h3>Payment History</h3>
@@ -452,10 +555,11 @@ disabled={paying}
   )}
 
 </div>
+
 </div>
 
 );
 
 };
 
-export default DropshipperPayments;
+export default AdminResellerPayments;

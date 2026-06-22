@@ -2,7 +2,7 @@ import { getCleanDomain } from "./domain";
 
 const META_PIXELS = {
   "kiyuziyuofficial.com": "2231396327679041",
-
+   "wholesaleantitarnishjewellery.com":"53461596655610084",
   "kiyuziyubypawanratna.com": "930079726687326",
 "kiyuziyujewellery.in": "1327934982509184",
 "kiyuziyujewelery.in":"1517159163444755",

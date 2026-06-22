@@ -550,6 +550,7 @@ const sellerOptions = Array.from(
   new Map(
     orders.map(order => {
       const seller = sellers[order.sellerId];
+      
 
       return [
         order.sellerId,
@@ -671,32 +672,44 @@ const sellerOptions = Array.from(
 
                 {filteredOrders.map((order, index) => {
 
-    const seller = sellers[order.sellerId];
+   const seller = sellers[order.sellerId];
 
-    const summary = calculateOrderSummary(order);
-    const profit = summary.profit;
-    const adminProfit = order.adminProfit || 0;
+const summary = calculateOrderSummary(order);
+const profit = summary.profit;
+const adminProfit = order.adminProfit || 0;
 
-    const isExpanded = expandedOrder === order.id;
+const isExpanded = expandedOrder === order.id;
 
-    const currentDate = getOrderDate(order);
+const currentDate = getOrderDate(order);
 
-    const previousDate =
-        index > 0
-            ? getOrderDate(filteredOrders[index - 1])
-            : null;
+const previousDate =
+    index > 0
+        ? getOrderDate(filteredOrders[index - 1])
+        : null;
 
-    const showDateHeader =
-        index === 0 || currentDate !== previousDate;
+const showDateHeader =
+    index === 0 || currentDate !== previousDate;
+
+/* ADD HERE */
 
     return (
         <React.Fragment key={order.id}>
 
             {showDateHeader && (
-                <div className="orders-date-divider">
-                    {currentDate}
-                </div>
-            )}
+  <div className="orders-date-divider">
+
+    <div>
+      <strong>{currentDate}</strong>
+    </div>
+
+    <div
+     
+    >
+    
+    </div>
+
+  </div>
+)}
 
             <div className="order-row">
 

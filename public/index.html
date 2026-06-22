@@ -11,7 +11,9 @@
   // Main website keeps original SEO
   if (
     host === "kiyuziyuofficial.com" ||
-    host === "localhost"
+    host === "localhost"  ||
+    host === "wholesaleantitarnishjewellery.com" 
+
   ) {
     return;
   }
@@ -152,7 +154,27 @@ body{
 }
 
 </style>
+<script>
+if (
+  window.location.hostname.replace("www.", "") ===
+  "kiyuziyubypawanratna.com"
+) {
+  const s = document.createElement("script");
+  s.async = true;
+  s.src =
+    "https://www.googletagmanager.com/gtag/js?id=G-YR9DDVR6B5";
+  document.head.appendChild(s);
+
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  window.gtag = gtag;
+
+  gtag("js", new Date());
+  gtag("config", "G-YR9DDVR6B5");
+}
+</script>
 </head>
+
 
 <body>
   <noscript>You need to enable JavaScript to run this app.</noscript>

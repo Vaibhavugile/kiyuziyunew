@@ -62,7 +62,8 @@ import StockCheckPage from './pages/StockCheckPage';
 import Topbar from './components/Topbar';
 import FloatingContact from './components/FloatingContact';
 import DropshipperEnquiries from './pages/dropshipper/DropshipperEnquiries';
-
+import DropshipperChangePassword from "./pages/dropshipper/DropshipperChangePassword";
+import AdminResellerPayments from './pages/dropshipper/AdminResellerPayments';
 function App() {
     useEffect(() => {
     initMetaPixel();
@@ -112,12 +113,19 @@ function App() {
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/cancellation-policy" element={<CancellationPolicy />} />
-            
+            <Route
+  path="/admin/reseller-payments/:sellerId"
+  element={<AdminResellerPayments />}
+/>
             <Route
               path="/admin/coupons"
               element={<CouponAdmin />}
             />
             <Route path="/dropshipper/login" element={<DropshipperLogin />} />
+            <Route
+  path="/dropshipper/change-password"
+  element={<DropshipperChangePassword />}
+/>
 
             <Route path="/dropshipper/setup" element={<DropshipperSetup />} />
             <Route path="/dropshipper/signup" element={<DropshipperSignup />} />

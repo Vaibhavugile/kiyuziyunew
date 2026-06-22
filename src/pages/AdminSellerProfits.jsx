@@ -3,7 +3,7 @@ import {
   collection,
   getDocs
 } from "firebase/firestore";
-
+import { useNavigate } from "react-router-dom";
 import { db } from "../firebase";
 
 import "./AdminSellerProfits.css";
@@ -13,7 +13,7 @@ const AdminSellerProfits = () => {
   const [sellers, setSellers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [payments, setPayments] = useState([]);
-
+const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
 
   /* =========================
@@ -253,9 +253,14 @@ const AdminSellerProfits = () => {
           return (
 
             <div
-              key={seller.id}
-              className="table-row"
-            >
+  key={seller.id}
+  className="table-row clickable"
+  onClick={() =>
+    navigate(
+      `/admin/reseller-payments/${seller.id}`
+    )
+  }
+>
 
               <div>
                 {seller.name ||

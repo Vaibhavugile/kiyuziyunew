@@ -6,7 +6,62 @@ justify-content:center;
 background:linear-gradient(135deg,#f8f9fb,#eef2f7);
 padding:20px;
 }
+.change-password-wrapper{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#f5f7fb;
+  padding:20px;
+}
 
+.change-password-card{
+  width:100%;
+  max-width:450px;
+  background:#fff;
+  border-radius:20px;
+  padding:40px;
+  box-shadow:0 10px 40px rgba(0,0,0,.08);
+}
+
+.change-password-card h2{
+  margin-bottom:10px;
+  text-align:center;
+}
+
+.change-password-card p{
+  text-align:center;
+  color:#666;
+  margin-bottom:25px;
+}
+
+.change-password-card form{
+  display:flex;
+  flex-direction:column;
+  gap:15px;
+}
+
+.change-password-card input{
+  height:50px;
+  border:1px solid #ddd;
+  border-radius:10px;
+  padding:0 15px;
+  font-size:15px;
+}
+
+.change-password-card button{
+  height:50px;
+  border:none;
+  border-radius:10px;
+  background:#2563eb;
+  color:white;
+  font-weight:600;
+  cursor:pointer;
+}
+
+.change-password-card button:hover{
+  opacity:.9;
+}
 .dropshipper-login-card{
 width:100%;
 max-width:420px;

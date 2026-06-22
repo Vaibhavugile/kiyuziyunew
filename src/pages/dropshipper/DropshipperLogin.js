@@ -96,6 +96,11 @@ Create Dropshipper Account
 </a>
 
 </p>
+<p className="forgot-password-link">
+  <a href="/dropshipper/change-password">
+    Change Password
+  </a>
+</p>
 
 </div>
 

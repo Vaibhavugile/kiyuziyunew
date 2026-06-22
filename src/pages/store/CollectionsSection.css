@@ -88,6 +88,36 @@ box-sizing:border-box;
 
 }
 
+/* Tablet */
+
+@media(max-width:1024px){
+
+.collection-card{
+aspect-ratio:4/4.8;
+}
+
+}
+
+/* Mobile */
+
+@media(max-width:768px){
+
+.collection-card{
+aspect-ratio:1/1.15;
+}
+
+}
+
+/* Small Mobile */
+
+@media(max-width:420px){
+
+.collection-card{
+aspect-ratio:1/1.05;
+}
+
+}
+
 .collection-card:hover{
 transform:translateY(-6px);
 }
