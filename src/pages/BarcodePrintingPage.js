@@ -49,6 +49,7 @@ const BarcodePrintingPage = () => {
   const [selectedCollectionId, setSelectedCollectionId] = useState("");
   const [selectedSubcollectionId, setSelectedSubcollectionId] = useState("");
   const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [productQuantities, setProductQuantities] = useState({});
 
   const [printLayout, setPrintLayout] = useState("A4"); // A4 | THERMAL
 
@@ -138,10 +139,21 @@ const getProductQty = (product) => {
 
 }, [selectedSubcollectionId, selectedCollectionId]);
   /* ================= DERIVED ================= */
-  const selectedProducts = useMemo(
-    () => products.filter(p => selectedProductIds.includes(p.id)),
-    [products, selectedProductIds]
-  );
+  const selectedProducts = useMemo(() => {
+  const result = [];
+
+  products.forEach(product => {
+    if (!selectedProductIds.includes(product.id)) return;
+
+    const qty = Number(productQuantities[product.id] || 1);
+
+    for (let i = 0; i < qty; i++) {
+      result.push(product);
+    }
+  });
+
+  return result;
+}, [products, selectedProductIds, productQuantities]);
 
   const selectedSubcollectionName =
     subcollections.find(s => s.id === selectedSubcollectionId)?.name || "";
@@ -256,6 +268,24 @@ const isNewProduct = (product) => {
                 )
               }
             />
+            {selectedProductIds.includes(product.id) && (
+  <input
+    type="text"
+    min="1"
+    value={productQuantities[product.id] || 1}
+    onClick={(e) => e.stopPropagation()}
+    onChange={(e) =>
+      setProductQuantities(prev => ({
+        ...prev,
+        [product.id]: e.target.value
+      }))
+    }
+    style={{
+      width: "70px",
+      marginTop: "8px"
+    }}
+  />
+)}
             <div>
               <strong>
   {product.productName}

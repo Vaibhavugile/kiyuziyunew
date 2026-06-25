@@ -3540,6 +3540,7 @@ alert(
       "sellerprofit",
       "storeorders",
       "adminsellers",
+      "custombill"
     ],
 
     manager: [
@@ -3664,6 +3665,15 @@ alert(
             onClick={() => (window.location.href = "/admin/barcode-printing")}
           >
             Barcode Print
+          </button>
+        )}
+        
+        {ROLE_PERMISSIONS[currentUserRole]?.includes("custombill") && (
+          <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/custombill")}
+          >
+            Cuustom Bill
           </button>
         )}
          {ROLE_PERMISSIONS[currentUserRole]?.includes("adminsellers") && (

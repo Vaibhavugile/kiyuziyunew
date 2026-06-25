@@ -24,7 +24,7 @@ const ProductSalesPage = () => {
     const [sales, setSales] = useState([]);
     const [totalQty, setTotalQty] = useState(0);
     const [totalValue, setTotalValue] = useState(0);
-
+const [stockLedger, setStockLedger] = useState([]);
 
 
     /* -----------------------------
@@ -193,8 +193,10 @@ const [ordersSnap, storeOrdersSnap] = await Promise.all([
 ]);
 
             const rows = [];
-            let qty = 0;
-            let value = 0;
+const movements = [];
+
+let qty = 0;
+let value = 0;
 
            const processOrders = (snap, sourceType) => {
 
@@ -231,7 +233,38 @@ const [ordersSnap, storeOrdersSnap] = await Promise.all([
                     price: item.priceAtTimeOfOrder,
                     total
                 });
+movements.push({
+    date: order.createdAt?.toDate(),
+    orderId: docSnap.id,
+    customer:
+        order.billingInfo?.fullName ||
+        order.customerName ||
+        "Walk-in Customer",
+    source: sourceType,
+    qty: Number(item.quantity),
+    type: "SALE"
+});
+if (
+  order.status === "Cancelled" ||
+  order.status === "Canceled"
+) {
+  const cancelledDate =
+    order.cancelledAt?.toDate
+      ? order.cancelledAt.toDate()
+      : new Date(order.cancelledAt);
 
+ movements.push({
+    date: cancelledDate,
+    orderId: docSnap.id,
+    customer:
+        order.billingInfo?.fullName ||
+        order.customerName ||
+        "Walk-in Customer",
+    source: sourceType,
+    qty: Number(item.quantity),
+    type: "CANCELLED"
+});
+}
                 qty += item.quantity;
                 value += total;
             }
@@ -244,12 +277,63 @@ const [ordersSnap, storeOrdersSnap] = await Promise.all([
 
 processOrders(ordersSnap, "Online");
 processOrders(storeOrdersSnap, "Store");
+const selectedProductData = products.find(
+  p => p.id === selectedProduct
+);
+
+const openingStock =
+  Number(selectedProductData?.initialQty || 0);
+
+movements.sort(
+  (a, b) => new Date(a.date) - new Date(b.date)
+);
+
+let runningBalance = openingStock;
+
+const ledgerRows = [
+  {
+    date: null,
+    description: "Opening Stock",
+    change: openingStock,
+    balance: openingStock
+  }
+];
+
+movements.forEach(m => {
+
+  if (m.type === "SALE") {
+
+    runningBalance -= m.qty;
+
+    ledgerRows.push({
+      date: m.date,
+      description: `${m.customer} (${m.source})`,
+      change: -m.qty,
+      balance: runningBalance
+    });
+
+  }
+
+  else if (m.type === "CANCELLED") {
+
+    runningBalance += m.qty;
+
+    ledgerRows.push({
+      date: m.date,
+      description: `${m.customer} (${m.source}) - Cancelled`,
+      change: +m.qty,
+      balance: runningBalance
+    });
+
+  }
+
+});
             rows.sort((a, b) => {
                 const dateA = a.date ? new Date(a.date).getTime() : 0;
                 const dateB = b.date ? new Date(b.date).getTime() : 0;
                 return dateB - dateA;
             });
-
+setStockLedger(ledgerRows);
             setSales(rows);
             setTotalQty(qty);
             setTotalValue(value);
@@ -470,6 +554,56 @@ setShowProductDropdown(false);
                 <div>Total Revenue: ₹{totalValue}</div>
 
             </div>
+            {stockLedger.length > 0 && (
+
+<div className="ledger-section">
+
+<h3>Stock Movement Ledger</h3>
+
+<table className="ledger-table">
+
+<thead>
+<tr>
+<th>Date</th>
+<th>Description</th>
+<th>Change</th>
+<th>Balance</th>
+</tr>
+</thead>
+
+<tbody>
+
+{stockLedger.map((row, index) => (
+
+<tr key={index}>
+
+<td>
+{row.date
+? new Date(row.date).toLocaleDateString()
+: "-"}
+</td>
+
+<td>{row.description}</td>
+
+<td>
+{row.change > 0
+? `+${row.change}`
+: row.change}
+</td>
+
+<td>{row.balance}</td>
+
+</tr>
+
+))}
+
+</tbody>
+
+</table>
+
+</div>
+
+)}
 
 
 
