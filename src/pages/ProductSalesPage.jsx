@@ -521,8 +521,17 @@ setShowProductDropdown(false);
                     {sales.map((s, i) => (
                         <tr key={i}>
                             <td>
-                                {s.date ? new Date(s.date).toLocaleDateString() : "-"}
-                            </td>
+  {s.date
+    ? new Date(s.date).toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
+    : "-"}
+</td>
 
                             <td>{s.orderId}</td>
                             <td>{s.source}</td>
@@ -578,9 +587,16 @@ setShowProductDropdown(false);
 <tr key={index}>
 
 <td>
-{row.date
-? new Date(row.date).toLocaleDateString()
-: "-"}
+  {row.date
+    ? new Date(row.date).toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
+    : "-"}
 </td>
 
 <td>{row.description}</td>

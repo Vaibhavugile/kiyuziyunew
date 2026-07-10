@@ -7,7 +7,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase'
 import { getRoleConfig } from '../config/roles';
 import { trackMetaEvent } from "../utils/pixels";
-const SHIPPING_FEE = 199;
+const SHIPPING_FEE = 249;
 
 const CheckoutPage = () => {
   const {
@@ -495,15 +495,15 @@ navigate("/order-success");
             )}
 
             <div className="cart-total-section">
-              <p>Convinience Fee</p>
+              <p>Convinience & Shipping Fee DTDC(BY AIR)</p>
 
               <p>₹{SHIPPING_FEE.toFixed(2)}</p>
               
             </div>
              <div className="cart-total-section">
-              <p>Courier Charges</p>
+              <p>T&C</p>
 
-              <p>Applicable As per Location</p>
+              <p>Applicable For Upto 1kg</p>
             </div>
 
 

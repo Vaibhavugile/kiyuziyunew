@@ -438,7 +438,7 @@ const StoreMyOrders = () => {
                             <div className="modal-total-final">
                                 Total: ₹{selectedOrder.totalAmount}
                             </div>
-                            {selectedOrder?.status === "Pending" && (
+                            {/* {selectedOrder?.status === "Pending" && (
 
                                 <button
                                     className="cancel-order-btn"
@@ -447,7 +447,7 @@ const StoreMyOrders = () => {
                                     Cancel Order
                                 </button>
 
-                            )}
+                            )} */}
                         </div>
 
                     </div>

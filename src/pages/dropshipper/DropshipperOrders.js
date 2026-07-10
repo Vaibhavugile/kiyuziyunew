@@ -583,7 +583,7 @@ onClick={(e) => {
                                             </button>
 
                                         )}
-                                        {order.status === "Pending" && (
+                                        {/* {order.status === "Pending" && (
 
                                             <button
                                                 className="btn-cancel"
@@ -592,7 +592,7 @@ onClick={(e) => {
                                                 Cancel Order
                                             </button>
 
-                                        )}
+                                        )} */}
                                          </div>
 
                                     </div>

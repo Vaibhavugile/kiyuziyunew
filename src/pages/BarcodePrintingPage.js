@@ -177,10 +177,10 @@ const getProductQty = (product) => {
         backgroundColor: "#ffffff",
       },
       jsPDF: {
-        unit: "mm",
-        format: printLayout === "THERMAL" ? [50, 30] : "a4",
-        orientation: "portrait",
-      },
+  unit: "mm",
+  format: printLayout === "THERMAL" ? [50, 30] : "letter",
+  orientation: "portrait",
+},
     };
 
     await html2pdf().set(options).from(pdfRef.current).save();
