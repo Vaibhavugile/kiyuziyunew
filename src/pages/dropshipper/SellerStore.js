@@ -35,6 +35,8 @@ const [homepage, setHomepage] = useState(null);
 
   const [seller, setSeller] = useState(null);
   const [products, setProducts] = useState([]);
+  const backgroundFetchCount = useRef(0);
+const isBackgroundFetch = useRef(false);
 const [lastDoc, setLastDoc] = useState(null);
 const [hasMore, setHasMore] = useState(true);
   const [collections, setCollections] = useState([]);
@@ -540,6 +542,7 @@ setIsLoadingMore(true);
   ...d.data()
 }));
 
+
 /* ===============================
 LOAD PRICING (same as loadStore)
 =============================== */
@@ -642,7 +645,19 @@ seller.shippingSettings ?? null,
 
     });
 
+const visibleCount = newProducts.filter((product) => {
+  const totalStock =
+    product.variations?.length > 0
+      ? product.variations.reduce(
+          (sum, v) => sum + Number(v.quantity || 0),
+          0
+        )
+      : Number(product.quantity || 0);
 
+  return totalStock > 0;
+}).length;
+
+console.log("Visible products loaded:", visibleCount);
     setProducts(prev => [...prev, ...newProducts]);
 
     const newLastDoc = snap.docs[snap.docs.length - 1];
@@ -651,6 +666,28 @@ seller.shippingSettings ?? null,
     if (snap.docs.length < 24) {
       setHasMore(false);
     }
+    // Trigger background fetch only if this page had very few visible products
+if (
+  visibleCount < 8 &&
+  snap.docs.length === 24 &&
+  hasMore &&
+  backgroundFetchCount.current < 2 &&
+  !isBackgroundFetch.current
+) {
+  backgroundFetchCount.current++;
+  isBackgroundFetch.current = true;
+
+  console.log(
+    `Starting background fetch #${backgroundFetchCount.current}`
+  );
+
+  // Allow current state updates to finish first
+  setTimeout(() => {
+    loadMoreProducts().finally(() => {
+      isBackgroundFetch.current = false;
+    });
+  }, 300);
+}
 
   } catch (error) {
 
