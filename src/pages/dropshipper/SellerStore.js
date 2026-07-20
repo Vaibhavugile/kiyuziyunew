@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo,useRef} from "react";
 import {
   collection,
   getDocs,
@@ -53,6 +53,9 @@ const [selectedCollection, setSelectedCollection] = useState(initialCollection |
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("default");
 const [searchTerm, setSearchTerm] = useState("");
+const observer = useRef(null);
+const loadingMore = useRef(false);
+const [isLoadingMore, setIsLoadingMore] = useState(false);
   /* ===============================
   NAVIGATION DATA
   =============================== */
@@ -494,7 +497,9 @@ console.log(
 };
 
 const loadMoreProducts = async () => {
-
+ if (loadingMore.current) return;
+setIsLoadingMore(true);
+  loadingMore.current = true;
   try {
 
     if (!lastDoc) return;
@@ -651,8 +656,32 @@ seller.shippingSettings ?? null,
 
     console.error("Load more error:", error);
 
+  }finally {
+  loadingMore.current = false;
+  setIsLoadingMore(false);
+}
+
+};
+const lastProductRef = (node) => {
+  if (loading) return;
+
+  if (observer.current) {
+    observer.current.disconnect();
   }
 
+  observer.current = new IntersectionObserver((entries) => {
+    if (
+      entries[0].isIntersecting &&
+      hasMore &&
+      !loadingMore.current
+    ) {
+      loadMoreProducts();
+    }
+  });
+
+  if (node) {
+    observer.current.observe(node);
+  }
 };
   /* ===============================
   FILTER PRODUCTS
@@ -717,21 +746,34 @@ seller.shippingSettings ?? null,
   return mapped;
 
 }, [products, search, cart]);
+const visibleProducts = useMemo(() => {
+  return filteredProducts.filter((product) => {
+    const totalStock =
+      product.variations?.length > 0
+        ? product.variations.reduce(
+            (sum, v) => sum + Number(v.quantity || 0),
+            0
+          )
+        : Number(product.quantity || 0);
+
+    return totalStock > 0;
+  });
+}, [filteredProducts]);
  useEffect(() => {
 
   if (!window.fbq) return;
 
-  if (filteredProducts.length > 0) {
+ if (visibleProducts.length > 0) {
 
-    window.fbq("track", "ViewContent", {
-      content_type: "product_group",
-      content_ids: filteredProducts.map(p => p.productId),
-      currency: "INR"
-    });
+  window.fbq("track", "ViewContent", {
+    content_type: "product_group",
+    content_ids: visibleProducts.map((p) => p.productId),
+    currency: "INR",
+  });
 
-  }
+}
 
-}, [filteredProducts]);
+}, [visibleProducts]);
   /* ===============================
   UI
   =============================== */
@@ -861,51 +903,52 @@ const description =
       {/* PRODUCTS */}
       <div className="products-grid collections-grid">
 
-        {filteredProducts.map(product => (
-          <StoreProductCard
-            key={product.id}
-            product={product}
-        onIncrement={(product) => {
+       {visibleProducts.map((product, index) => {
+  const isLastProduct = index === visibleProducts.length - 1;
 
-  if (!user) {
+  return (
+   <StoreProductCard
+  key={product.id}
+  ref={isLastProduct ? lastProductRef : null}
+  product={product}
+  onIncrement={(product) => {
+    if (!user) {
+      alert("Please login first");
 
-    alert("Please login first");
+      navigate("/store/signup", {
+        state: {
+          redirectTo: location.pathname + location.search,
+        },
+      });
 
-    navigate("/store/signup", {
-  state: {
-    redirectTo: location.pathname + location.search
-  }
-});
+      return;
+    }
 
-    return;
-  }
+    addToCart(product);
 
-  addToCart(product);
-
-  if (window.fbq) {
-    window.fbq("track", "AddToCart", {
-      content_name: product.productName,
-      content_ids: [product.productId],
-      content_type: "product",
-      value: product.displayPrice || 0,
-      currency: "INR"
-    });
-  }
-
-}}
-            onDecrement={(cartId) => removeFromCart(cartId)}
-            cart={cart}
-          />
-        ))}
+    if (window.fbq) {
+      window.fbq("track", "AddToCart", {
+        content_name: product.productName,
+        content_ids: [product.productId],
+        content_type: "product",
+        value: product.displayPrice || 0,
+        currency: "INR",
+      });
+    }
+  }}
+  onDecrement={(cartId) => removeFromCart(cartId)}
+  cart={cart}
+/>
+  );
+})}
 
       </div>
-{hasMore && (
-  <div style={{ textAlign: "center", margin: "20px" }}>
-    <button onClick={loadMoreProducts} className="load-more-btn">
-      Load More
-    </button>
+      {isLoadingMore && (
+  <div style={{ textAlign: "center", padding: "20px" }}>
+    <FaSpinner className="spin" />
   </div>
 )}
+
       {/* CART */}
       {cartItemsCount > 0 && (
         <div className="view-cart-fixed-container">

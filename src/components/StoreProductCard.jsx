@@ -1,7 +1,7 @@
 // src/components/ProductCard.jsx
 // ✅ Multi-role ready, UI-only, pricing logic removed from component
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef } from 'react';
 import './StoreProductCard.css';
 import Zoom from 'react-medium-image-zoom';
 import 'react-medium-image-zoom/dist/styles.css';
@@ -9,7 +9,7 @@ import { getCartItemId } from "../pages/store/StoreCartContext";
 import ProgressiveImage from "./ProgressiveImage";
 import { useAuth } from './AuthContext';
 
-const StoreProductCard = ({
+const StoreProductCard = forwardRef(({
   product,
   onIncrement,
   onDecrement,
@@ -18,7 +18,7 @@ const StoreProductCard = ({
   onToggleHighlight,
   isCart = false,
   cart
-}) => {
+}, ref)  => {
   const {
     id,
     productName,
@@ -176,8 +176,12 @@ const getTierPrice = (tiers, qty) => {
      RENDER
   ===================== */
 return (
-  <div className={`storeproductcard-container ${isOutOfStock ? "storeproductcard-out-of-stock" : ""}`}>
-
+<div
+  ref={ref}
+  className={`storeproductcard-container ${
+    isOutOfStock ? "storeproductcard-out-of-stock" : ""
+  }`}
+>
     {isOutOfStock && (
       <div className="storeproductcard-stock-overlay">Out of Stock</div>
     )}
@@ -327,6 +331,6 @@ return (
 
   </div>
 );
-};
+});
 
 export default StoreProductCard;

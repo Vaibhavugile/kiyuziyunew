@@ -62,7 +62,7 @@ const AdminPage = () => {
   const [mainCollectionAdditionalImages, setMainCollectionAdditionalImages] = useState([]);
   const [allProductsMap, setAllProductsMap] = useState({});
 
-
+const [productDestination, setProductDestination] = useState("");
   const ROLE_KEYS = Object.keys(ROLE_CONFIG);
   const PRICING_KEYS = ROLE_KEYS.map(
     role => ROLE_CONFIG[role].pricingKey
@@ -1025,20 +1025,35 @@ useEffect(() => {
   };
 
   // New: Function to delete a user
-  const handleDeleteUser = async (userId) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      try {
-        // You would typically use Firebase Admin SDK to delete the user from Authentication
-        // For now, we'll just delete the document from Firestore.
-        await deleteDoc(doc(db, 'users', userId));
-        fetchUsers(); // Refresh the user list
-        alert('User deleted successfully!');
-      } catch (error) {
-        console.error('Error deleting user:', error);
-        alert('Failed to delete user.');
-      }
-    }
-  };
+ const handleDeleteUser = async (userId) => {
+  const confirmDelete = window.confirm(
+    "Are you sure you want to delete this user?"
+  );
+
+  if (!confirmDelete) return;
+
+  const password = window.prompt(
+    "Enter admin password to delete this user:"
+  );
+
+  if (password === null) return; // User cancelled
+
+  if (password !== "Reddy@2002") {
+    alert("Incorrect password.");
+    return;
+  }
+
+  try {
+    await deleteDoc(doc(db, "users", userId));
+
+    await fetchUsers();
+
+    alert("User deleted successfully!");
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    alert("Failed to delete user.");
+  }
+};
   const handleMainCollectionAdditionalImagesChange = (e) => {
     const files = Array.from(e.target.files || []);
 
@@ -1604,18 +1619,23 @@ useEffect(() => {
   }
 };
   const handleAddAllProducts = async (e) => {
-    e.preventDefault();
+        e.preventDefault();
+
+    if (!productDestination) {
+  alert("Please select where you want to upload the product.");
+  return;
+}
     setIsProductUploading(true);
 
     try {
-      const productCollectionRef = collection(
-        db,
-        "collections",
-        selectedMainCollectionId,
-        "subcollections",
-        selectedSubcollectionId,
-        "products"
-      );
+const productCollectionRef = collection(
+  db,
+  "collections",
+  selectedMainCollectionId,
+  "subcollections",
+  selectedSubcollectionId,
+  productDestination
+);
 
       const batch = writeBatch(db);
 
@@ -2167,6 +2187,7 @@ for (const product of newProducts) {
     setProductQuantity('');
     setEditingProduct(null);
     setShowProductForm(false);
+    setProductDestination("");
     setNewProducts([]);
     setCurrentImageIndex(0);
   };
@@ -4205,6 +4226,66 @@ alert(
                                     )}
                                   </>
                                 )}
+                               <div
+  style={{
+    marginTop: "20px",
+    marginBottom: "20px",
+  }}
+>
+  <label
+    style={{
+      display: "block",
+      fontWeight: "bold",
+      marginBottom: "10px",
+    }}
+  >
+    Upload Product To <span style={{ color: "red" }}>*</span>
+  </label>
+
+  <div
+    style={{
+      display: "flex",
+      gap: "25px",
+      alignItems: "center",
+    }}
+  >
+    <label
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        cursor: "pointer",
+      }}
+    >
+      <input
+        type="radio"
+        name="productDestination"
+        value="products"
+        checked={productDestination === "products"}
+        onChange={(e) => setProductDestination(e.target.value)}
+      />
+      🌐 Website
+    </label>
+
+    <label
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        cursor: "pointer",
+      }}
+    >
+      <input
+        type="radio"
+        name="productDestination"
+        value="appProducts"
+        checked={productDestination === "appProducts"}
+        onChange={(e) => setProductDestination(e.target.value)}
+      />
+      📱 Mobile App
+    </label>
+  </div>
+</div>
                                 <button type="submit" disabled={isProductUploading} className="submit-all-button">
                                   {isProductUploading ? 'Uploading...' : editingProduct ? 'Update Product' : currentImageIndex < newProducts.length - 1 ? 'Next' : 'Add All Products'}
                                 </button>
