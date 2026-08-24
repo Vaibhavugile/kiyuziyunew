@@ -57,7 +57,9 @@ const [selectedCollection, setSelectedCollection] = useState(initialCollection |
 const [searchTerm, setSearchTerm] = useState("");
 const observer = useRef(null);
 const loadingMore = useRef(false);
+const autoLoadingMore = useRef(false);
 const [isLoadingMore, setIsLoadingMore] = useState(false);
+const inventoryListeners = useRef([]);
   /* ===============================
   NAVIGATION DATA
   =============================== */
@@ -183,7 +185,7 @@ const [isLoadingMore, setIsLoadingMore] = useState(false);
   where("enabled", "==", true),
   ...(searchTerm.trim()
     ? [where("productCode", "==", searchTerm.trim())]
-    : [limit(24)])
+    : [limit(25)])
 );
 
     } else {
@@ -194,7 +196,7 @@ const [isLoadingMore, setIsLoadingMore] = useState(false);
   where("enabled", "==", true),
   ...(searchTerm.trim()
     ? [where("productCode", "==", searchTerm.trim())]
-    : [limit(24)])
+    : [limit(25)])
 );
 
     }
@@ -217,7 +219,7 @@ const [isLoadingMore, setIsLoadingMore] = useState(false);
 
     }
 
-    if (storeSnap.docs.length < 24) {
+    if (storeSnap.docs.length < 25) {
       setHasMore(false);
     } else {
       setHasMore(true);
@@ -279,63 +281,109 @@ const [isLoadingMore, setIsLoadingMore] = useState(false);
       storeProducts.length
     );
 
-    storeProducts.forEach(p => {
+    storeProducts.forEach((p) => {
+  const ref = doc(
+    db,
+    "collections",
+    p.collectionId,
+    "subcollections",
+    p.subcollectionId,
+    "products",
+    p.productId
+  );
 
-      const ref = doc(
-        db,
-        "collections",
-        p.collectionId,
-        "subcollections",
-        p.subcollectionId,
-        "products",
-        p.productId
-      );
+  console.log("🔎 INVENTORY CHECK:", {
+    storeProductId: p.id,
+    productId: p.productId,
+    productCode: p.productCode,
+    productName: p.productName,
+    path: ref.path,
+  });
 
-      const unsub = onSnapshot(ref, (snap) => {
+  const unsub = onSnapshot(
+    ref,
+    (snap) => {
+      if (!snap.exists()) {
+        console.warn("❌ INVENTORY NOT FOUND:", {
+          productName: p.productName,
+          productId: p.productId,
+          path: ref.path,
+        });
 
-        if (!snap.exists()) return;
-
-        const data = snap.data();
-
-        setProducts(prev =>
-          prev.map(prod => {
-
-            if (prod.productId !== p.productId)
-              return prod;
-
-            if (
-              data.variations &&
-              data.variations.length > 0
-            ) {
-
-              const totalStock =
-                data.variations.reduce(
-                  (sum, v) =>
-                    sum + Number(v.quantity || 0),
-                  0
-                );
-
-              return {
-                ...prod,
-                variations: data.variations,
-                quantity: totalStock
-              };
-
-            }
-
-            return {
-              ...prod,
-              quantity: data.quantity ?? 0
-            };
-
-          })
+        setProducts((prev) =>
+          prev.map((prod) =>
+            prod.id === p.id
+              ? {
+                  ...prod,
+                  quantity: 0,
+                  inventoryQuantity: 0,
+                  inventoryLoaded: true,
+                }
+              : prod
+          )
         );
 
+        return;
+      }
+
+      const data = snap.data();
+
+      let totalStock = 0;
+
+      if (
+        Array.isArray(data.variations) &&
+        data.variations.length > 0
+      ) {
+        totalStock = data.variations.reduce(
+          (sum, variation) =>
+            sum + Number(variation.quantity || 0),
+          0
+        );
+      } else {
+        totalStock = Number(data.quantity || 0);
+      }
+
+      console.log("✅ INVENTORY FOUND:", {
+        productName: p.productName,
+        productId: p.productId,
+        inventoryDocId: snap.id,
+        quantity: totalStock,
+        path: ref.path,
       });
 
-      inventoryListeners.push(unsub);
+      setProducts((prev) =>
+        prev.map((prod) => {
+          if (prod.id !== p.id) {
+            return prod;
+          }
 
-    });
+          return {
+            ...prod,
+            quantity: totalStock,
+            inventoryQuantity: totalStock,
+            inventoryLoaded: true,
+
+            ...(Array.isArray(data.variations)
+              ? {
+                  variations: data.variations,
+                }
+              : {}),
+          };
+        })
+      );
+    },
+    (error) => {
+      console.error(
+        "❌ INVENTORY LISTENER ERROR:",
+        p.productName,
+        p.productId,
+        error
+      );
+    }
+  );
+
+  inventoryListeners.current.push(unsub);
+});
 
     console.timeEnd("listeners");
 
@@ -464,9 +512,10 @@ console.log(
 
   loadStore();
 
-  return () => {
-    inventoryListeners.forEach(unsub => unsub());
-  };
+ return () => {
+  inventoryListeners.current.forEach((unsub) => unsub());
+  inventoryListeners.current = [];
+};
 }, [selectedCollection, selectedSubcollection, searchTerm]);
   /* ===============================
   SAVE SELECTION (REFRESH SAFE)
@@ -499,15 +548,21 @@ console.log(
 };
 
 const loadMoreProducts = async () => {
- if (loadingMore.current) return;
-setIsLoadingMore(true);
+  if (loadingMore.current) return;
+  if (!lastDoc) return;
+  if (!seller?.id) return;
+  if (!hasMore) return;
+
   loadingMore.current = true;
+  setIsLoadingMore(true);
+
   try {
-
-    if (!lastDoc) return;
-    if (!seller?.id) return;
-
-    const baseRef = collection(db, "storeProducts", seller.id, "products");
+    const baseRef = collection(
+      db,
+      "storeProducts",
+      seller.id,
+      "products"
+    );
 
     let q;
 
@@ -518,7 +573,7 @@ setIsLoadingMore(true);
         where("subcollectionId", "==", selectedSubcollection),
         where("enabled", "==", true),
         startAfter(lastDoc),
-        limit(24)
+        limit(25)
       );
     } else {
       q = query(
@@ -526,77 +581,107 @@ setIsLoadingMore(true);
         where("collectionId", "==", selectedCollection),
         where("enabled", "==", true),
         startAfter(lastDoc),
-        limit(24)
+        limit(25)
       );
     }
 
     const snap = await getDocs(q);
+
+    console.log(
+      "LOAD MORE DOC COUNT:",
+      snap.docs.length
+    );
 
     if (snap.empty) {
       setHasMore(false);
       return;
     }
 
-    let newProducts = snap.docs.map(d => ({
-  id: d.id,
-  ...d.data()
-}));
+    let newProducts = snap.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+    }));
 
+    // ===============================
+    // PRICING
+    // ===============================
 
-/* ===============================
-LOAD PRICING (same as loadStore)
-=============================== */
+    const pricingSnap = await getDocs(
+      collection(
+        db,
+        "dropshipperPricing",
+        seller.id,
+        "pricing"
+      )
+    );
 
-const pricingSnap = await getDocs(
-  collection(db, "dropshipperPricing", seller.id, "pricing")
-);
+    const pricingMap = {};
 
-const pricingMap = {};
+    pricingSnap.docs.forEach((d) => {
+      pricingMap[d.id] = d.data();
+    });
 
-pricingSnap.docs.forEach(d => {
-  pricingMap[d.id] = d.data();
-});
+    newProducts = newProducts.map((p) => {
+      const pricingKey =
+        `${p.collectionId}_${p.subcollectionId}`;
 
-/* ===============================
-APPLY PRICING
-=============================== */
+      const tiers =
+        pricingMap[pricingKey]?.tieredPricing || [];
 
-newProducts = newProducts.map(p => {
+      const normalized = tiers.map((t) => ({
+        min_quantity: Number(t.min_quantity),
+        max_quantity: Number(t.max_quantity),
+        price: Number(t.price),
+        costPrice: Number(t.costPrice ?? 0),
+      }));
 
-  const pricingKey = `${p.collectionId}_${p.subcollectionId}`;
-  const tiers = pricingMap[pricingKey]?.tieredPricing || [];
+      return {
+        ...p,
+        sellerId: seller.id,
 
-  const normalized = tiers.map(t => ({
-    min_quantity: Number(t.min_quantity),
-    max_quantity: Number(t.max_quantity),
-    price: Number(t.price),
-    costPrice: Number(t.costPrice ?? 0)
-  }));
+        minimumOrderValue:
+          seller.minimumOrderValue ?? 0,
 
-  return {
-    ...p,
-    sellerId: seller.id,
-     minimumOrderValue:
-    seller.minimumOrderValue ?? 0,
-    shippingSettings:
-seller.shippingSettings ?? null,
-    tieredPricing: {
-      retail: normalized,
-      wholesale: normalized,
-      dealer: normalized,
-      distributor: normalized,
-      vip: normalized
+        shippingSettings:
+          seller.shippingSettings ?? null,
+
+        tieredPricing: {
+          retail: normalized,
+          wholesale: normalized,
+          dealer: normalized,
+          distributor: normalized,
+          vip: normalized,
+        },
+      };
+    });
+
+    // ===============================
+    // UPDATE PAGINATION FIRST
+    // ===============================
+
+    const newLastDoc =
+      snap.docs[snap.docs.length - 1];
+
+    setLastDoc(newLastDoc);
+
+    if (snap.docs.length < 25) {
+      setHasMore(false);
     }
-  };
 
-});
+    // ===============================
+    // ADD PRODUCTS
+    // ===============================
 
-    /* ===============================
-       ATTACH INVENTORY LISTENERS
-    =============================== */
+    setProducts((prev) => [
+      ...prev,
+      ...newProducts,
+    ]);
 
-    newProducts.forEach(p => {
+    // ===============================
+    // INVENTORY LISTENERS
+    // ===============================
 
+    newProducts.forEach((p) => {
       const ref = doc(
         db,
         "collections",
@@ -607,97 +692,116 @@ seller.shippingSettings ?? null,
         p.productId
       );
 
-      onSnapshot(ref, (snap) => {
+      console.log(
+        "🔎 INVENTORY CHECK (MORE):",
+        {
+          productName: p.productName,
+          productId: p.productId,
+          path: ref.path,
+        }
+      );
 
-        if (!snap.exists()) return;
+      const unsub = onSnapshot(
+        ref,
+        (snap) => {
+          if (!snap.exists()) {
+            console.warn(
+              "❌ INVENTORY NOT FOUND (MORE):",
+              p.productName,
+              p.productId
+            );
 
-        const data = snap.data();
+            setProducts((prev) =>
+              prev.map((prod) =>
+                prod.id === p.id
+                  ? {
+                      ...prod,
+                      quantity: 0,
+                      inventoryQuantity: 0,
+                      inventoryLoaded: true,
+                    }
+                  : prod
+              )
+            );
 
-        setProducts(prev =>
-          prev.map(prod => {
+            return;
+          }
 
-            if (prod.productId !== p.productId) return prod;
+          const data = snap.data();
 
-            if (data.variations && data.variations.length > 0) {
+          let totalStock = 0;
 
-              const totalStock = data.variations.reduce(
-                (sum,v)=> sum + Number(v.quantity || 0),
+          if (
+            Array.isArray(data.variations) &&
+            data.variations.length > 0
+          ) {
+            totalStock =
+              data.variations.reduce(
+                (sum, variation) =>
+                  sum +
+                  Number(
+                    variation.quantity || 0
+                  ),
                 0
               );
+          } else {
+            totalStock =
+              Number(data.quantity || 0);
+          }
 
-              return {
-                ...prod,
-                variations: data.variations,
-                quantity: totalStock
-              };
-
+          console.log(
+            "✅ INVENTORY FOUND (MORE):",
+            {
+              productName: p.productName,
+              productId: p.productId,
+              quantity: totalStock,
             }
+          );
 
-            return {
-              ...prod,
-              quantity: data.quantity ?? 0
-            };
+          setProducts((prev) =>
+            prev.map((prod) =>
+              prod.id === p.id
+                ? {
+                    ...prod,
+                    quantity: totalStock,
+                    inventoryQuantity:
+                      totalStock,
+                    inventoryLoaded: true,
 
-          })
-        );
+                    ...(Array.isArray(
+                      data.variations
+                    )
+                      ? {
+                          variations:
+                            data.variations,
+                        }
+                      : {}),
+                  }
+                : prod
+            )
+          );
+        },
+        (error) => {
+          console.error(
+            "❌ INVENTORY ERROR (MORE):",
+            p.productName,
+            error
+          );
+        }
+      );
 
-      });
-
+      inventoryListeners.current.push(unsub);
     });
-
-const visibleCount = newProducts.filter((product) => {
-  const totalStock =
-    product.variations?.length > 0
-      ? product.variations.reduce(
-          (sum, v) => sum + Number(v.quantity || 0),
-          0
-        )
-      : Number(product.quantity || 0);
-
-  return totalStock > 0;
-}).length;
-
-console.log("Visible products loaded:", visibleCount);
-    setProducts(prev => [...prev, ...newProducts]);
-
-    const newLastDoc = snap.docs[snap.docs.length - 1];
-    setLastDoc(newLastDoc);
-
-    if (snap.docs.length < 24) {
-      setHasMore(false);
-    }
-    // Trigger background fetch only if this page had very few visible products
-if (
-  visibleCount < 8 &&
-  snap.docs.length === 24 &&
-  hasMore &&
-  backgroundFetchCount.current < 2 &&
-  !isBackgroundFetch.current
-) {
-  backgroundFetchCount.current++;
-  isBackgroundFetch.current = true;
-
-  console.log(
-    `Starting background fetch #${backgroundFetchCount.current}`
-  );
-
-  // Allow current state updates to finish first
-  setTimeout(() => {
-    loadMoreProducts().finally(() => {
-      isBackgroundFetch.current = false;
-    });
-  }, 300);
-}
 
   } catch (error) {
-
-    console.error("Load more error:", error);
-
-  }finally {
-  loadingMore.current = false;
-  setIsLoadingMore(false);
-}
-
+    console.error(
+      "Load more error:",
+      error
+    );
+  } finally {
+    loadingMore.current = false;
+    setIsLoadingMore(false);
+  }
 };
 const lastProductRef = (node) => {
   if (loading) return;
@@ -796,6 +900,25 @@ const visibleProducts = useMemo(() => {
     return totalStock > 0;
   });
 }, [filteredProducts]);
+useEffect(() => {
+  if (loading) return;
+  if (visibleProducts.length > 0) return;
+  if (!hasMore) return;
+  if (!lastDoc) return;
+  if (loadingMore.current) return;
+  if (autoLoadingMore.current) return;
+
+  autoLoadingMore.current = true;
+
+  loadMoreProducts().finally(() => {
+    autoLoadingMore.current = false;
+  });
+}, [
+  loading,
+  visibleProducts.length,
+  hasMore,
+  lastDoc,
+]);
  useEffect(() => {
 
   if (!window.fbq) return;
@@ -887,13 +1010,16 @@ const description =
       {/* FILTERS */}
         <div className={`product-controlss ${isControlsVisible ? 'open' : ''}`}>
 
-  <Link
-    to="/"
-    className="back-to-collections-icon"
-    aria-label="Back to Collections"
-  >
-    <FaArrowLeft />
-  </Link>
+  <button
+  type="button"
+  className="back-to-collections-icon"
+  onClick={() => {
+    window.location.href = "/";
+  }}
+  aria-label="Back to Collections"
+>
+  <FaArrowLeft />
+</button>
 
   <select
     value={selectedCollection}
