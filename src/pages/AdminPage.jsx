@@ -3750,7 +3750,7 @@ alert(
                 >
                   Products
                 </button>
-                <button
+                {/* <button
                   onClick={handleMoveOutOfStockToTrash}
                   disabled={trashRunning}
                   style={{
@@ -3765,7 +3765,7 @@ alert(
                   }}
                 >
                   {trashRunning ? "Moving to Trash…" : "🗑 Move Out-of-Stock to Trash"}
-                </button>
+                </button> */}
 
                 {trashRunning && (
                   <div style={{ marginTop: "10px", maxWidth: "420px" }}>

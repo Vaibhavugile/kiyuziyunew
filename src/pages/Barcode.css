@@ -112,14 +112,10 @@
   display: flex;
   gap: 10px;
   align-items: flex-start;
-
   padding: 12px;
-
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-
   background: #fff;
-
   cursor: pointer;
 }
 
@@ -150,18 +146,13 @@
 
 .primary-btn {
   margin-top: 20px;
-
   padding: 12px 20px;
-
   background: #2563eb;
   color: #fff;
-
   font-size: 15px;
   font-weight: 600;
-
   border-radius: 8px;
   border: none;
-
   cursor: pointer;
 }
 
@@ -176,7 +167,7 @@
 
 
 /* =====================================================
-   PDF EXPORT AREA
+   PRINT AREA
 ===================================================== */
 
 .print-area {
@@ -186,137 +177,202 @@
 
 
 /* =====================================================
-   A4 / LETTER PDF LAYOUT
-   30 LABELS
+   A4 PRINT PREVIEW
+   3 × 10 LABELS
 ===================================================== */
 
 .print-area.a4 {
-
   width: 215.9mm;
   min-height: 279.4mm;
-
   background: #fff;
-
   display: grid;
-
-  /* 3 labels per row */
   grid-template-columns: repeat(3, 66.675mm);
-
-  /* 10 rows */
   grid-template-rows: repeat(10, 25.4mm);
-
-  /* Horizontal gap */
   column-gap: 3.175mm;
-
-  /* No vertical gap */
   row-gap: 0;
-
-  /* Avery 5160 margins */
-  padding-top: 12.7mm;
-  padding-right: 4.763mm;
-  padding-bottom: 12.7mm;
-  padding-left: 4.763mm;
-
+  padding: 12.7mm 4.763mm;
   box-sizing: border-box;
-
   justify-content: start;
   align-content: start;
 }
 
 
 /* =====================================================
-   STANDARD BARCODE LABEL
+   DEFAULT BARCODE LABEL
    USED BY A4
 ===================================================== */
 
 .barcode-label {
-
   width: 66.675mm;
   height: 25.4mm;
-
   box-sizing: border-box;
-
   background: #fff;
-
   display: flex;
   flex-direction: column;
-
   justify-content: center;
   align-items: center;
-
   text-align: center;
-
   font-family: Arial, Helvetica, sans-serif;
-
   overflow: hidden;
-
   padding: 2mm;
-
   break-inside: avoid;
-
+  page-break-inside: avoid;
   border: none;
 }
 
 
 /* =====================================================
-   50mm × 30mm THERMAL PDF
+   A4 LABEL TEXT
+===================================================== */
+
+.barcode-text {
+  width: 100%;
+  text-align: center;
+  margin-bottom: 2mm;
+  line-height: 1.1;
+  font-size: 8pt;
+  overflow: hidden;
+}
+
+.barcode-text strong {
+  display: block;
+  font-size: 9pt;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.barcode-text div {
+  font-size: 7pt;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* =====================================================
+   A4 BARCODE SVG
+===================================================== */
+
+.print-area.a4 .barcode-label svg {
+  width: 58mm;
+  height: 12mm;
+  display: block;
+  margin: 0;
+}
+
+
+/* =====================================================
+   THERMAL PRINT PREVIEW
+   EXACT SIZE = 35mm × 18mm
 ===================================================== */
 
 .print-area.thermal {
-
-  width: 50mm;
-  min-width: 50mm;
-  max-width: 50mm;
-
+  width: 35mm;
+  min-width: 35mm;
+  max-width: 35mm;
   margin: 0;
   padding: 0;
-
   background: #fff;
-
   display: flex;
   flex-direction: column;
-
   box-sizing: border-box;
 }
 
 
 /* =====================================================
-   THERMAL LABEL
-   EXACT SIZE = 50mm × 30mm
+   THERMAL BARCODE LABEL
+   EXACT SIZE = 35mm × 18mm
 ===================================================== */
 
 .print-area.thermal .barcode-label {
-  width: 50mm;
-  min-width: 50mm;
-  max-width: 50mm;
+  width: 35mm;
+  min-width: 35mm;
+  max-width: 35mm;
 
-  height: 30mm;
-  min-height: 30mm;
-  max-height: 30mm;
+  height: 18mm;
+  min-height: 18mm;
+  max-height: 18mm;
 
   margin: 0;
-  padding: 2mm;
+  padding: 1mm;
 
   box-sizing: border-box;
-
   background: #fff;
 
   display: flex;
   flex-direction: column;
-
   justify-content: center;
   align-items: center;
 
   text-align: center;
-
   font-family: Arial, Helvetica, sans-serif;
 
   overflow: hidden;
-
   border: none;
 
   break-inside: avoid;
   page-break-inside: avoid;
+
+  flex-shrink: 0;
+}
+
+
+/* =====================================================
+   THERMAL TEXT
+===================================================== */
+
+.print-area.thermal .barcode-text {
+  width: 33mm;
+  max-width: 33mm;
+  margin: 0 0 0.5mm 0;
+  padding: 0;
+  text-align: center;
+  line-height: 1;
+  font-size: 5.5pt;
+  overflow: hidden;
+}
+
+.print-area.thermal .barcode-text strong {
+  display: block;
+  width: 100%;
+  font-size: 6.5pt;
+  font-weight: bold;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.print-area.thermal .barcode-text div {
+  width: 100%;
+  font-size: 5pt;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* =====================================================
+   THERMAL BARCODE SVG
+   31mm × 7mm
+===================================================== */
+
+.print-area.thermal .barcode-label svg {
+  width: 31mm;
+  min-width: 31mm;
+  max-width: 31mm;
+
+  height: 7mm;
+  min-height: 7mm;
+  max-height: 7mm;
+
+  display: block;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
 }
 
 
@@ -336,20 +392,50 @@
 ===================================================== */
 
 .new-badge {
-  background: #ff3b30;
-
+  background: #ff3b3b;
   color: #fff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
 
+
+/* =====================================================
+   RECENT BADGE
+===================================================== */
+
+.recent-badge {
+  background: linear-gradient(45deg, #ff9800, #ff5722);
+  color: #fff;
   font-size: 10px;
   font-weight: 600;
-
   padding: 4px 8px;
-
   border-radius: 20px;
-
   letter-spacing: 0.5px;
+  animation: glowPulse 1.5s infinite;
+}
 
-  animation: pulseBadge 1.5s infinite;
+
+/* =====================================================
+   RECENT BADGE ANIMATION
+===================================================== */
+
+@keyframes glowPulse {
+
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 87, 34, 0.6);
+  }
+
+  70% {
+    box-shadow: 0 0 0 6px rgba(255, 87, 34, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 87, 34, 0);
+  }
+
 }
 
 
@@ -377,205 +463,17 @@
 
 
 /* =====================================================
-   STANDARD LABEL TEXT
-   A4
+   IMPORTANT PRINT NOTE
+
+   DO NOT ADD:
+
+   @page
+   @media print
+
+   in this CSS file.
+
+   Thermal printing is handled ONLY inside
+   BarcodePrintingPage.jsx through handlePrint().
+
+   This CSS is only for the screen preview.
 ===================================================== */
-
-.barcode-text {
-
-  width: 100%;
-
-  text-align: center;
-
-  margin-bottom: 2mm;
-
-  line-height: 1.1;
-
-  font-size: 8pt;
-
-  overflow: hidden;
-}
-
-.barcode-text strong {
-
-  display: block;
-
-  font-size: 9pt;
-
-  font-weight: bold;
-
-  white-space: nowrap;
-
-  overflow: hidden;
-
-  text-overflow: ellipsis;
-}
-
-.barcode-text div {
-
-  font-size: 7pt;
-
-  white-space: nowrap;
-
-  overflow: hidden;
-
-  text-overflow: ellipsis;
-}
-
-
-/* =====================================================
-   A4 BARCODE SVG
-===================================================== */
-
-.barcode-label svg {
-
-  width: 58mm;
-  height: 12mm;
-
-  display: block;
-}
-
-
-/* =====================================================
-   THERMAL LABEL TEXT
-   EXACTLY OPTIMIZED FOR 50 × 30mm
-===================================================== */
-
-.print-area.thermal .barcode-text {
-
-  width: 46mm;
-
-  margin: 0 0 1mm 0;
-
-  text-align: center;
-
-  line-height: 1.05;
-
-  font-size: 7pt;
-
-  overflow: hidden;
-}
-
-
-/* =====================================================
-   THERMAL PRODUCT NAME
-===================================================== */
-
-.print-area.thermal .barcode-text strong {
-
-  display: block;
-
-  font-size: 8pt;
-
-  font-weight: bold;
-
-  white-space: nowrap;
-
-  overflow: hidden;
-
-  text-overflow: ellipsis;
-}
-
-
-/* =====================================================
-   THERMAL SUBCOLLECTION + CODE
-===================================================== */
-
-.print-area.thermal .barcode-text div {
-
-  font-size: 6.5pt;
-
-  white-space: nowrap;
-
-  overflow: hidden;
-
-  text-overflow: ellipsis;
-}
-
-
-/* =====================================================
-   THERMAL BARCODE SVG
-   44mm × 11mm
-===================================================== */
-
-.print-area.thermal .barcode-label svg {
-
-  width: 44mm;
-  max-width: 44mm;
-
-  height: 11mm;
-
-  display: block;
-
-  margin: 0;
-}
-
-
-/* =====================================================
-   RECENT BADGE
-===================================================== */
-
-.recent-badge {
-
-  background: linear-gradient(
-    45deg,
-    #ff9800,
-    #ff5722
-  );
-
-  color: #fff;
-
-  font-size: 10px;
-  font-weight: 600;
-
-  padding: 4px 8px;
-
-  border-radius: 20px;
-
-  letter-spacing: 0.5px;
-
-  animation: glowPulse 1.5s infinite;
-}
-
-
-/* =====================================================
-   RECENT BADGE ANIMATION
-===================================================== */
-
-@keyframes glowPulse {
-
-  0% {
-    box-shadow: 0 0 0 0 rgba(255, 87, 34, 0.6);
-  }
-
-  70% {
-    box-shadow: 0 0 0 6px rgba(255, 87, 34, 0);
-  }
-
-  100% {
-    box-shadow: 0 0 0 0 rgba(255, 87, 34, 0);
-  }
-
-}
-
-
-/* =====================================================
-   FINAL NEW BADGE OVERRIDE
-===================================================== */
-
-.new-badge {
-
-  background: #ff3b3b;
-
-  color: #fff;
-
-  font-size: 10px;
-
-  padding: 2px 6px;
-
-  border-radius: 4px;
-
-  margin-left: 6px;
-
-  font-weight: bold;
-}
