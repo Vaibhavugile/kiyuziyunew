@@ -1,458 +1,424 @@
-/* =====================================================
-   PAGE LAYOUT
-===================================================== */
+/* =========================================================
+   BARCODE / QR PRINTING PAGE
+   TSC PNR MATCHED VERSION
+   UPDATED QR SIZE / POSITION
+========================================================= */
+
+
+/* =========================================================
+   MAIN PAGE
+========================================================= */
 
 .admin-page {
-  padding: 20px;
-  max-width: 1200px;
+  width: 100%;
+  max-width: 1400px;
   margin: 0 auto;
-  background: #fff;
+  padding: 24px;
+  box-sizing: border-box;
+
+  font-family: Arial, Helvetica, sans-serif;
+
+  background: #ffffff;
 }
 
 .admin-page h1 {
-  font-size: 26px;
-  margin-bottom: 20px;
+  margin: 0 0 20px;
+
+  font-size: 28px;
+  font-weight: 700;
+
+  color: #111827;
 }
 
 
-/* =====================================================
-   FORM CONTROLS
-===================================================== */
+/* =========================================================
+   PAGE TITLE
+========================================================= */
+
+.product-title {
+  margin-bottom: 24px;
+}
+
+.product-title h1 {
+  margin: 0;
+
+  font-size: 28px;
+  font-weight: 700;
+
+  color: #111827;
+}
+
+
+/* =========================================================
+   FORM GROUP
+========================================================= */
 
 .form-group {
-  margin-bottom: 16px;
-  max-width: 360px;
+  width: 100%;
+  margin-bottom: 18px;
 }
 
 .form-group label {
   display: block;
+
+  margin-bottom: 7px;
+
+  font-size: 14px;
   font-weight: 600;
-  margin-bottom: 6px;
+
+  color: #374151;
 }
 
 .form-group select {
   width: 100%;
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
+  max-width: 500px;
+
+  height: 42px;
+
+  padding: 0 12px;
+
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+
+  background: #ffffff;
+  color: #111827;
+
   font-size: 14px;
+
+  outline: none;
+
+  box-sizing: border-box;
+}
+
+.form-group select:focus {
+  border-color: #6b7280;
+
+  box-shadow:
+    0 0 0 2px
+    rgba(107, 114, 128, 0.12);
+}
+
+.form-group select:disabled {
+  background: #f3f4f6;
+
+  color: #9ca3af;
+
+  cursor: not-allowed;
 }
 
 
-/* =====================================================
-   SECTIONS
-===================================================== */
+/* =========================================================
+   ADMIN SECTION
+========================================================= */
 
 .admin-section {
+  width: 100%;
+
   margin-top: 24px;
-  padding: 16px;
-  background: #fafafa;
-  border-radius: 8px;
+
+  padding: 20px;
+
+  background: #ffffff;
+
   border: 1px solid #e5e7eb;
+
+  border-radius: 10px;
+
+  box-sizing: border-box;
 }
 
 .admin-section h3 {
-  margin-bottom: 12px;
+  margin: 0 0 16px;
+
   font-size: 18px;
+  font-weight: 700;
+
+  color: #111827;
 }
 
 
-/* =====================================================
+/* =========================================================
    PRODUCT ACTION BAR
-===================================================== */
+========================================================= */
 
 .product-actions-bar {
   display: flex;
+
+  flex-wrap: wrap;
+
   align-items: center;
-  gap: 12px;
-  margin: 16px 0;
+
+  gap: 10px;
+
+  margin-bottom: 18px;
 }
 
 .product-actions-bar button {
-  padding: 6px 12px;
-  font-size: 13px;
-  border-radius: 6px;
+  height: 38px;
+
+  padding: 0 14px;
+
   border: 1px solid #d1d5db;
-  background: #fff;
+
+  border-radius: 6px;
+
+  background: #ffffff;
+
+  color: #374151;
+
+  font-size: 13px;
+  font-weight: 600;
+
   cursor: pointer;
+
+  transition: 0.15s ease;
 }
 
-.product-actions-bar button:hover {
+.product-actions-bar button:hover:not(:disabled) {
   background: #f3f4f6;
 }
 
 .product-actions-bar button:disabled {
   opacity: 0.5;
+
   cursor: not-allowed;
 }
 
 .selected-count {
-  font-size: 13px;
-  font-weight: 600;
+  display: inline-flex;
+
+  align-items: center;
+
+  min-height: 34px;
+
+  padding: 0 10px;
+
+  border-radius: 6px;
+
+  background: #f3f4f6;
+
   color: #374151;
+
+  font-size: 13px;
+
+  font-weight: 600;
 }
 
 
-/* =====================================================
+/* =========================================================
    PRODUCT GRID
-===================================================== */
+========================================================= */
 
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 12px;
+
+  grid-template-columns:
+    repeat(auto-fill, minmax(280px, 1fr));
+
+  gap: 14px;
+
+  width: 100%;
 }
 
 
-/* =====================================================
+/* =========================================================
    PRODUCT CARD
-===================================================== */
+========================================================= */
 
 .barcodeproduct-card {
   display: flex;
-  gap: 10px;
+
   align-items: flex-start;
-  padding: 12px;
+
+  gap: 12px;
+
+  width: 100%;
+
+  min-height: 120px;
+
+  padding: 14px;
+
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: #fff;
+
+  border-radius: 9px;
+
+  background: #ffffff;
+
+  box-sizing: border-box;
+
   cursor: pointer;
+
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .barcodeproduct-card:hover {
+  border-color: #cbd5e1;
+
   background: #f9fafb;
-  border-color: #c7d2fe;
+
+  box-shadow:
+    0 2px 8px
+    rgba(0, 0, 0, 0.05);
 }
 
-.barcodeproduct-card input {
-  margin-top: 4px;
-  transform: scale(1.2);
+.barcodeproduct-card.selected {
+  border-color: #111827;
+
+  background: #f9fafb;
+
+  box-shadow:
+    0 0 0 1px #111827;
+}
+
+.barcodeproduct-card > input[type="checkbox"] {
+  flex: 0 0 auto;
+
+  width: 18px;
+  height: 18px;
+
+  margin-top: 2px;
+
+  cursor: pointer;
+
+  accent-color: #111827;
 }
 
 .barcodeproduct-card strong {
-  font-size: 14px;
   display: block;
+
+  margin-bottom: 6px;
+
+  color: #111827;
+
+  font-size: 14px;
+  font-weight: 700;
+
+  line-height: 1.3;
 }
 
 .barcodeproduct-card small {
-  font-size: 12px;
+  display: block;
+
+  margin-top: 4px;
+
   color: #6b7280;
+
+  font-size: 12px;
+
+  line-height: 1.35;
 }
 
 
-/* =====================================================
-   BUTTONS
-===================================================== */
-
-.primary-btn {
-  margin-top: 20px;
-  padding: 12px 20px;
-  background: #2563eb;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-}
-
-.primary-btn:hover {
-  background: #1d4ed8;
-}
-
-.primary-btn:disabled {
-  background: #9ca3af;
-  cursor: not-allowed;
-}
-
-
-/* =====================================================
-   PRINT AREA
-===================================================== */
-
-.print-area {
-  margin-top: 24px;
-  background: #fff;
-}
-
-
-/* =====================================================
-   A4 PRINT PREVIEW
-   3 × 10 LABELS
-===================================================== */
-
-.print-area.a4 {
-  width: 215.9mm;
-  min-height: 279.4mm;
-  background: #fff;
-  display: grid;
-  grid-template-columns: repeat(3, 66.675mm);
-  grid-template-rows: repeat(10, 25.4mm);
-  column-gap: 3.175mm;
-  row-gap: 0;
-  padding: 12.7mm 4.763mm;
-  box-sizing: border-box;
-  justify-content: start;
-  align-content: start;
-}
-
-
-/* =====================================================
-   DEFAULT BARCODE LABEL
-   USED BY A4
-===================================================== */
-
-.barcode-label {
-  width: 66.675mm;
-  height: 25.4mm;
-  box-sizing: border-box;
-  background: #fff;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  font-family: Arial, Helvetica, sans-serif;
-  overflow: hidden;
-  padding: 2mm;
-  break-inside: avoid;
-  page-break-inside: avoid;
-  border: none;
-}
-
-
-/* =====================================================
-   A4 LABEL TEXT
-===================================================== */
-
-.barcode-text {
-  width: 100%;
-  text-align: center;
-  margin-bottom: 2mm;
-  line-height: 1.1;
-  font-size: 8pt;
-  overflow: hidden;
-}
-
-.barcode-text strong {
-  display: block;
-  font-size: 9pt;
-  font-weight: bold;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.barcode-text div {
-  font-size: 7pt;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-
-/* =====================================================
-   A4 BARCODE SVG
-===================================================== */
-
-.print-area.a4 .barcode-label svg {
-  width: 58mm;
-  height: 12mm;
-  display: block;
-  margin: 0;
-}
-
-
-/* =====================================================
-   THERMAL PRINT PREVIEW
-   EXACT SIZE = 35mm × 18mm
-===================================================== */
-
-.print-area.thermal {
-  width: 35mm;
-  min-width: 35mm;
-  max-width: 35mm;
-  margin: 0;
-  padding: 0;
-  background: #fff;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-
-/* =====================================================
-   THERMAL BARCODE LABEL
-   EXACT SIZE = 35mm × 18mm
-===================================================== */
-
-.print-area.thermal .barcode-label {
-  width: 35mm;
-  min-width: 35mm;
-  max-width: 35mm;
-
-  height: 18mm;
-  min-height: 18mm;
-  max-height: 18mm;
-
-  margin: 0;
-  padding: 1mm;
-
-  box-sizing: border-box;
-  background: #fff;
-
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-
-  text-align: center;
-  font-family: Arial, Helvetica, sans-serif;
-
-  overflow: hidden;
-  border: none;
-
-  break-inside: avoid;
-  page-break-inside: avoid;
-
-  flex-shrink: 0;
-}
-
-
-/* =====================================================
-   THERMAL TEXT
-===================================================== */
-
-.print-area.thermal .barcode-text {
-  width: 33mm;
-  max-width: 33mm;
-  margin: 0 0 0.5mm 0;
-  padding: 0;
-  text-align: center;
-  line-height: 1;
-  font-size: 5.5pt;
-  overflow: hidden;
-}
-
-.print-area.thermal .barcode-text strong {
-  display: block;
-  width: 100%;
-  font-size: 6.5pt;
-  font-weight: bold;
-  line-height: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.print-area.thermal .barcode-text div {
-  width: 100%;
-  font-size: 5pt;
-  line-height: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-
-/* =====================================================
-   THERMAL BARCODE SVG
-   31mm × 7mm
-===================================================== */
-
-.print-area.thermal .barcode-label svg {
-  width: 31mm;
-  min-width: 31mm;
-  max-width: 31mm;
-
-  height: 7mm;
-  min-height: 7mm;
-  max-height: 7mm;
-
-  display: block;
-  margin: 0;
-  padding: 0;
-  overflow: visible;
-}
-
-
-/* =====================================================
-   PRODUCT TITLE
-===================================================== */
-
-.product-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-
-/* =====================================================
+/* =========================================================
    NEW BADGE
-===================================================== */
+========================================================= */
 
 .new-badge {
-  background: #ff3b3b;
-  color: #fff;
-  font-size: 10px;
-  font-weight: bold;
+  display: inline-flex;
+
+  align-items: center;
+
+  margin-left: 7px;
+
   padding: 2px 6px;
+
   border-radius: 4px;
-  margin-left: 6px;
+
+  background: #111827;
+
+  color: #ffffff;
+
+  font-size: 9px;
+
+  font-weight: 700;
+
+  vertical-align: middle;
 }
 
 
-/* =====================================================
+/* =========================================================
    RECENT BADGE
-===================================================== */
+========================================================= */
 
 .recent-badge {
-  background: linear-gradient(45deg, #ff9800, #ff5722);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 600;
+  display: inline-flex;
+
+  align-items: center;
+
   padding: 4px 8px;
+
   border-radius: 20px;
+
+  background:
+    linear-gradient(
+      45deg,
+      #ff9800,
+      #ff5722
+    );
+
+  color: #ffffff;
+
+  font-size: 10px;
+
+  font-weight: 600;
+
   letter-spacing: 0.5px;
-  animation: glowPulse 1.5s infinite;
+
+  animation:
+    glowPulse 1.5s infinite;
 }
 
 
-/* =====================================================
+/* =========================================================
    RECENT BADGE ANIMATION
-===================================================== */
+========================================================= */
 
 @keyframes glowPulse {
 
   0% {
-    box-shadow: 0 0 0 0 rgba(255, 87, 34, 0.6);
+    box-shadow:
+      0 0 0 0
+      rgba(255, 87, 34, 0.6);
   }
 
   70% {
-    box-shadow: 0 0 0 6px rgba(255, 87, 34, 0);
+    box-shadow:
+      0 0 0 6px
+      rgba(255, 87, 34, 0);
   }
 
   100% {
-    box-shadow: 0 0 0 0 rgba(255, 87, 34, 0);
+    box-shadow:
+      0 0 0 0
+      rgba(255, 87, 34, 0);
   }
 
 }
 
 
-/* =====================================================
+/* =========================================================
    NEW BADGE ANIMATION
-===================================================== */
+========================================================= */
 
 @keyframes pulseBadge {
 
   0% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.6);
+
+    box-shadow:
+      0 0 0 0
+      rgba(255, 59, 48, 0.6);
   }
 
   70% {
     transform: scale(1.05);
-    box-shadow: 0 0 0 6px rgba(255, 59, 48, 0);
+
+    box-shadow:
+      0 0 0 6px
+      rgba(255, 59, 48, 0);
   }
 
   100% {
@@ -462,18 +428,1026 @@
 }
 
 
-/* =====================================================
-   IMPORTANT PRINT NOTE
+/* =========================================================
+   QUANTITY INPUT
+========================================================= */
+
+.barcodeproduct-card input[type="number"] {
+  height: 32px;
+
+  box-sizing: border-box;
+
+  background: #ffffff;
+
+  color: #111827;
+
+  font-size: 13px;
+
+  outline: none;
+}
+
+.barcodeproduct-card input[type="number"]:focus {
+  border-color: #6b7280 !important;
+}
+
+
+/* =========================================================
+   PRINT FORMAT RADIO
+========================================================= */
+
+.admin-section label {
+  user-select: none;
+}
+
+.admin-section input[type="radio"] {
+  width: 16px;
+  height: 16px;
+
+  margin: 0;
+
+  cursor: pointer;
+
+  accent-color: #111827;
+}
+
+
+/* =========================================================
+   PRIMARY PRINT BUTTON
+========================================================= */
+
+.primary-btn {
+  display: inline-flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  min-height: 44px;
+
+  margin-top: 24px;
+
+  padding: 0 20px;
+
+  border: none;
+
+  border-radius: 7px;
+
+  background: #111827;
+
+  color: #ffffff;
+
+  font-size: 14px;
+
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.1s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+  background: #1f2937;
+}
+
+.primary-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.primary-btn:disabled {
+  opacity: 0.45;
+
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
+   SCREEN PRINT AREA
+========================================================= */
+
+.print-area {
+  width: 100%;
+
+  margin-top: 30px;
+
+  padding: 20px;
+
+  background: #f3f4f6;
+
+  border: 1px dashed #d1d5db;
+
+  border-radius: 10px;
+
+  box-sizing: border-box;
+}
+
+
+/* =========================================================
+   GLOBAL LABEL RESET
+
+   DO NOT ROTATE HTML.
+
+   TSC PNR A,180 IS PRINTER COORDINATE ROTATION.
+========================================================= */
+
+.barcode-label {
+  position: relative;
+
+  box-sizing: border-box;
+
+  margin: 0;
+  padding: 0;
+
+  background: #ffffff;
+
+  overflow: hidden;
+
+  transform: none !important;
+
+  rotate: none !important;
+
+  writing-mode: horizontal-tb !important;
+
+  direction: ltr !important;
+}
+
+.barcode-label svg {
+  transform: none !important;
+
+  rotate: none !important;
+}
+
+
+/* =========================================================
+   47.5 × 25 MM
+   LARGE TSC LABEL
+
+   PNR:
+   SIZE 47.5 mm, 25 mm
+   QRCODE ...,L,4,...
+========================================================= */
+
+.print-area.thermal-47-5-25 {
+  display: flex;
+
+  flex-wrap: wrap;
+
+  align-items: flex-start;
+
+  align-content: flex-start;
+
+  gap: 15px;
+
+  width: 100%;
+}
+
+
+/* =========================================================
+   47.5 × 25 LABEL
+========================================================= */
+
+.print-area.thermal-47-5-25
+.barcode-label {
+
+  position: relative !important;
+
+  width: 47.5mm !important;
+
+  min-width: 47.5mm !important;
+
+  max-width: 47.5mm !important;
+
+  height: 25mm !important;
+
+  min-height: 25mm !important;
+
+  max-height: 25mm !important;
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  background: #ffffff !important;
+
+  border: 1px solid #d1d5db;
+
+  box-sizing: border-box !important;
+
+  overflow: hidden !important;
+
+  flex-shrink: 0 !important;
+
+  transform: none !important;
+
+  rotate: none !important;
+
+  writing-mode: horizontal-tb !important;
+}
+
+
+/* =========================================================
+   47.5 × 25 QR
+
+   UPDATED:
+
+   QR = 18mm × 18mm
+
+   This is intentionally larger than the
+   previous 16mm version.
+
+   PNR QR module = 4
+========================================================= */
+
+.print-area.thermal-47-5-25
+.barcode-label svg {
+
+  position: absolute !important;
+
+  left: 2mm !important;
+
+  right: auto !important;
+
+  top: 3.5mm !important;
+
+  width: 18mm !important;
+
+  height: 18mm !important;
+
+  min-width: 18mm !important;
+
+  max-width: 18mm !important;
+
+  min-height: 18mm !important;
+
+  max-height: 18mm !important;
+
+  display: block !important;
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  overflow: visible !important;
+
+  transform: none !important;
+
+  rotate: none !important;
+}
+
+
+/* =========================================================
+   47.5 × 25 TEXT CONTAINER
+
+   QR occupies:
+
+   2mm → 20mm
+
+   Text starts after QR.
+========================================================= */
+
+.print-area.thermal-47-5-25
+.barcode-label
+.barcode-text {
+
+  position: absolute !important;
+
+  left: 21mm !important;
+
+  right: 2mm !important;
+
+  top: 3.2mm !important;
+
+  width: auto !important;
+
+  max-width: none !important;
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  z-index: 2;
+
+  text-align: center !important;
+
+  overflow: hidden !important;
+
+  pointer-events: none;
+
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif !important;
+
+  transform: none !important;
+
+  rotate: none !important;
+}
+
+
+/* =========================================================
+   47.5 PRODUCT NAME
+========================================================= */
+
+.print-area.thermal-47-5-25
+.barcode-label
+.barcode-text strong {
+
+  display: block !important;
+
+  width: 100% !important;
+
+  max-width: 100% !important;
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  color: #111827 !important;
+
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif !important;
+
+  font-size: 12pt !important;
+
+  font-weight: 700 !important;
+
+  line-height: 1.05 !important;
+
+  white-space: nowrap !important;
+
+  overflow: hidden !important;
+
+  text-overflow: ellipsis !important;
+
+  transform: none !important;
+
+  rotate: none !important;
+}
+
+
+/* =========================================================
+   47.5 SUBCOLLECTION
+========================================================= */
+
+.print-area.thermal-47-5-25
+.barcode-label
+.barcode-text div {
+
+  display: block !important;
+
+  width: 100% !important;
+
+  max-width: 100% !important;
+
+  margin: 2mm 0 0 !important;
+
+  padding: 0 !important;
+
+  color: #374151 !important;
+
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif !important;
+
+  font-size: 10pt !important;
+
+  font-weight: 400 !important;
+
+  line-height: 1.05 !important;
+
+  white-space: nowrap !important;
+
+  overflow: hidden !important;
+
+  text-overflow: ellipsis !important;
+
+  transform: none !important;
+
+  rotate: none !important;
+}
+
+
+/* =========================================================
+   47.5 CODE
+========================================================= */
+
+.print-area.thermal-47-5-25
+.barcode-label
+.barcode-text
+.product-code,
+
+.print-area.thermal-47-5-25
+.barcode-label
+.barcode-text
+.code,
+
+.print-area.thermal-47-5-25
+.barcode-label
+.barcode-text
+.product-id {
+
+  display: block !important;
+
+  margin-top: 1.5mm !important;
+
+  font-size: 10pt !important;
+
+  line-height: 1.05 !important;
+
+  white-space: nowrap !important;
+
+  overflow: hidden !important;
+
+  text-overflow: ellipsis !important;
+
+  transform: none !important;
+
+  rotate: none !important;
+}
+
+
+/* =========================================================
+   32.5 × 18 MM
+   SMALL TSC LABEL
+
+   PNR:
+   SIZE 32.5 mm, 18 mm
+   QRCODE ...,L,3,...
+========================================================= */
+
+.print-area.thermal-32-5-18 {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  align-items: flex-start;
+
+  align-content: flex-start;
+
+  gap: 15px;
+
+  width: 100%;
+}
+
+
+/* =========================================================
+   32.5 × 18 LABEL
+========================================================= */
+
+.print-area.thermal-32-5-18
+.barcode-label {
+
+  position: relative !important;
+
+  width: 32.5mm !important;
+
+  min-width: 32.5mm !important;
+
+  max-width: 32.5mm !important;
+
+  height: 18mm !important;
+
+  min-height: 18mm !important;
+
+  max-height: 18mm !important;
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  background: #ffffff !important;
+
+  border: 1px solid #d1d5db;
+
+  box-sizing: border-box !important;
+
+  overflow: hidden !important;
+
+  flex-shrink: 0 !important;
+
+  transform: none !important;
+
+  rotate: none !important;
+
+  writing-mode: horizontal-tb !important;
+}
+
+
+/* =========================================================
+   32.5 × 18 QR
+
+   UPDATED:
+
+   QR = 11mm × 11mm
+
+   Previous = 10mm
+
+   PNR QR module = 3
+========================================================= */
+
+.print-area.thermal-32-5-18
+.barcode-label svg {
+
+  position: absolute !important;
+
+  left: 1.5mm !important;
+
+  right: auto !important;
+
+  top: 3.5mm !important;
+
+  width: 11mm !important;
+
+  height: 11mm !important;
+
+  min-width: 11mm !important;
+
+  max-width: 11mm !important;
+
+  min-height: 11mm !important;
+
+  max-height: 11mm !important;
+
+  display: block !important;
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  overflow: visible !important;
+
+  transform: none !important;
+
+  rotate: none !important;
+}
+
+
+/* =========================================================
+   32.5 × 18 TEXT
+
+   QR occupies:
+
+   1.5mm → 12.5mm
+
+   Text starts at 14mm.
+========================================================= */
+
+.print-area.thermal-32-5-18
+.barcode-label
+.barcode-text {
+
+  position: absolute !important;
+
+  left: 14mm !important;
+
+  right: 1.5mm !important;
+
+  top: 2.2mm !important;
+
+  width: auto !important;
+
+  max-width: none !important;
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  z-index: 2;
+
+  text-align: center !important;
+
+  overflow: hidden !important;
+
+  pointer-events: none;
+
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif !important;
+
+  transform: none !important;
+
+  rotate: none !important;
+}
+
+
+/* =========================================================
+   32.5 PRODUCT NAME
+========================================================= */
+
+.print-area.thermal-32-5-18
+.barcode-label
+.barcode-text strong {
+
+  display: block !important;
+
+  width: 100% !important;
+
+  max-width: 100% !important;
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  color: #111827 !important;
+
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif !important;
+
+  font-size: 9pt !important;
+
+  font-weight: 700 !important;
+
+  line-height: 1 !important;
+
+  white-space: nowrap !important;
+
+  overflow: hidden !important;
+
+  text-overflow: ellipsis !important;
+
+  transform: none !important;
+
+  rotate: none !important;
+}
+
+
+/* =========================================================
+   32.5 SUBCOLLECTION
+========================================================= */
+
+.print-area.thermal-32-5-18
+.barcode-label
+.barcode-text div {
+
+  display: block !important;
+
+  width: 100% !important;
+
+  max-width: 100% !important;
+
+  margin: 1.2mm 0 0 !important;
+
+  padding: 0 !important;
+
+  color: #374151 !important;
+
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif !important;
+
+  font-size: 8pt !important;
+
+  font-weight: 400 !important;
+
+  line-height: 1 !important;
+
+  white-space: nowrap !important;
+
+  overflow: hidden !important;
+
+  text-overflow: ellipsis !important;
+
+  transform: none !important;
+
+  rotate: none !important;
+}
+
+
+/* =========================================================
+   32.5 CODE
+========================================================= */
+
+.print-area.thermal-32-5-18
+.barcode-label
+.barcode-text
+.product-code,
+
+.print-area.thermal-32-5-18
+.barcode-label
+.barcode-text
+.code,
+
+.print-area.thermal-32-5-18
+.barcode-label
+.barcode-text
+.product-id {
+
+  display: block !important;
+
+  margin-top: 1mm !important;
+
+  font-size: 8pt !important;
+
+  line-height: 1 !important;
+
+  white-space: nowrap !important;
+
+  overflow: hidden !important;
+
+  text-overflow: ellipsis !important;
+
+  transform: none !important;
+
+  rotate: none !important;
+}
+
+
+/* =========================================================
+   A4 SUPPORT
+========================================================= */
+
+.print-area.a4 {
+
+  width: 215.9mm;
+
+  min-height: 279.4mm;
+
+  background: #ffffff;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, 66.675mm);
+
+  grid-template-rows:
+    repeat(10, 25.4mm);
+
+  column-gap: 3.175mm;
+
+  row-gap: 0;
+
+  padding:
+    12.7mm
+    4.763mm;
+
+  box-sizing: border-box;
+
+  justify-content: start;
+
+  align-content: start;
+}
+
+
+/* =========================================================
+   A4 LABEL
+========================================================= */
+
+.print-area.a4
+.barcode-label {
+
+  width: 66.675mm;
+
+  height: 25.4mm;
+
+  box-sizing: border-box;
+
+  background: #ffffff;
+
+  display: flex;
+
+  flex-direction: column;
+
+  justify-content: center;
+
+  align-items: center;
+
+  text-align: center;
+
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+
+  overflow: hidden;
+
+  padding: 2mm;
+
+  break-inside: avoid;
+
+  page-break-inside: avoid;
+
+  border: none;
+}
+
+
+/* =========================================================
+   A4 TEXT
+========================================================= */
+
+.print-area.a4
+.barcode-label
+.barcode-text {
+
+  position: static;
+
+  width: 100%;
+
+  max-width: 100%;
+
+  text-align: center;
+
+  margin-bottom: 2mm;
+
+  line-height: 1.1;
+
+  font-size: 8pt;
+
+  overflow: hidden;
+}
+
+.print-area.a4
+.barcode-label
+.barcode-text strong {
+
+  display: block;
+
+  font-size: 9pt;
+
+  font-weight: bold;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+}
+
+.print-area.a4
+.barcode-label
+.barcode-text div {
+
+  font-size: 7pt;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+}
+
+
+/* =========================================================
+   A4 QR / BARCODE
+========================================================= */
+
+.print-area.a4
+.barcode-label svg {
+
+  position: static !important;
+
+  width: 58mm;
+
+  height: 12mm;
+
+  display: block;
+
+  margin: 0;
+
+  transform: none !important;
+
+  rotate: none !important;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 768px) {
+
+  .admin-page {
+    padding: 16px;
+  }
+
+  .product-title h1 {
+    font-size: 23px;
+  }
+
+  .admin-section {
+    padding: 15px;
+  }
+
+  .product-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .product-actions-bar {
+    align-items: stretch;
+  }
+
+  .selected-count {
+    width: fit-content;
+  }
+
+  .print-area {
+    padding: 12px;
+
+    overflow-x: auto;
+  }
+
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
+
+@media (max-width: 480px) {
+
+  .admin-page {
+    padding: 12px;
+  }
+
+  .admin-section {
+    padding: 12px;
+  }
+
+  .form-group select {
+    max-width: 100%;
+  }
+
+  .product-actions-bar {
+    flex-direction: column;
+
+    align-items: stretch;
+  }
+
+  .product-actions-bar button {
+    width: 100%;
+  }
+
+  .selected-count {
+    width: 100%;
+
+    justify-content: center;
+  }
+
+  .print-area {
+    padding: 8px;
+  }
+
+}
+
+
+/* =========================================================
+   FINAL ROTATION SAFETY
+
+   NO CSS ROTATION.
+
+   PNR A,180 IS TSC PRINTER LANGUAGE.
+========================================================= */
+
+.print-area,
+.print-area .barcode-label,
+.print-area .barcode-label svg,
+.print-area .barcode-label .barcode-text,
+.print-area .barcode-label .barcode-text strong,
+.print-area .barcode-label .barcode-text div {
+
+  transform: none !important;
+
+  rotate: none !important;
+
+  writing-mode: horizontal-tb !important;
+
+  direction: ltr !important;
+}
+
+
+/* =========================================================
+   FINAL OVERFLOW SAFETY
+========================================================= */
+
+.print-area.thermal-47-5-25
+.barcode-label,
+
+.print-area.thermal-32-5-18
+.barcode-label {
+
+  overflow: hidden !important;
+}
+
+
+/* =========================================================
+   IMPORTANT
 
    DO NOT ADD:
 
-   @page
-   @media print
+   transform: rotate(180deg)
+   writing-mode
+   landscape
+   portrait
+   scale()
 
-   in this CSS file.
-
-   Thermal printing is handled ONLY inside
-   BarcodePrintingPage.jsx through handlePrint().
-
-   This CSS is only for the screen preview.
-===================================================== */
+   The PNR's A,180 belongs to TSC printer language.
+========================================================= */
