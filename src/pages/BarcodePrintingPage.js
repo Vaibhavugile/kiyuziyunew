@@ -1,4 +1,4 @@
-import React, {
+import {
   useEffect,
   useMemo,
   useRef,
@@ -16,12 +16,13 @@ import QRCode from "qrcode";
 import "./Barcode.css";
 
 /* =========================================================
-   SCREEN PREVIEW LABEL
-   ========================================================= */
+   SCREEN QR LABEL
+========================================================= */
 
 const BarcodeLabel = ({
   product,
   subcollectionName,
+  printLayout,
 }) => {
   const svgRef = useRef(null);
 
@@ -86,13 +87,16 @@ const BarcodeLabel = ({
 
         svgRef.current.setAttribute(
           "preserveAspectRatio",
-          "xMidYMid meet"
+          "none"
         );
 
-        svgRef.current.style.display = "block";
+        svgRef.current.style.display =
+          "block";
+
         svgRef.current.style.margin = "0";
         svgRef.current.style.padding = "0";
-        svgRef.current.style.overflow = "visible";
+        svgRef.current.style.overflow =
+          "visible";
       } catch (error) {
         console.error(
           "QR generation failed:",
@@ -104,14 +108,37 @@ const BarcodeLabel = ({
     generateQRCode();
   }, [product?.id]);
 
-  return (
-    <div className="barcode-label">
+  const productName =
+    product?.productName ||
+    product?.name ||
+    "";
 
-      <div className="barcode-text">
+  const productCode =
+    product?.productCode || "-";
+
+  const isLarge =
+    printLayout ===
+    "THERMAL_47_5X25";
+
+  return (
+    <div
+      className={`barcode-label ${
+        isLarge
+          ? "label-47-5-25"
+          : "label-32-5-18"
+      }`}
+    >
+      <svg
+        ref={svgRef}
+        className="screen-qr"
+        data-product-id={String(
+          product?.id || ""
+        ).trim()}
+      />
+
+      <div className="screen-label-text">
         <strong>
-          {product?.productName ||
-            product?.name ||
-            ""}
+          {productName}
         </strong>
 
         <div>
@@ -119,18 +146,9 @@ const BarcodeLabel = ({
         </div>
 
         <div>
-          Code:{" "}
-          {product?.productCode || "-"}
+          Code: {productCode}
         </div>
       </div>
-
-      <svg
-        ref={svgRef}
-        data-product-id={String(
-          product?.id || ""
-        ).trim()}
-      />
-
     </div>
   );
 };
@@ -138,14 +156,14 @@ const BarcodeLabel = ({
 
 /* =========================================================
    MAIN PAGE
-   ========================================================= */
+========================================================= */
 
 const BarcodePrintingPage = () => {
   const pdfRef = useRef(null);
 
   /* =======================================================
      STATE
-     ======================================================= */
+  ======================================================= */
 
   const [
     collections,
@@ -183,10 +201,10 @@ const BarcodePrintingPage = () => {
   ] = useState({});
 
   /*
-   * DEFAULT:
+   * Default:
+   *
    * 32.5 × 18 mm
    */
-
   const [
     printLayout,
     setPrintLayout,
@@ -197,31 +215,33 @@ const BarcodePrintingPage = () => {
 
   /* =======================================================
      FETCH COLLECTIONS
-     ======================================================= */
+  ======================================================= */
 
   useEffect(() => {
-    const fetchCollections = async () => {
-      try {
-        const snap = await getDocs(
-          collection(
-            db,
-            "collections"
-          )
-        );
+    const fetchCollections =
+      async () => {
+        try {
+          const snap =
+            await getDocs(
+              collection(
+                db,
+                "collections"
+              )
+            );
 
-        setCollections(
-          snap.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
-        );
-      } catch (error) {
-        console.error(
-          "Error fetching collections:",
-          error
-        );
-      }
-    };
+          setCollections(
+            snap.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }))
+          );
+        } catch (error) {
+          console.error(
+            "Error fetching collections:",
+            error
+          );
+        }
+      };
 
     fetchCollections();
   }, []);
@@ -229,7 +249,7 @@ const BarcodePrintingPage = () => {
 
   /* =======================================================
      FETCH SUBCOLLECTIONS
-     ======================================================= */
+  ======================================================= */
 
   useEffect(() => {
     if (!selectedCollectionId) {
@@ -241,32 +261,34 @@ const BarcodePrintingPage = () => {
       return;
     }
 
-    const fetchSubcollections = async () => {
-      try {
-        const snap = await getDocs(
-          collection(
-            db,
-            "collections",
-            selectedCollectionId,
-            "subcollections"
-          )
-        );
+    const fetchSubcollections =
+      async () => {
+        try {
+          const snap =
+            await getDocs(
+              collection(
+                db,
+                "collections",
+                selectedCollectionId,
+                "subcollections"
+              )
+            );
 
-        setSubcollections(
-          snap.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
-        );
-      } catch (error) {
-        console.error(
-          "Error fetching subcollections:",
-          error
-        );
+          setSubcollections(
+            snap.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }))
+          );
+        } catch (error) {
+          console.error(
+            "Error fetching subcollections:",
+            error
+          );
 
-        setSubcollections([]);
-      }
-    };
+          setSubcollections([]);
+        }
+      };
 
     setSelectedSubcollectionId("");
     setProducts([]);
@@ -274,12 +296,14 @@ const BarcodePrintingPage = () => {
     setProductQuantities({});
 
     fetchSubcollections();
-  }, [selectedCollectionId]);
+  }, [
+    selectedCollectionId,
+  ]);
 
 
   /* =======================================================
      FETCH PRODUCTS
-     ======================================================= */
+  ======================================================= */
 
   useEffect(() => {
     if (
@@ -292,37 +316,40 @@ const BarcodePrintingPage = () => {
       return;
     }
 
-    const fetchProducts = async () => {
-      try {
-        const snap = await getDocs(
-          collection(
-            db,
-            "collections",
-            selectedCollectionId,
-            "subcollections",
-            selectedSubcollectionId,
-            "products"
-          )
-        );
+    const fetchProducts =
+      async () => {
+        try {
+          const snap =
+            await getDocs(
+              collection(
+                db,
+                "collections",
+                selectedCollectionId,
+                "subcollections",
+                selectedSubcollectionId,
+                "products"
+              )
+            );
 
-        const productList =
-          snap.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
+          const productList =
+            snap.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }));
 
-        setProducts(productList);
-        setSelectedProductIds([]);
-        setProductQuantities({});
-      } catch (error) {
-        console.error(
-          "Error fetching products:",
-          error
-        );
+          setProducts(productList);
 
-        setProducts([]);
-      }
-    };
+          setSelectedProductIds([]);
+          setProductQuantities({});
+        } catch (error) {
+          console.error(
+            "Error fetching products:",
+            error
+          );
+
+          setProducts([]);
+        }
+      };
 
     fetchProducts();
   }, [
@@ -332,8 +359,8 @@ const BarcodePrintingPage = () => {
 
 
   /* =======================================================
-     SUBCOLLECTION NAME
-     ======================================================= */
+     SELECTED SUBCOLLECTION NAME
+  ======================================================= */
 
   const selectedSubcollectionName =
     useMemo(() => {
@@ -358,61 +385,69 @@ const BarcodePrintingPage = () => {
 
   /* =======================================================
      SELECTED PRODUCTS
-     ======================================================= */
+  ======================================================= */
 
-  const selectedProducts = useMemo(() => {
-    return products.filter((product) =>
-      selectedProductIds.includes(
-        product.id
-      )
-    );
-  }, [
-    products,
-    selectedProductIds,
-  ]);
+  const selectedProducts =
+    useMemo(() => {
+      return products.filter(
+        (product) =>
+          selectedProductIds.includes(
+            product.id
+          )
+      );
+    }, [
+      products,
+      selectedProductIds,
+    ]);
 
 
   /* =======================================================
-     EXPAND QUANTITY
-     ======================================================= */
+     EXPAND QUANTITIES
+  ======================================================= */
 
-  const printableProducts = useMemo(() => {
-    const result = [];
+  const printableProducts =
+    useMemo(() => {
+      const result = [];
 
-    selectedProducts.forEach((product) => {
-      const quantity = Math.max(
-        1,
-        Number(
-          productQuantities[
-            product.id
-          ] || 1
-        )
+      selectedProducts.forEach(
+        (product) => {
+          const quantity =
+            Math.max(
+              1,
+              Number(
+                productQuantities[
+                  product.id
+                ] || 1
+              )
+            );
+
+          for (
+            let i = 0;
+            i < quantity;
+            i++
+          ) {
+            result.push({
+              ...product,
+              __printIndex: i,
+            });
+          }
+        }
       );
 
-      for (
-        let i = 0;
-        i < quantity;
-        i++
-      ) {
-        result.push({
-          ...product,
-          __printIndex: i,
-        });
-      }
-    });
-
-    return result;
-  }, [
-    selectedProducts,
-    productQuantities,
-  ]);
+      return result;
+    }, [
+      selectedProducts,
+      productQuantities,
+    ]);
 
 
   /* =======================================================
      NEW PRODUCT
-     ======================================================= */
+  ======================================================= */
 
-  const isNewProduct = (product) => {
+  const isNewProduct = (
+    product
+  ) => {
     if (!product) return false;
 
     const createdAt =
@@ -428,9 +463,11 @@ const BarcodePrintingPage = () => {
       typeof createdAt?.toDate ===
       "function"
     ) {
-      createdDate = createdAt.toDate();
+      createdDate =
+        createdAt.toDate();
     } else {
-      createdDate = new Date(createdAt);
+      createdDate =
+        new Date(createdAt);
     }
 
     if (
@@ -461,16 +498,21 @@ const BarcodePrintingPage = () => {
 
   /* =======================================================
      TOGGLE PRODUCT
-     ======================================================= */
+  ======================================================= */
 
-  const toggleProduct = (productId) => {
+  const toggleProduct = (
+    productId
+  ) => {
     setSelectedProductIds(
       (previous) => {
         if (
-          previous.includes(productId)
+          previous.includes(
+            productId
+          )
         ) {
           return previous.filter(
-            (id) => id !== productId
+            (id) =>
+              id !== productId
           );
         }
 
@@ -483,7 +525,9 @@ const BarcodePrintingPage = () => {
 
     setProductQuantities(
       (previous) => {
-        if (previous[productId]) {
+        if (
+          previous[productId]
+        ) {
           return previous;
         }
 
@@ -498,131 +542,136 @@ const BarcodePrintingPage = () => {
 
   /* =======================================================
      SELECT ALL
-     ======================================================= */
+  ======================================================= */
 
-  const selectAllProducts = () => {
-    const ids = products.map(
-      (product) => product.id
-    );
+  const selectAllProducts =
+    () => {
+      const ids =
+        products.map(
+          (product) =>
+            product.id
+        );
 
-    const quantities = {};
+      const quantities = {};
 
-    ids.forEach((id) => {
-      quantities[id] =
-        productQuantities[id] || 1;
-    });
+      ids.forEach(
+        (id) => {
+          quantities[id] =
+            productQuantities[id] ||
+            1;
+        }
+      );
 
-    setSelectedProductIds(ids);
-    setProductQuantities(quantities);
-  };
+      setSelectedProductIds(ids);
+      setProductQuantities(
+        quantities
+      );
+    };
 
 
   /* =======================================================
      CLEAR ALL
-     ======================================================= */
+  ======================================================= */
 
-  const clearAllProducts = () => {
-    setSelectedProductIds([]);
-    setProductQuantities({});
-  };
+  const clearAllProducts =
+    () => {
+      setSelectedProductIds([]);
+      setProductQuantities({});
+    };
 
 
   /* =======================================================
      TOTAL LABELS
-     ======================================================= */
+  ======================================================= */
 
   const totalLabelCount =
     printableProducts.length;
 
 
   /* =======================================================
-     TSC PNR CONFIGURATION
-
+     EXACT PRN-BASED PRINT CONFIGURATION
+     
      IMPORTANT:
+     
+     We are NOT treating the TSC dot coordinates
+     as CSS millimetres.
 
-     PNR FORMAT:
+     The PRN is the reference for the visual layout.
 
-     QR = LEFT
-     TEXT = RIGHT
+     FORMAT 1:
+     SIZE 47.5 mm, 25 mm
 
-     NO CSS ROTATION.
+     QRCODE:
+     333,127,L,4,A,180,M2,S7
 
-     Product ID is the QR payload.
-     ======================================================= */
+     TEXT:
+     330,176,"0",180,12,12
+     200,127,"0",180,12,12
+     200,76,"0",180,12,12
+
+     FORMAT 2:
+     SIZE 32.5 mm, 18 mm
+
+     QRCODE:
+     224,84,L,3,A,180,M2,S7
+
+     TEXT:
+     234,120,"0",180,10,9
+     136,85,"0",180,9,9
+     136,48,"0",180,9,9
+  ======================================================= */
 
   const PRINT_CONFIGS = {
+    THERMAL_47_5X25: {
+      width: 47.5,
+      height: 25,
 
-    /* =====================================================
-       FORMAT 1
-       PNR:
+      /*
+       * QR LEFT
+       */
+      qrLeft: 3.0,
+      qrTop: 4.0,
+      qrSize: 14.8,
 
-       SIZE 47.5 mm, 25 mm
+      /*
+       * TEXT RIGHT
+       */
+      textLeft: 19.0,
+      textTop: 4.0,
+      textWidth: 26.0,
 
-       QRCODE 333,127,L,4,A,180,M2,S7
+      titleFont: 8.6,
+      subFont: 7.5,
+      codeFont: 7.5,
 
-       TEXT 330,176,"0",180,12,12
-       TEXT 200,127,"0",180,12,12
-       TEXT 200,76,"0",180,12,12
-       ===================================================== */
-THERMAL_47_5X25: {
-  width: 47.5,
-  height: 25,
+      titleTop: 4.0,
+      subTop: 10.0,
+      codeTop: 14.3,
+    },
 
-  // QR LEFT
-  qrX: 2.0,
-  qrY: 3.5,
-  qrSize: 18.0,
-
-  // TEXT RIGHT
-  textX: 21.0,
-  textWidth: 24.5,
-
-  // PRODUCT NAME
-  titleY: 3.2,
-  titleFont: 12,
-
-  // SUBCOLLECTION
-  subY: 10.5,
-  subFont: 10,
-
-  // PRODUCT CODE
-  codeY: 15.0,
-  codeFont: 10,
-},
-
-    /* =====================================================
-       FORMAT 2
-
-       SIZE 32.5 mm, 18 mm
-
-       QRCODE 224,84,L,3,A,180,M2,S7
-
-       TEXT 234,120,"0",180,10,9
-       TEXT 136,85,"0",180,9,9
-       TEXT 136,48,"0",180,9,9
-       ===================================================== */
-
-   THERMAL_32_5X18: {
+THERMAL_32_5X18: {
   width: 32.5,
   height: 18,
 
-  // QR LEFT
-  qrX: 1.5,
-  qrY: 3.5,
-  qrSize: 11.0,
+  /* QR */
+  qrLeft: 1.5,
+  qrTop: 6.9,
+  qrSize: 11.1,
 
-  // TEXT RIGHT
-  textX: 14.0,
-  textWidth: 17.0,
+  /* TEXT */
+  textLeft: 14.2,
+  textTop: 7.1,
+  textWidth: 16.5,
 
-  titleY: 2.2,
-  titleFont: 9,
+  /* TEXT SIZE */
+  titleFont: 6.2,
+  subFont: 5.6,
+  codeFont: 5.6,
 
-  subY: 6.8,
-  subFont: 8,
-
-  codeY: 10.8,
-  codeFont: 8,
+  /* TEXT */
+  titleTop: 7.1,
+  subTop: 11.6,
+  codeTop: 14.8,
 },
   };
 
@@ -637,10 +686,14 @@ THERMAL_47_5X25: {
 
   /* =======================================================
      HTML ESCAPE
-     ======================================================= */
+  ======================================================= */
 
-  const escapeHtml = (value) => {
-    return String(value ?? "")
+  const escapeHtml = (
+    value
+  ) => {
+    return String(
+      value ?? ""
+    )
       .replace(
         /&/g,
         "&amp;"
@@ -665,16 +718,18 @@ THERMAL_47_5X25: {
 
 
   /* =======================================================
-     GENERATE PRINT QR
-
-     ONLY FIRESTORE PRODUCT ID
-     ======================================================= */
-
-  const createPrintQR = async (productId) => {
-  if (!productId) return "";
+     CREATE PRINT QR
+     
+     QR PAYLOAD:
+     FIRESTORE PRODUCT ID ONLY
+  ======================================================= */
+const createPrintQR = async (productId) => {
+  if (!productId) {
+    return "";
+  }
 
   try {
-    const qrSvg = await QRCode.toString(
+    const svg = await QRCode.toString(
       String(productId),
       {
         type: "svg",
@@ -687,14 +742,58 @@ THERMAL_47_5X25: {
       }
     );
 
-    // Add our print class directly to the REAL QR SVG.
-    // Do NOT put this SVG inside another SVG.
-    return qrSvg.replace(
-      "<svg ",
-      '<svg class="print-qr" '
+    const parser = new DOMParser();
+
+    const parsed =
+      parser.parseFromString(
+        svg,
+        "image/svg+xml"
+      );
+
+    const svgElement =
+      parsed.documentElement;
+
+    /*
+     * IMPORTANT:
+     *
+     * Keep the ORIGINAL QR SVG viewBox.
+     *
+     * Do NOT rebuild the QR using
+     * viewBox="0 0 100 100".
+     */
+
+    svgElement.setAttribute(
+      "class",
+      "print-qr"
     );
 
+    svgElement.setAttribute(
+      "preserveAspectRatio",
+      "xMidYMid meet"
+    );
+
+    svgElement.setAttribute(
+      "aria-hidden",
+      "true"
+    );
+
+    /*
+     * Remove generated physical dimensions.
+     * CSS will control the exact mm size.
+     */
+
+    svgElement.removeAttribute(
+      "width"
+    );
+
+    svgElement.removeAttribute(
+      "height"
+    );
+
+    return svgElement.outerHTML;
+
   } catch (error) {
+
     console.error(
       "Print QR generation failed:",
       error
@@ -704,555 +803,261 @@ THERMAL_47_5X25: {
   }
 };
 
+
   /* =======================================================
      BUILD ONE PRINT LABEL
-     ======================================================= */
+  ======================================================= */
 
-  const buildPrintLabel = async (
-    product,
-    config
-  ) => {
+  const buildPrintLabel =
+    async (
+      product,
+      config
+    ) => {
+      /*
+       * VERY IMPORTANT:
+       *
+       * QR VALUE = PRODUCT ID ONLY
+       */
+      const productId =
+        String(
+          product?.id || ""
+        ).trim();
 
-    /* FIRESTORE DOCUMENT ID ONLY */
+      if (!productId) {
+        return "";
+      }
 
-    const productId = String(
-      product?.id || ""
-    ).trim();
+      const productName =
+        String(
+          product?.productName ||
+          product?.name ||
+          ""
+        );
 
-    if (!productId) return "";
+      const subcollection =
+        String(
+          selectedSubcollectionName ||
+          ""
+        );
 
-    const productName = String(
-      product?.productName ||
-        product?.name ||
-        ""
-    );
+      const productCode =
+        String(
+          product?.productCode ||
+          ""
+        );
 
-    const subcollection = String(
-      selectedSubcollectionName ||
-        ""
-    );
-
-    const productCode = String(
-      product?.productCode ||
-        ""
-    );
-
-    const qr =
-      await createPrintQR(
-        productId
-      );
-
-    return `
-      <div
-        class="print-label"
-        data-product-id="${escapeHtml(
+      const qr =
+        await createPrintQR(
           productId
-        )}"
-      >
+        );
 
-        <!-- QR CODE LEFT -->
+      return `
+        <div
+          class="print-label"
+          data-product-id="${escapeHtml(
+            productId
+          )}"
+        >
 
-        ${qr}
+          <!-- ============================
+               QR
+          ============================= -->
+
+         ${qr}
 
 
-        <!-- PRODUCT NAME RIGHT -->
+          <!-- ============================
+               PRODUCT NAME
+          ============================= -->
 
-        <div class="print-product-name">
-          ${escapeHtml(
-            productName
-          )}
+          <div class="print-product-name">
+            ${escapeHtml(
+              productName
+            )}
+          </div>
+
+
+          <!-- ============================
+               SUBCOLLECTION
+          ============================= -->
+
+          <div class="print-subcollection">
+            ${escapeHtml(
+              subcollection
+            )}
+          </div>
+
+
+          <!-- ============================
+               PRODUCT CODE
+          ============================= -->
+
+          <div class="print-product-code">
+            Code:
+            ${escapeHtml(
+              productCode
+            )}
+          </div>
+
         </div>
-
-
-        <!-- SUBCOLLECTION RIGHT -->
-
-        <div class="print-subcollection">
-          ${escapeHtml(
-            subcollection
-          )}
-        </div>
-
-
-        <!-- PRODUCT CODE RIGHT -->
-
-        <div class="print-product-code">
-          Code:
-          ${escapeHtml(
-            productCode
-          )}
-        </div>
-
-      </div>
-    `;
-  };
+      `;
+    };
 
 
   /* =======================================================
      PRINT
-     ======================================================= */
+  ======================================================= */
 
-  const handlePrint = async () => {
-
-    if (
-      printableProducts.length ===
-      0
-    ) {
-      alert(
-        "Please select at least one product."
-      );
-      return;
-    }
-
-    const config =
-      currentPrintConfig;
-
-    /*
-     * Open immediately.
-     * This prevents popup blocking.
-     */
-
-    const printWindow =
-      window.open(
-        "",
-        "_blank",
-        "width=600,height=800"
-      );
-
-    if (!printWindow) {
-      alert(
-        "Please allow pop-ups for printing."
-      );
-      return;
-    }
-
-
-    /* =====================================================
-       BUILD ALL LABELS
-       ===================================================== */
-
-    const labels = [];
-
-    for (
-      const product of
-      printableProducts
-    ) {
-      const html =
-        await buildPrintLabel(
-          product,
-          config
+  const handlePrint =
+    async () => {
+      if (
+        printableProducts.length ===
+        0
+      ) {
+        alert(
+          "Please select at least one product."
         );
 
-      if (html) {
-        labels.push(html);
+        return;
       }
-    }
 
-    const labelsHTML =
-      labels.join("");
+      const config =
+        currentPrintConfig;
 
+      /*
+       * Open popup immediately.
+       */
+      const printWindow =
+        window.open(
+          "",
+          "_blank",
+          "width=700,height=900"
+        );
 
-    /* =====================================================
-       PRINT WINDOW
-       ===================================================== */
+      if (!printWindow) {
+        alert(
+          "Please allow pop-ups for printing."
+        );
 
-    printWindow.document.open();
+        return;
+      }
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
 
-      <html>
+      /* =====================================================
+         GENERATE LABELS
+      ===================================================== */
 
-        <head>
+      const labels = [];
 
-          <meta charset="UTF-8" />
+      for (
+        const product of printableProducts
+      ) {
+        const html =
+          await buildPrintLabel(
+            product,
+            config
+          );
 
-          <title>
-            QR Labels
-          </title>
+        if (html) {
+          labels.push(html);
+        }
+      }
 
+      const labelsHTML =
+        labels.join("");
 
-          <style>
 
-            /* =========================================
-               EXACT TSC LABEL PAGE
-               ========================================= */
+      /* =====================================================
+         PRINT WINDOW
+      ===================================================== */
 
-            @page {
-              size:
-                ${config.width}mm
-                ${config.height}mm;
+      printWindow.document.open();
 
-              margin:
-                0 !important;
-            }
+      printWindow.document.write(`
+        <!DOCTYPE html>
 
+        <html>
 
-            /* =========================================
-               RESET
-               ========================================= */
+          <head>
 
-            *,
-            *::before,
-            *::after {
-              box-sizing:
-                border-box !important;
-            }
+            <meta
+              charset="UTF-8"
+            />
 
+            <meta
+              name="viewport"
+              content="width=device-width, initial-scale=1"
+            />
 
-            html {
-              width:
-                ${config.width}mm !important;
+            <title>
+              QR Labels
+            </title>
 
-              height:
-                ${config.height}mm !important;
 
-              margin:
-                0 !important;
+            <style>
 
-              padding:
-                0 !important;
-            }
-
-
-            body {
-              width:
-                ${config.width}mm !important;
-
-              min-width:
-                ${config.width}mm !important;
-
-              max-width:
-                ${config.width}mm !important;
-
-              margin:
-                0 !important;
-
-              padding:
-                0 !important;
-
-              background:
-                #ffffff !important;
-
-              font-family:
-                Arial,
-                Helvetica,
-                sans-serif !important;
-
-              overflow:
-                visible !important;
-            }
-
-
-            /* =========================================
-               ONE LABEL
-               ========================================= */
-
-            .print-label {
-
-              position:
-                relative !important;
-
-              width:
-                ${config.width}mm !important;
-
-              min-width:
-                ${config.width}mm !important;
-
-              max-width:
-                ${config.width}mm !important;
-
-              height:
-                ${config.height}mm !important;
-
-              min-height:
-                ${config.height}mm !important;
-
-              max-height:
-                ${config.height}mm !important;
-
-              margin:
-                0 !important;
-
-              padding:
-                0 !important;
-
-              background:
-                #ffffff !important;
-
-              overflow:
-                hidden !important;
-
-              page-break-after:
-                always !important;
-
-              break-after:
-                page !important;
-            }
-
-
-            .print-label:last-child {
-              page-break-after:
-                auto !important;
-
-              break-after:
-                auto !important;
-            }
-
-
-            /* =========================================
-               PRODUCT NAME
-               RIGHT SIDE
-               ========================================= */
-
-            .print-product-name {
-
-              position:
-                absolute !important;
-
-              left:
-                ${config.textX}mm !important;
-
-              top:
-                ${config.titleY}mm !important;
-
-              width:
-                ${config.textWidth}mm !important;
-
-              margin:
-                0 !important;
-
-              padding:
-                0 !important;
-
-              text-align:
-                center !important;
-
-              font-family:
-                Arial,
-                Helvetica,
-                sans-serif !important;
-
-              font-size:
-                ${config.titleFont}pt !important;
-
-              font-weight:
-                bold !important;
-
-              line-height:
-                1 !important;
-
-              white-space:
-                nowrap !important;
-
-              overflow:
-                hidden !important;
-
-              text-overflow:
-                ellipsis !important;
-
-              transform:
-                none !important;
-            }
-
-
-            /* =========================================
-               SUBCOLLECTION
-               RIGHT SIDE
-               ========================================= */
-
-            .print-subcollection {
-
-              position:
-                absolute !important;
-
-              left:
-                ${config.textX}mm !important;
-
-              top:
-                ${config.subY}mm !important;
-
-              width:
-                ${config.textWidth}mm !important;
-
-              margin:
-                0 !important;
-
-              padding:
-                0 !important;
-
-              text-align:
-                center !important;
-
-              font-family:
-                Arial,
-                Helvetica,
-                sans-serif !important;
-
-              font-size:
-                ${config.subFont}pt !important;
-
-              font-weight:
-                normal !important;
-
-              line-height:
-                1 !important;
-
-              white-space:
-                nowrap !important;
-
-              overflow:
-                hidden !important;
-
-              text-overflow:
-                ellipsis !important;
-
-              transform:
-                none !important;
-            }
-
-
-            /* =========================================
-               PRODUCT CODE
-               RIGHT SIDE
-               ========================================= */
-
-            .print-product-code {
-
-              position:
-                absolute !important;
-
-              left:
-                ${config.textX}mm !important;
-
-              top:
-                ${config.codeY}mm !important;
-
-              width:
-                ${config.textWidth}mm !important;
-
-              margin:
-                0 !important;
-
-              padding:
-                0 !important;
-
-              text-align:
-                center !important;
-
-              font-family:
-                Arial,
-                Helvetica,
-                sans-serif !important;
-
-              font-size:
-                ${config.codeFont}pt !important;
-
-              font-weight:
-                normal !important;
-
-              line-height:
-                1 !important;
-
-              white-space:
-                nowrap !important;
-
-              overflow:
-                hidden !important;
-
-              text-overflow:
-                ellipsis !important;
-
-              transform:
-                none !important;
-            }
-
-
-            /* =========================================
-               QR CODE
-               LEFT SIDE
-               ========================================= */
-
-            /* =========================================
-   QR CODE
-   REAL QR SVG
-   ========================================= */
-
-.print-qr {
-  position: absolute !important;
-
-  left: ${config.qrX}mm !important;
-  top: ${config.qrY}mm !important;
-
-  width: ${config.qrSize}mm !important;
-  height: ${config.qrSize}mm !important;
-
-  min-width: ${config.qrSize}mm !important;
-  min-height: ${config.qrSize}mm !important;
-
-  max-width: ${config.qrSize}mm !important;
-  max-height: ${config.qrSize}mm !important;
-
-  display: block !important;
-
-  margin: 0 !important;
-  padding: 0 !important;
-
-  overflow: visible !important;
-
-  box-sizing: border-box !important;
-
-  transform: none !important;
-
-  transform-origin: center center !important;
-
-  shape-rendering: crispEdges !important;
-}
-
-.print-qr rect,
-.print-qr path {
-  shape-rendering: crispEdges !important;
-}
-
-
-            
-
-
-            /* =========================================
-               PRINT
-               ========================================= */
-
-            @media print {
+              /* =================================================
+                 EXACT PAGE SIZE
+              ================================================= */
 
               @page {
+
                 size:
                   ${config.width}mm
+                  ${config.height}mm;
+
+                margin:
+                  0 !important;
+
+              }
+
+
+              /* =================================================
+                 GLOBAL RESET
+              ================================================= */
+
+              *,
+              *::before,
+              *::after {
+
+                box-sizing:
+                  border-box !important;
+
+              }
+
+
+              html {
+
+                width:
+                  ${config.width}mm !important;
+
+                min-width:
+                  ${config.width}mm !important;
+
+                max-width:
+                  ${config.width}mm !important;
+
+                height:
                   ${config.height}mm !important;
 
                 margin:
                   0 !important;
+
+                padding:
+                  0 !important;
+
               }
 
 
-              html,
               body {
 
                 width:
                   ${config.width}mm !important;
 
-                height:
-                  ${config.height}mm !important;
+                min-width:
+                  ${config.width}mm !important;
 
-                margin:
-                  0 !important;
-
-                padding:
-                  0 !important;
-              }
-
-
-              .print-label {
-
-                width:
+                max-width:
                   ${config.width}mm !important;
 
                 height:
@@ -1263,177 +1068,924 @@ THERMAL_47_5X25: {
 
                 padding:
                   0 !important;
+
+                background:
+                  #ffffff !important;
+
+                font-family:
+                  Arial,
+                  Helvetica,
+                  sans-serif !important;
+
+                overflow:
+                  hidden !important;
+
               }
-            }
-
-          </style>
-
-        </head>
 
 
-        <body>
+              /* =================================================
+                 ONE LABEL
+              ================================================= */
 
-          ${labelsHTML}
+              .print-label {
 
-        </body>
+                position:
+                  relative !important;
 
-      </html>
-    `);
+                width:
+                  ${config.width}mm !important;
 
-    printWindow.document.close();
+                min-width:
+                  ${config.width}mm !important;
+
+                max-width:
+                  ${config.width}mm !important;
+
+                height:
+                  ${config.height}mm !important;
+
+                min-height:
+                  ${config.height}mm !important;
+
+                max-height:
+                  ${config.height}mm !important;
+
+                margin:
+                  0 !important;
+
+                padding:
+                  0 !important;
+
+                background:
+                  #ffffff !important;
+
+                overflow:
+                  hidden !important;
+
+                page-break-after:
+                  always !important;
+
+                break-after:
+                  page !important;
+
+                transform:
+                  none !important;
+
+              }
 
 
-    /* =====================================================
-       WAIT FOR QR RENDER
-       ===================================================== */
+              .print-label:last-child {
 
-    setTimeout(() => {
-      try {
-        printWindow.focus();
-        printWindow.print();
-      } catch (error) {
-        console.error(
-          "Printing failed:",
-          error
-        );
-      }
-    }, 800);
+                page-break-after:
+                  auto !important;
+
+                break-after:
+                  auto !important;
+
+              }
 
 
-    printWindow.onafterprint = () => {
-      setTimeout(() => {
-        try {
-          printWindow.close();
-        } catch (error) {
-          console.error(error);
-        }
-      }, 300);
+              /* =================================================
+                 QR CODE
+
+                 47.5 × 25:
+                 LEFT = 3mm
+                 TOP  = 4mm
+                 SIZE = 14.8mm
+
+                 32.5 × 18:
+                 LEFT = 1.8mm
+                 TOP  = 3mm
+                 SIZE = 10.5mm
+              ================================================= */
+
+              .print-qr {
+
+  position:
+    absolute !important;
+
+  left:
+    ${config.qrLeft}mm !important;
+
+  top:
+    ${config.qrTop}mm !important;
+
+  width:
+    ${config.qrSize}mm !important;
+
+  height:
+    ${config.qrSize}mm !important;
+
+  min-width:
+    ${config.qrSize}mm !important;
+
+  min-height:
+    ${config.qrSize}mm !important;
+
+  max-width:
+    ${config.qrSize}mm !important;
+
+  max-height:
+    ${config.qrSize}mm !important;
+
+  display:
+    block !important;
+
+  margin:
+    0 !important;
+
+  padding:
+    0 !important;
+
+  overflow:
+    visible !important;
+
+  transform:
+    none !important;
+
+  transform-origin:
+    center center !important;
+
+  shape-rendering:
+    crispEdges !important;
+}
+
+              .print-qr rect,
+              .print-qr path {
+
+                shape-rendering:
+                  crispEdges !important;
+
+              }
+
+
+              /* =================================================
+                 PRODUCT NAME
+
+                 NO ROTATION.
+
+                 Your physical PRN output is upright, so
+                 rotating the HTML by 180 degrees is incorrect.
+              ================================================= */
+
+              .print-product-name {
+
+                position:
+                  absolute !important;
+
+                left:
+                  ${config.textLeft}mm !important;
+
+                top:
+                  ${config.titleTop}mm !important;
+
+                width:
+                  ${config.textWidth}mm !important;
+
+                height:
+                  4mm !important;
+
+                margin:
+                  0 !important;
+
+                padding:
+                  0 !important;
+
+                text-align:
+                  left !important;
+
+                font-family:
+                  Arial,
+                  Helvetica,
+                  sans-serif !important;
+
+                font-size:
+                  ${config.titleFont}pt !important;
+
+                font-weight:
+                  bold !important;
+
+                line-height:
+                  1 !important;
+
+                white-space:
+                  nowrap !important;
+
+                overflow:
+                  hidden !important;
+
+                text-overflow:
+                  ellipsis !important;
+
+                transform:
+                  none !important;
+
+              }
+
+
+              /* =================================================
+                 SUBCOLLECTION
+              ================================================= */
+
+              .print-subcollection {
+
+                position:
+                  absolute !important;
+
+                left:
+                  ${config.textLeft}mm !important;
+
+                top:
+                  ${config.subTop}mm !important;
+
+                width:
+                  ${config.textWidth}mm !important;
+
+                height:
+                  3.5mm !important;
+
+                margin:
+                  0 !important;
+
+                padding:
+                  0 !important;
+
+                text-align:
+                  left !important;
+
+                font-family:
+                  Arial,
+                  Helvetica,
+                  sans-serif !important;
+
+                font-size:
+                  ${config.subFont}pt !important;
+
+                font-weight:
+                  normal !important;
+
+                line-height:
+                  1 !important;
+
+                white-space:
+                  nowrap !important;
+
+                overflow:
+                  hidden !important;
+
+                text-overflow:
+                  ellipsis !important;
+
+                transform:
+                  none !important;
+
+              }
+
+
+              /* =================================================
+                 PRODUCT CODE
+              ================================================= */
+
+              .print-product-code {
+
+                position:
+                  absolute !important;
+
+                left:
+                  ${config.textLeft}mm !important;
+
+                top:
+                  ${config.codeTop}mm !important;
+
+                width:
+                  ${config.textWidth}mm !important;
+
+                height:
+                  4mm !important;
+
+                margin:
+                  0 !important;
+
+                padding:
+                  0 !important;
+
+                text-align:
+                  left !important;
+
+                font-family:
+                  Arial,
+                  Helvetica,
+                  sans-serif !important;
+
+                font-size:
+                  ${config.codeFont}pt !important;
+
+                font-weight:
+                  normal !important;
+
+                line-height:
+                  1 !important;
+
+                white-space:
+                  nowrap !important;
+
+                overflow:
+                  hidden !important;
+
+                text-overflow:
+                  ellipsis !important;
+
+                transform:
+                  none !important;
+
+              }
+
+
+              /* =================================================
+                 PRINT MEDIA
+              ================================================= */
+
+              @media print {
+
+                @page {
+
+                  size:
+                    ${config.width}mm
+                    ${config.height}mm !important;
+
+                  margin:
+                    0 !important;
+
+                }
+
+
+                html,
+                body {
+
+                  width:
+                    ${config.width}mm !important;
+
+                  height:
+                    ${config.height}mm !important;
+
+                  margin:
+                    0 !important;
+
+                  padding:
+                    0 !important;
+
+                }
+
+
+                .print-label {
+
+                  width:
+                    ${config.width}mm !important;
+
+                  height:
+                    ${config.height}mm !important;
+
+                  margin:
+                    0 !important;
+
+                  padding:
+                    0 !important;
+
+                }
+
+
+                /*
+                 * Prevent browser from adding
+                 * any unwanted scaling.
+                 */
+
+                .print-qr,
+                .print-product-name,
+                .print-subcollection,
+                .print-product-code {
+
+                  print-color-adjust:
+                    exact !important;
+
+                  -webkit-print-color-adjust:
+                    exact !important;
+
+                }
+
+              }
+
+            </style>
+
+          </head>
+
+
+          <body>
+
+            ${labelsHTML}
+
+          </body>
+
+        </html>
+      `);
+
+      printWindow.document.close();
+
+
+      /* =====================================================
+         WAIT FOR QR + DOM
+      ===================================================== */
+
+      const waitForPrint =
+        () => {
+
+          try {
+
+            printWindow.focus();
+
+            printWindow.print();
+
+          } catch (error) {
+
+            console.error(
+              "Printing failed:",
+              error
+            );
+
+          }
+
+        };
+
+
+      /*
+       * Give Chrome enough time to
+       * finish rendering all SVG QR codes.
+       */
+      setTimeout(
+        waitForPrint,
+        900
+      );
+
+
+      printWindow.onafterprint =
+        () => {
+
+          setTimeout(
+            () => {
+
+              try {
+                printWindow.close();
+              } catch (error) {
+                console.error(
+                  error
+                );
+              }
+
+            },
+            300
+          );
+
+        };
     };
-  };
 
 
   /* =======================================================
      RENDER
-     ======================================================= */
+  ======================================================= */
 
   return (
     <div className="admin-page">
 
       {/* =================================================
-          PAGE TITLE
-          ================================================= */}
+          TITLE
+      ================================================= */}
 
       <div className="product-title">
+
         <h1>
           Barcode / QR Printing
         </h1>
+
       </div>
 
 
       {/* =================================================
           COLLECTION
-          ================================================= */}
+      ================================================= */}
+
+      <div className="form-group">
+
+        <label>
+          Collection
+        </label>
+
+        <select
+          value={
+            selectedCollectionId
+          }
+          onChange={(e) => {
+
+            setSelectedCollectionId(
+              e.target.value
+            );
+
+            setSelectedSubcollectionId(
+              ""
+            );
+
+            setProducts([]);
+
+            setSelectedProductIds([]);
+
+            setProductQuantities({});
+
+          }}
+        >
+
+          <option value="">
+            Select Collection
+          </option>
+
+          {collections.map(
+            (collectionItem) => (
+
+              <option
+                key={
+                  collectionItem.id
+                }
+                value={
+                  collectionItem.id
+                }
+              >
+
+                {
+                  collectionItem.title ||
+                  collectionItem.name ||
+                  collectionItem.id
+                }
+
+              </option>
+
+            )
+          )}
+
+        </select>
+
+      </div>
+
+
+      {/* =================================================
+          SUBCOLLECTION
+      ================================================= */}
+
+      <div className="form-group">
+
+        <label>
+          Subcollection
+        </label>
+
+        <select
+          value={
+            selectedSubcollectionId
+          }
+          disabled={
+            !selectedCollectionId
+          }
+          onChange={(e) => {
+
+            setSelectedSubcollectionId(
+              e.target.value
+            );
+
+            setSelectedProductIds([]);
+
+            setProductQuantities({});
+
+          }}
+        >
+
+          <option value="">
+            Select Subcollection
+          </option>
+
+          {subcollections.map(
+            (subcollection) => (
+
+              <option
+                key={
+                  subcollection.id
+                }
+                value={
+                  subcollection.id
+                }
+              >
+
+                {
+                  subcollection.name ||
+                  subcollection.title ||
+                  subcollection.id
+                }
+
+              </option>
+
+            )
+          )}
+
+        </select>
+
+      </div>
+
+
+      {/* =================================================
+          PRODUCTS
+      ================================================= */}
 
       <div className="admin-section">
 
         <h3>
-          Select Collection
+          Products
         </h3>
 
-        <div className="form-group">
 
-          <label>
-            Collection
-          </label>
+        <div className="product-actions-bar">
 
-          <select
-            value={
-              selectedCollectionId
+          <button
+            type="button"
+            onClick={
+              selectAllProducts
             }
-            onChange={(event) => {
-              setSelectedCollectionId(
-                event.target.value
-              );
-            }}
+            disabled={
+              products.length === 0
+            }
           >
+            Select All
+          </button>
 
-            <option value="">
-              Select Collection
-            </option>
 
-            {collections.map(
-              (collectionItem) => (
-                <option
-                  key={
-                    collectionItem.id
-                  }
-                  value={
-                    collectionItem.id
-                  }
-                >
-                  {
-                    collectionItem.name ||
-                    collectionItem.title ||
-                    collectionItem.id
-                  }
-                </option>
-              )
-            )}
+          <button
+            type="button"
+            onClick={
+              clearAllProducts
+            }
+            disabled={
+              selectedProductIds.length ===
+              0
+            }
+          >
+            Clear All
+          </button>
 
-          </select>
+
+          <span className="selected-count">
+
+            Selected:{" "}
+
+            {
+              selectedProductIds.length
+            }
+
+          </span>
+
+
+          <span className="selected-count">
+
+            Labels:{" "}
+
+            {totalLabelCount}
+
+          </span>
 
         </div>
 
 
-        {/* =============================================
-            SUBCOLLECTION
-            ============================================= */}
+        <div className="product-grid">
 
-        <div className="form-group">
+          {products.length === 0 && (
 
-          <label>
-            Subcollection
-          </label>
+            <div
+              style={{
+                padding: "20px",
+                color: "#6b7280",
+              }}
+            >
 
-          <select
-            value={
-              selectedSubcollectionId
-            }
-            onChange={(event) => {
-              setSelectedSubcollectionId(
-                event.target.value
-              );
-            }}
-            disabled={
-              !selectedCollectionId
-            }
-          >
+              {
+                selectedSubcollectionId
+                  ? "No products found."
+                  : "Select a subcollection first."
+              }
 
-            <option value="">
-              Select Subcollection
-            </option>
+            </div>
 
-            {subcollections.map(
-              (subcollection) => (
-                <option
+          )}
+
+
+          {products.map(
+            (product) => {
+
+              const selected =
+                selectedProductIds.includes(
+                  product.id
+                );
+
+              const quantity =
+                productQuantities[
+                  product.id
+                ] || 1;
+
+
+              return (
+
+                <div
                   key={
-                    subcollection.id
+                    product.id
                   }
-                  value={
-                    subcollection.id
+
+                  className={
+                    `barcodeproduct-card ${
+                      selected
+                        ? "selected"
+                        : ""
+                    }`
+                  }
+
+                  onClick={() =>
+                    toggleProduct(
+                      product.id
+                    )
                   }
                 >
-                  {
-                    subcollection.name ||
-                    subcollection.subcollectionName ||
-                    subcollection.title ||
-                    subcollection.id
-                  }
-                </option>
-              )
-            )}
 
-          </select>
+                  <input
+                    type="checkbox"
+
+                    checked={
+                      selected
+                    }
+
+                    onChange={() =>
+                      toggleProduct(
+                        product.id
+                      )
+                    }
+
+                    onClick={(e) =>
+                      e.stopPropagation()
+                    }
+                  />
+
+
+                  <div
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
+
+                    <strong>
+
+                      {
+                        product.productName ||
+                        product.name ||
+                        "Unnamed Product"
+                      }
+
+
+                      {isNewProduct(
+                        product
+                      ) && (
+
+                        <span className="new-badge">
+                          NEW
+                        </span>
+
+                      )}
+
+                    </strong>
+
+
+                    <small>
+                      {
+                        selectedSubcollectionName
+                      }
+                    </small>
+
+
+                    <small>
+
+                      Code:{" "}
+
+                      {
+                        product.productCode ||
+                        "-"
+                      }
+
+                    </small>
+
+
+                    <small
+                      style={{
+                        display: "block",
+                        marginTop: "4px",
+                        color: "#9ca3af",
+                        wordBreak:
+                          "break-all",
+                      }}
+                    >
+
+                      ID:{" "}
+
+                      {
+                        product.id
+                      }
+
+                    </small>
+
+
+                    {selected && (
+
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems:
+                            "center",
+                          gap: "8px",
+                          marginTop:
+                            "10px",
+                        }}
+                      >
+
+                        <span
+                          style={{
+                            fontSize:
+                              "12px",
+                            fontWeight:
+                              "600",
+                          }}
+                        >
+                          Quantity
+                        </span>
+
+
+                        <input
+                          type="number"
+
+                          min="1"
+
+                          step="1"
+
+                          value={
+                            quantity
+                          }
+
+                          onClick={(e) =>
+                            e.stopPropagation()
+                          }
+
+                          onChange={(e) => {
+
+                            const value =
+                              Math.max(
+                                1,
+                                parseInt(
+                                  e.target.value,
+                                  10
+                                ) || 1
+                              );
+
+                            setProductQuantities(
+                              (previous) => ({
+                                ...previous,
+
+                                [product.id]:
+                                  value,
+                              })
+                            );
+
+                          }}
+
+                          style={{
+                            width: "70px",
+                            padding:
+                              "5px 7px",
+                            border:
+                              "1px solid #d1d5db",
+                            borderRadius:
+                              "5px",
+                          }}
+                        />
+
+                      </div>
+
+                    )}
+
+                  </div>
+
+                </div>
+
+              );
+
+            }
+          )}
 
         </div>
 
@@ -1442,7 +1994,7 @@ THERMAL_47_5X25: {
 
       {/* =================================================
           PRINT FORMAT
-          ================================================= */}
+      ================================================= */}
 
       <div className="admin-section">
 
@@ -1450,75 +2002,46 @@ THERMAL_47_5X25: {
           Print Format
         </h3>
 
+
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
-            gap: "12px",
+            flexWrap: "wrap",
+            gap: "20px",
+            alignItems: "center",
           }}
         >
 
-          {/* =========================================
-              32.5 × 18
-              ========================================= */}
-
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "9px",
-              cursor: "pointer",
-            }}
-          >
-
-            <input
-              type="radio"
-              name="print-layout"
-              value="THERMAL_32_5X18"
-              checked={
-                printLayout ===
-                "THERMAL_32_5X18"
-              }
-              onChange={(event) => {
-                setPrintLayout(
-                  event.target.value
-                );
-              }}
-            />
-
-            <span>
-              32.5 × 18 mm
-            </span>
-
-          </label>
-
-
-          {/* =========================================
+          {/* ============================================
               47.5 × 25
-              ========================================= */}
+          ============================================= */}
 
           <label
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "9px",
+              gap: "7px",
               cursor: "pointer",
             }}
           >
 
             <input
               type="radio"
+
               name="print-layout"
+
               value="THERMAL_47_5X25"
+
               checked={
                 printLayout ===
                 "THERMAL_47_5X25"
               }
-              onChange={(event) => {
+
+              onChange={() =>
                 setPrintLayout(
-                  event.target.value
-                );
-              }}
+                  "THERMAL_47_5X25"
+                )
+              }
             />
 
             <span>
@@ -1527,15 +2050,61 @@ THERMAL_47_5X25: {
 
           </label>
 
+
+          {/* ============================================
+              32.5 × 18
+          ============================================= */}
+
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "7px",
+              cursor: "pointer",
+            }}
+          >
+
+            <input
+              type="radio"
+
+              name="print-layout"
+
+              value="THERMAL_32_5X18"
+
+              checked={
+                printLayout ===
+                "THERMAL_32_5X18"
+              }
+
+              onChange={() =>
+                setPrintLayout(
+                  "THERMAL_32_5X18"
+                )
+              }
+            />
+
+            <span>
+              32.5 × 18 mm
+            </span>
+
+          </label>
+
         </div>
 
+
+        {/* =============================================
+            FORMAT INFORMATION
+        ============================================== */}
 
         <div
           style={{
             marginTop: "14px",
-            padding: "10px 12px",
-            background: "#f3f4f6",
-            borderRadius: "6px",
+            padding:
+              "10px 12px",
+            background:
+              "#f3f4f6",
+            borderRadius:
+              "6px",
             fontSize: "13px",
             color: "#374151",
           }}
@@ -1553,11 +2122,7 @@ THERMAL_47_5X25: {
 
           {" • "}
 
-          TSC PNR compatible
-
-          {" • "}
-
-          QR left / Text right
+          Physical orientation: upright
 
         </div>
 
@@ -1565,341 +2130,90 @@ THERMAL_47_5X25: {
 
 
       {/* =================================================
-          PRODUCTS
-          ================================================= */}
-
-      {selectedSubcollectionId && (
-        <div className="admin-section">
-
-          <h3>
-            Products
-          </h3>
-
-
-          {/* =========================================
-              ACTION BAR
-              ========================================= */}
-
-          <div
-            className="product-actions-bar"
-          >
-
-            <button
-              type="button"
-              onClick={
-                selectAllProducts
-              }
-              disabled={
-                products.length === 0
-              }
-            >
-              Select All
-            </button>
-
-
-            <button
-              type="button"
-              onClick={
-                clearAllProducts
-              }
-              disabled={
-                selectedProductIds.length ===
-                0
-              }
-            >
-              Clear All
-            </button>
-
-
-            <span
-              className="selected-count"
-            >
-              {
-                selectedProductIds.length
-              }{" "}
-              selected
-            </span>
-
-
-            <span
-              className="selected-count"
-            >
-              {totalLabelCount}{" "}
-              label
-              {totalLabelCount === 1
-                ? ""
-                : "s"}
-            </span>
-
-          </div>
-
-
-          {/* =========================================
-              PRODUCT LIST
-              ========================================= */}
-
-          {products.length === 0 ? (
-
-            <div
-              style={{
-                padding: "20px",
-                color: "#6b7280",
-                textAlign: "center",
-              }}
-            >
-              No products found.
-            </div>
-
-          ) : (
-
-            <div className="product-grid">
-
-              {products.map(
-                (product) => {
-
-                  const selected =
-                    selectedProductIds.includes(
-                      product.id
-                    );
-
-                  const quantity =
-                    productQuantities[
-                      product.id
-                    ] || 1;
-
-                  return (
-                    <div
-                      key={product.id}
-                      className={
-                        `barcodeproduct-card ${
-                          selected
-                            ? "selected"
-                            : ""
-                        }`
-                      }
-                      onClick={() => {
-                        toggleProduct(
-                          product.id
-                        );
-                      }}
-                    >
-
-                      {/* CHECKBOX */}
-
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={() => {
-                          toggleProduct(
-                            product.id
-                          );
-                        }}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                        }}
-                      />
-
-
-                      {/* PRODUCT INFORMATION */}
-
-                      <div
-                        style={{
-                          flex: 1,
-                          minWidth: 0,
-                        }}
-                      >
-
-                        <strong>
-
-                          {
-                            product.productName ||
-                            product.name ||
-                            "Unnamed Product"
-                          }
-
-                          {isNewProduct(
-                            product
-                          ) && (
-                            <span className="new-badge">
-                              NEW
-                            </span>
-                          )}
-
-                        </strong>
-
-
-                        <small>
-                          Product ID:{" "}
-                          {product.id}
-                        </small>
-
-
-                        {product.productCode && (
-                          <small>
-                            Code:{" "}
-                            {
-                              product.productCode
-                            }
-                          </small>
-                        )}
-
-
-                        {/* QUANTITY */}
-
-                        {selected && (
-                          <div
-                            style={{
-                              marginTop: "10px",
-                            }}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                            }}
-                          >
-
-                            <label
-                              style={{
-                                display: "flex",
-                                alignItems:
-                                  "center",
-                                gap: "8px",
-                                fontSize: "12px",
-                                color: "#374151",
-                              }}
-                            >
-
-                              Quantity
-
-                              <input
-                                type="number"
-                                min="1"
-                                step="1"
-                                value={
-                                  quantity
-                                }
-                                onChange={(event) => {
-
-                                  const value =
-                                    Math.max(
-                                      1,
-                                      parseInt(
-                                        event
-                                          .target
-                                          .value ||
-                                          "1",
-                                        10
-                                      )
-                                    );
-
-                                  setProductQuantities(
-                                    (previous) => ({
-                                      ...previous,
-                                      [product.id]:
-                                        value,
-                                    })
-                                  );
-
-                                }}
-                                style={{
-                                  width:
-                                    "70px",
-                                  height:
-                                    "32px",
-                                  padding:
-                                    "0 8px",
-                                  border:
-                                    "1px solid #d1d5db",
-                                  borderRadius:
-                                    "5px",
-                                  boxSizing:
-                                    "border-box",
-                                }}
-                              />
-
-                            </label>
-
-                          </div>
-                        )}
-
-                      </div>
-
-                    </div>
-                  );
-                }
-              )}
-
-            </div>
-          )}
-
-        </div>
-      )}
-
-
-      {/* =================================================
           PRINT BUTTON
-          ================================================= */}
+      ================================================= */}
 
       <button
         type="button"
+
         className="primary-btn"
+
         disabled={
-          printableProducts.length ===
-          0
+          totalLabelCount === 0
         }
+
         onClick={
           handlePrint
         }
       >
-        Print QR Labels (
-        {
-          printableProducts.length
-        }
-        )
+
+        🖨️ Print QR Labels
+
+        {totalLabelCount > 0 && (
+
+          <>
+            {" "}
+            (
+            {totalLabelCount}
+            )
+          </>
+
+        )}
+
       </button>
 
 
       {/* =================================================
           SCREEN PREVIEW
-          ================================================= */}
+      ================================================= */}
 
-      {printableProducts.length > 0 && (
+      <div
+        ref={pdfRef}
 
-        <div
-          className={
-            `print-area ${
-              printLayout ===
-              "THERMAL_47_5X25"
-                ? "thermal-47-5-25"
-                : "thermal-32-5-18"
-            }`
-          }
-          ref={pdfRef}
-        >
+        className={
+          `print-area ${
+            printLayout ===
+            "THERMAL_47_5X25"
+              ? "thermal-47-5-25"
+              : "thermal-32-5-18"
+          }`
+        }
+      >
 
-          {printableProducts.map(
-            (
-              product,
-              index
-            ) => (
+        {printableProducts.map(
+          (
+            product,
+            index
+          ) => (
 
-              <BarcodeLabel
-                key={
-                  `${product.id}-${index}`
-                }
-                product={product}
-                subcollectionName={
-                  selectedSubcollectionName
-                }
-              />
+            <BarcodeLabel
 
-            )
-          )}
+              key={
+                `${product.id}-${index}`
+              }
 
-        </div>
+              product={
+                product
+              }
 
-      )}
+              subcollectionName={
+                selectedSubcollectionName
+              }
+
+              printLayout={
+                printLayout
+              }
+
+            />
+
+          )
+        )}
+
+      </div>
 
     </div>
   );
 };
+
 
 export default BarcodePrintingPage;

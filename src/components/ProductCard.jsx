@@ -200,7 +200,7 @@ const getTierPrice = (tiers, qty) => {
   <h4 className="product-title">{productName}</h4>
 
   <span className="stock-badge">
-    {availableStock} pcs
+    {availableStock} left
   </span>
 </div>
 

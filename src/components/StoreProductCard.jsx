@@ -205,7 +205,7 @@ return (
       {/* TITLE */}
       <h4 className="storeproductcard-title">{productName}</h4>
         <span className="stock-badge">
-     Stock - {availableStock} pcs
+     Stock - {availableStock} left
   </span>
       </div>
       {/* PRICE */}

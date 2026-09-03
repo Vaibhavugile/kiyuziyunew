@@ -58,60 +58,99 @@ const HomePage = () => {
 
   return (
     <>
-      <HeroSection />
+      {/* <HeroSection /> */}
 
       {/* Featured Collections */}
-      <section 
-       section id="collections" 
-        className="collections-section"
-        aria-labelledby="featured-collections-heading"
-      >
-        <div className="collections-header">
-          <h2 id="featured-collections-heading">Featured Collections</h2>
-          <p className="collections-subtitle">
-            Curated lines crafted with ethical gold and artisan finishes.
-          </p>
-        </div>
-
-        {isLoading ? (
-          <div className="collections-loading" aria-live="polite">
-            Loading collections…
-          </div>
-        ) : (
-          // NOTE: use the class name that matches the grid CSS (.collection-grid)
-          <div className="collection-gridmain" role="list" aria-live="polite">
-            {collections.map((col) => (
-            <Link
-  to={`/collections/${col.id}/all-products`}
-  key={col.id}
-  className="collection-link"
-  role="listitem"
-  aria-label={`Open ${col.title || col.name} collection`}
-  onClick={() => {
-
-    trackMetaEvent("ViewContent", {
-      content_name: col.title || col.name || "Collection",
-      content_ids: [col.id],
-      content_type: "product_group"
-    });
-
-  }}
+      <section
+  id="collections"
+  className="collections-section"
+  aria-labelledby="featured-collections-heading"
 >
-              <CollectionCard
-  id={col.id}
-  title={col.title || col.name || "Collection"}
-  image={col.image || ""}
-  additionalImages={col.additionalImages || []}   // ⭐ REQUIRED
-  alt={col.imageAlt || col.title || col.name || "Collection image"}
-/>
+  <div className="collections-header">
+    <h2 id="featured-collections-heading">
+      Anti-Tarnish Catalogue
+    </h2>
 
-              </Link>
-            ))}
+    <p className="collections-subtitle">
+      Curated lines crafted with ethical gold and artisan finishes.
+    </p>
+  </div>
+
+  {isLoading ? (
+    <div
+      className="collection-gridmain"
+      role="status"
+      aria-label="Loading collections"
+    >
+      {[1, 2, 3, 4].map((item) => (
+        <div
+          key={item}
+          className="collection-loading-card"
+        >
+          <div className="collection-loading-image">
+            <div className="collection-loading-shimmer" />
           </div>
-        )}
-      </section>
+
+          <div className="collection-loading-bottom">
+            <div className="collection-loading-title" />
+            <div className="collection-loading-button" />
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div
+      className="collection-gridmain"
+      role="list"
+      aria-live="polite"
+    >
+      {collections.map((col) => (
+        <Link
+          to={`/collections/${col.id}/all-products`}
+          key={col.id}
+          className="collection-link"
+          role="listitem"
+          aria-label={`Open ${
+            col.title || col.name || "Collection"
+          } collection`}
+          onClick={() => {
+            trackMetaEvent("ViewContent", {
+              content_name:
+                col.title ||
+                col.name ||
+                "Collection",
+
+              content_ids: [col.id],
+
+              content_type: "product_group",
+            });
+          }}
+        >
+          <CollectionCard
+            id={col.id}
+            title={
+              col.title ||
+              col.name ||
+              "Collection"
+            }
+            image={col.image || ""}
+            additionalImages={
+              col.additionalImages || []
+            }
+            alt={
+              col.imageAlt ||
+              col.title ||
+              col.name ||
+              "Collection image"
+            }
+          />
+        </Link>
+      ))}
+    </div>
+  )}
+</section>
       {/* <InstagramReelsSection /> */}
-    <BulkEnquirySection />
+    {/* <BulkEnquirySection /> */}
   
 
 

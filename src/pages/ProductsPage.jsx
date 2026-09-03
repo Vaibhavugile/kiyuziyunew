@@ -49,7 +49,14 @@ const getProductPrice = (product, subcollectionsMap, pricingKey) => {
 
 const ProductsPage = () => {
   const { collectionId } = useParams();
-
+  // Always open ProductsPage at the top
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "auto",
+    });
+  }, [collectionId]);
   // 🌟 Loop Fix: Ref to manage initial render skip (Kept for Strict Mode resilience)
   const isInitialRender = useRef(true);
 const [showDownloadOptions, setShowDownloadOptions] = useState(false);
