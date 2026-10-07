@@ -415,19 +415,30 @@ const generateOrderPDF = async (order) => {
     try {
 
         const docPdf = new jsPDF();
+const seller = sellers[order.sellerId];
 
+const sellerName =
+    seller?.storeName ||
+    seller?.name ||
+    "Unknown Seller";
+    const createdAt = order.createdAt?.seconds
+    ? new Date(order.createdAt.seconds * 1000).toLocaleString("en-IN")
+    : "";
         /* HEADER */
 
         docPdf.setFontSize(18);
         docPdf.text("Order Invoice", 14, 20);
 
         docPdf.setFontSize(11);
-        docPdf.text(`Order ID: ${order.id}`, 14, 35);
-        docPdf.text(`Customer: ${order.billingInfo?.fullName || ""}`, 14, 42);
-        docPdf.text(`Phone: ${order.billingInfo?.phoneNumber || ""}`, 14, 49);
-        docPdf.text(`City: ${order.billingInfo?.city || ""}`, 14, 56);
+docPdf.text(`Order ID: ${order.id}`, 14, 35);
+docPdf.text(`Seller: ${sellerName}`, 14, 42);
+docPdf.text(`Created At: ${createdAt}`, 14, 49);
+docPdf.text(`Customer: ${order.billingInfo?.fullName || ""}`, 14, 56);
+docPdf.text(`Phone: ${order.billingInfo?.phoneNumber || ""}`, 14, 63);
+docPdf.text(`City: ${order.billingInfo?.city || ""}`, 14, 70);
 
-        let y = 70;
+let y = 84;
+
 
         /* TABLE HEADER */
 

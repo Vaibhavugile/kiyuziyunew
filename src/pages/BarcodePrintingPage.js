@@ -194,7 +194,7 @@ const BarcodePrintingPage = () => {
     selectedProductIds,
     setSelectedProductIds,
   ] = useState([]);
-
+const [productCodeSearch, setProductCodeSearch] = useState("");
   const [
     productQuantities,
     setProductQuantities,
@@ -399,46 +399,77 @@ const BarcodePrintingPage = () => {
       products,
       selectedProductIds,
     ]);
+/* =======================================================
+   PRODUCT CODE SEARCH
+======================================================= */
 
+const filteredProducts = useMemo(() => {
+  const search = productCodeSearch.trim().toLowerCase();
+
+  if (!search) {
+    return products;
+  }
+
+  return products.filter((product) =>
+    String(product?.productCode || "")
+      .toLowerCase()
+      .includes(search)
+  );
+}, [products, productCodeSearch]);
 
   /* =======================================================
      EXPAND QUANTITIES
   ======================================================= */
+const getProductStock = (product) => {
+  if (!product) return 0;
 
-  const printableProducts =
-    useMemo(() => {
-      const result = [];
+  // Product has variants
+  if (
+    Array.isArray(product.variations) &&
+    product.variations.length > 0
+  ) {
+    return product.variations.reduce(
+      (total, variation) =>
+        total + Math.max(
+          0,
+          Number(variation?.quantity) || 0
+        ),
+      0
+    );
+  }
 
-      selectedProducts.forEach(
-        (product) => {
-          const quantity =
-            Math.max(
-              1,
-              Number(
-                productQuantities[
-                  product.id
-                ] || 1
-              )
-            );
+  // Normal product
+  return Math.max(
+    0,
+    Number(product?.quantity) || 0
+  );
+};
+  const printableProducts = useMemo(() => {
+  const result = [];
 
-          for (
-            let i = 0;
-            i < quantity;
-            i++
-          ) {
-            result.push({
-              ...product,
-              __printIndex: i,
-            });
-          }
-        }
-      );
+  selectedProducts.forEach((product) => {
+    const stock = getProductStock(product);
 
-      return result;
-    }, [
-      selectedProducts,
-      productQuantities,
-    ]);
+    const quantity = Math.max(
+      0,
+      Number(
+        productQuantities[product.id] ?? stock
+      )
+    );
+
+    for (let i = 0; i < quantity; i++) {
+      result.push({
+        ...product,
+        __printIndex: i,
+      });
+    }
+  });
+
+  return result;
+}, [
+  selectedProducts,
+  productQuantities,
+]);
 
 
   /* =======================================================
@@ -500,73 +531,57 @@ const BarcodePrintingPage = () => {
      TOGGLE PRODUCT
   ======================================================= */
 
-  const toggleProduct = (
-    productId
-  ) => {
-    setSelectedProductIds(
-      (previous) => {
-        if (
-          previous.includes(
-            productId
-          )
-        ) {
-          return previous.filter(
-            (id) =>
-              id !== productId
-          );
-        }
+ const toggleProduct = (productId) => {
+  setSelectedProductIds((previous) => {
+    if (previous.includes(productId)) {
+      return previous.filter(
+        (id) => id !== productId
+      );
+    }
 
-        return [
-          ...previous,
-          productId,
-        ];
-      }
+    return [
+      ...previous,
+      productId,
+    ];
+  });
+
+  setProductQuantities((previous) => {
+    if (previous[productId] !== undefined) {
+      return previous;
+    }
+
+    const product = products.find(
+      (item) => item.id === productId
     );
 
-    setProductQuantities(
-      (previous) => {
-        if (
-          previous[productId]
-        ) {
-          return previous;
-        }
-
-        return {
-          ...previous,
-          [productId]: 1,
-        };
-      }
-    );
-  };
+    return {
+      ...previous,
+      [productId]: getProductStock(product),
+    };
+  });
+};
 
 
   /* =======================================================
      SELECT ALL
   ======================================================= */
 
-  const selectAllProducts =
-    () => {
-      const ids =
-        products.map(
-          (product) =>
-            product.id
-        );
+  const selectAllProducts = () => {
+  const ids = products.map(
+    (product) => product.id
+  );
 
-      const quantities = {};
+  const quantities = {};
 
-      ids.forEach(
-        (id) => {
-          quantities[id] =
-            productQuantities[id] ||
-            1;
-        }
-      );
+  products.forEach((product) => {
+    quantities[product.id] =
+      productQuantities[product.id] ??
+      getProductStock(product);
+  });
 
-      setSelectedProductIds(ids);
-      setProductQuantities(
-        quantities
-      );
-    };
+  setSelectedProductIds(ids);
+  setProductQuantities(quantities);
+};
 
 
   /* =======================================================
@@ -1650,17 +1665,17 @@ const createPrintQR = async (productId) => {
           disabled={
             !selectedCollectionId
           }
-          onChange={(e) => {
+         onChange={(e) => {
+  setSelectedSubcollectionId(
+    e.target.value
+  );
 
-            setSelectedSubcollectionId(
-              e.target.value
-            );
+  setProductCodeSearch("");
 
-            setSelectedProductIds([]);
+  setSelectedProductIds([]);
 
-            setProductQuantities({});
-
-          }}
+  setProductQuantities({});
+}}
         >
 
           <option value="">
@@ -1694,7 +1709,30 @@ const createPrintQR = async (productId) => {
 
       </div>
 
+{selectedSubcollectionId && (
+  <div className="form-group">
+    <label>
+      Search Product Code
+    </label>
 
+    <input
+      type="text"
+      value={productCodeSearch}
+      onChange={(e) =>
+        setProductCodeSearch(e.target.value)
+      }
+      placeholder="Search by product code..."
+      style={{
+        width: "100%",
+        padding: "10px 12px",
+        border: "1px solid #d1d5db",
+        borderRadius: "8px",
+        fontSize: "14px",
+        outline: "none",
+      }}
+    />
+  </div>
+)}
       {/* =================================================
           PRODUCTS
       ================================================= */}
@@ -1779,7 +1817,7 @@ const createPrintQR = async (productId) => {
           )}
 
 
-          {products.map(
+          {filteredProducts.map(
             (product) => {
 
               const selected =
@@ -1788,9 +1826,8 @@ const createPrintQR = async (productId) => {
                 );
 
               const quantity =
-                productQuantities[
-                  product.id
-                ] || 1;
+  productQuantities[product.id] ??
+  getProductStock(product);
 
 
               return (

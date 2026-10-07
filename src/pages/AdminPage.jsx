@@ -3561,7 +3561,8 @@ alert(
       "sellerprofit",
       "storeorders",
       "adminsellers",
-      "custombill"
+      "custombill",
+      "dailyorders"
     ],
 
     manager: [
@@ -3611,15 +3612,17 @@ alert(
             Orders
           </button>
         )}
-
-        {ROLE_PERMISSIONS[currentUserRole]?.includes("lowStock") && (
+        {ROLE_PERMISSIONS[currentUserRole]?.includes("dailyorders") && (
              <button
             className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/productsale/view")}
+            onClick={() => (window.location.href = "/admin/daily-orders")}
           >
-            Stock Summary
+            Daily Order Report
           </button>
         )}
+
+
+        
          {ROLE_PERMISSIONS[currentUserRole]?.includes("Storestock") && (
              <button
             className="admin-menu-item"

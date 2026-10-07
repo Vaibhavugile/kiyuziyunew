@@ -64,6 +64,7 @@ import FloatingContact from './components/FloatingContact';
 import DropshipperEnquiries from './pages/dropshipper/DropshipperEnquiries';
 import DropshipperChangePassword from "./pages/dropshipper/DropshipperChangePassword";
 import AdminResellerPayments from './pages/dropshipper/AdminResellerPayments';
+import AdminDailyOrders from "./pages/AdminDailyOrders";
 function App() {
     useEffect(() => {
     initMetaPixel();
@@ -98,7 +99,10 @@ function App() {
             />         <Route path="/login" element={<LoginPage />} />
             <Route path="/Apple@782k" element={<AdminPage />} />
             <Route path="/orders-products" element={<OrdersProductsPage />} />
-
+<Route
+  path="/admin/daily-orders"
+  element={<AdminDailyOrders />}
+/>
             <Route path="/custombill" element={<CustomBillingPage/>} />
             <Route path="/collections/:collectionId" element={<SubcollectionsPage />} />
             <Route path="/collections/:collectionId/all-products" element={<ProductsPage />} />            <Route path="/cart" element={<CartPage />} />

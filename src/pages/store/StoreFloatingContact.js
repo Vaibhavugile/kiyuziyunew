@@ -17,7 +17,7 @@ const StoreFloatingContact = ({ data }) => {
   const instagram = data?.instagram || "";
 
   const message =
-    "Hello KiyuZiyu, I would like to enquire about your Jewellery.";
+    "Hello , I would like to enquire about your Jewellery.";
 
   return (
     <div className="bmm-float">
@@ -38,7 +38,7 @@ const StoreFloatingContact = ({ data }) => {
       {/* WHATSAPP */}
       {whatsapp && (
         <a
-          href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(message)}`}
+          href={`https://wa.me/ ${whatsapp}?text=${encodeURIComponent(message)}`}
           target="_blank"
           rel="noopener noreferrer"
           className="bmm-float-icon whatsapp"

@@ -75,7 +75,7 @@ const inventoryListeners = useRef([]);
 
  useEffect(() => {
 
-  let inventoryListeners = [];
+ 
 
  const loadStore = async () => {
 
@@ -902,7 +902,6 @@ const visibleProducts = useMemo(() => {
 }, [filteredProducts]);
 useEffect(() => {
   if (loading) return;
-  if (visibleProducts.length > 0) return;
   if (!hasMore) return;
   if (!lastDoc) return;
   if (loadingMore.current) return;
@@ -915,7 +914,6 @@ useEffect(() => {
   });
 }, [
   loading,
-  visibleProducts.length,
   hasMore,
   lastDoc,
 ]);

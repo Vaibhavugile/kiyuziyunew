@@ -17,7 +17,7 @@ const FloatingContact = () => {
 
   const phone = "917897897441";
   const message =
-    "Hello KiyuZiyu, I would like to enquire about your Jewellery.";
+    "Hello, I would like to enquire about your Jewellery.";
 
   return (
     <div className="bmm-float">
