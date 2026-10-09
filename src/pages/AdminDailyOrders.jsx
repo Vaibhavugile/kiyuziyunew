@@ -78,12 +78,14 @@ const AdminDailyOrders = () => {
   const [orders, setOrders] = useState([]);
   const [storeOrders, setStoreOrders] = useState([]);
   const [sellers, setSellers] = useState({});
+  const [subcollectionsMap, setSubcollectionsMap] = useState({});
 
   // Local date is used so "today" does not shift because of UTC conversion.
   const [selectedDate, setSelectedDate] = useState(getLocalDateKey());
 
   const [checkLabels, setCheckLabels] = useState(DEFAULT_CHECKS);
   const [checkValues, setCheckValues] = useState({});
+  const [savingExclude, setSavingExclude] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [savingCheck, setSavingCheck] = useState(null);
@@ -97,6 +99,37 @@ const AdminDailyOrders = () => {
    * This is only one small settings document, not order data.
    * ------------------------------------------------------------
    */
+  // Load purchase rates used by the existing ReportPage profit logic.
+  useEffect(() => {
+    const loadPurchaseRates = async () => {
+      try {
+        const collectionsSnap = await getDocs(collection(db, "collections"));
+        const rateMap = {};
+
+        await Promise.all(
+          collectionsSnap.docs.map(async (collectionDoc) => {
+            const subSnap = await getDocs(
+              collection(db, "collections", collectionDoc.id, "subcollections")
+            );
+            subSnap.docs.forEach((subDoc) => {
+              const data = subDoc.data();
+              rateMap[subDoc.id] = {
+                purchaseRate: Number(data.purchaseRate || 0),
+                name: data.name || "",
+              };
+            });
+          })
+        );
+
+        setSubcollectionsMap(rateMap);
+      } catch (error) {
+        console.error("Failed to load purchase rates:", error);
+      }
+    };
+
+    loadPurchaseRates();
+  }, []);
+
   useEffect(() => {
     const loadChecklistSettings = async () => {
       try {
@@ -376,9 +409,16 @@ const AdminDailyOrders = () => {
           try {
             const checkSnapshot = await getDoc(checkRef);
 
-            states[docId] = checkSnapshot.exists()
-              ? checkSnapshot.data().checks || {}
-              : {};
+            if (checkSnapshot.exists()) {
+              const data = checkSnapshot.data();
+
+              states[docId] = {
+                ...(data.checks || {}),
+                profitExcluded: data.profitExcluded === true,
+              };
+            } else {
+              states[docId] = {};
+            }
           } catch (error) {
             console.error(
               `Failed to load checklist for ${docId}:`,
@@ -463,6 +503,67 @@ const AdminDailyOrders = () => {
       }));
     } finally {
       setSavingCheck(null);
+    }
+  };
+
+  /*
+   * ------------------------------------------------------------
+   * EXCLUDE ORDER FROM PROFIT
+   *
+   * This does NOT delete or cancel the order. It only excludes
+   * the order's profit from the Daily Orders profit totals.
+   * The choice is saved with the existing dailyOrderChecks doc
+   * so it remains selected when the date is opened again.
+   * ------------------------------------------------------------
+   */
+  const handleProfitExcludeChange = async (order, excluded) => {
+    const docId = `${selectedDate}_${order.orderType}_${order.id}`;
+    const previousState = checkValues[docId] || {};
+
+    const updatedState = {
+      ...previousState,
+      profitExcluded: excluded,
+    };
+
+    setCheckValues((previous) => ({
+      ...previous,
+      [docId]: updatedState,
+    }));
+
+    setSavingExclude(docId);
+
+    try {
+      const checkRef = doc(
+        db,
+        "dailyOrderChecks",
+        docId
+      );
+
+      await setDoc(
+        checkRef,
+        {
+          date: selectedDate,
+          orderId: order.id,
+          orderType: order.orderType,
+          profitExcluded: excluded,
+          updatedAt: Date.now(),
+        },
+        {
+          merge: true,
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Failed to save profit exclusion:",
+        error
+      );
+
+      setCheckValues((previous) => ({
+        ...previous,
+        [docId]: previousState,
+      }));
+    } finally {
+      setSavingExclude(null);
     }
   };
 
@@ -584,24 +685,200 @@ const AdminDailyOrders = () => {
 
   /*
    * ------------------------------------------------------------
-   * TOTALS
+   * NORMAL ORDER PROFIT
+   * Use the profit already stored on the order at checkout.
+   * orderProfit/grossProfit is based on purchaseRateAtOrder.
    * ------------------------------------------------------------
    */
-  const normalOrderTotal = filteredOrders.reduce(
-    (sum, order) =>
-      sum + Number(order.totalAmount || 0),
+  const calculateNormalOrderProfit = (order) => {
+    if (order.orderProfit !== undefined && order.orderProfit !== null) {
+      return Number(order.orderProfit || 0);
+    }
+
+    if (order.grossProfit !== undefined && order.grossProfit !== null) {
+      return Number(order.grossProfit || 0);
+    }
+
+    return (order.items || []).reduce((total, item) => {
+      const purchaseRate = Number(item.purchaseRateAtOrder || item.itemCost || 0);
+      const sellingPrice = Number(item.priceAtTimeOfOrder || 0);
+      const quantity = Number(item.quantity || 0);
+      return total + (sellingPrice - purchaseRate) * quantity;
+    }, 0);
+  };
+
+  const isProfitExcluded = (order) => {
+    const docId = `${selectedDate}_${order.orderType}_${order.id}`;
+    return checkValues[docId]?.profitExcluded === true;
+  };
+
+  const activeNormalOrders = filteredOrders.filter((order) => !isProfitExcluded(order));
+  const activeStoreOrders = filteredStoreOrders.filter((order) => !isProfitExcluded(order));
+
+  const normalProfitTotal = activeNormalOrders.reduce(
+    (sum, order) => sum + calculateNormalOrderProfit(order),
     0
   );
 
-  const storeOrderTotal =
-    filteredStoreOrders.reduce(
-      (sum, order) =>
-        sum + Number(order.totalAmount || 0),
-      0
-    );
+  /*
+   * ------------------------------------------------------------
+   * TOTALS
+   * ------------------------------------------------------------
+   */
+  const normalOrderTotal = activeNormalOrders.reduce(
+    (sum, order) => sum + Number(order.totalAmount || 0),
+    0
+  );
+
+  const storeOrderTotal = activeStoreOrders.reduce(
+    (sum, order) => sum + Number(order.totalAmount || 0),
+    0
+  );
 
   const totalOrderValue =
     normalOrderTotal + storeOrderTotal;
+
+  /*
+   * ------------------------------------------------------------
+   * STORE ORDER FINANCIAL CALCULATIONS
+   *
+   * These follow the same calculation logic used by
+   * AdminStoreOrders:
+   *
+   * Selling Total      = priceAtTimeOfOrder * quantity
+   * Seller Cost        = costPrice * quantity
+   * Seller Profit      = Selling Total - Seller Cost
+   * Admin Order Value  = saved adminPurchaseTotal
+   * Our Profit         = saved adminProfit
+   * Admin Payable      = Seller Cost + shipping
+   * ------------------------------------------------------------
+   */
+  const calculateStoreOrderFinancials = (order) => {
+    let sellerCost = 0;
+    let sellingTotal = 0;
+    let totalQty = 0;
+
+    (order.items || []).forEach((item) => {
+      const qty = Number(item.quantity || 0);
+
+      sellerCost += Number(item.costPrice || 0) * qty;
+      sellingTotal +=
+        Number(item.priceAtTimeOfOrder || 0) * qty;
+      totalQty += qty;
+    });
+
+    const sellerProfit = sellingTotal - sellerCost;
+    const shipping = Number(order.shippingFee || 0);
+    const adminPayable = sellerCost + shipping;
+
+    return {
+      orderValue: Number(order.totalAmount || 0),
+      sellingTotal,
+      sellerCost,
+      sellerProfit,
+      adminOrderValue: Number(order.adminPurchaseTotal || 0),
+      ourProfit: Number(order.adminProfit || 0),
+      shipping,
+      adminPayable,
+      totalQty,
+    };
+  };
+
+  const storeFinancialTotals = useMemo(() => {
+    return activeStoreOrders.reduce(
+      (totals, order) => {
+        const financials = calculateStoreOrderFinancials(order);
+
+        // An excluded order contributes NOTHING to any financial total.
+        totals.orderValue += financials.orderValue;
+        totals.adminOrderValue += financials.adminOrderValue;
+        totals.sellerProfit += financials.sellerProfit;
+        totals.ourProfit += financials.ourProfit;
+        totals.adminPayable += financials.adminPayable;
+        totals.sellerCost += financials.sellerCost;
+
+        return totals;
+      },
+      {
+        orderValue: 0,
+        adminOrderValue: 0,
+        sellerProfit: 0,
+        ourProfit: 0,
+        adminPayable: 0,
+        sellerCost: 0,
+      }
+    );
+  }, [activeStoreOrders]);
+
+  const totalDropshipperProfit = Number(storeFinancialTotals.sellerProfit || 0);
+  const totalOurProfit =
+    Number(normalProfitTotal || 0) +
+    Number(storeFinancialTotals.ourProfit || 0);
+  const totalBusinessOrderValue =
+    Number(normalOrderTotal || 0) +
+    Number(storeFinancialTotals.orderValue || 0);
+
+  /*
+   * ------------------------------------------------------------
+   * GROUP STORE ORDERS BY SELLER
+
+   * ------------------------------------------------------------
+   */
+  const storeOrdersBySeller = useMemo(() => {
+    const groups = {};
+
+    filteredStoreOrders.forEach((order) => {
+      const sellerId = order.sellerId || "unknown";
+
+      if (!groups[sellerId]) {
+        const seller = sellers[sellerId];
+
+        groups[sellerId] = {
+          sellerId,
+          sellerName:
+            seller?.storeName ||
+            seller?.name ||
+            seller?.displayName ||
+            "Unknown Seller",
+          orders: [],
+          totals: {
+            orderValue: 0,
+            adminOrderValue: 0,
+            sellerProfit: 0,
+            ourProfit: 0,
+            adminPayable: 0,
+            sellerCost: 0,
+            activeOrderCount: 0,
+          },
+        };
+      }
+
+      const financials = calculateStoreOrderFinancials(order);
+      const group = groups[sellerId];
+
+      // Keep every order visible, including excluded orders.
+      group.orders.push(order);
+
+      // An excluded order contributes NOTHING to any seller total.
+      if (!isProfitExcluded(order)) {
+        group.totals.activeOrderCount += 1;
+        group.totals.orderValue += financials.orderValue;
+        group.totals.adminOrderValue +=
+          financials.adminOrderValue;
+        group.totals.adminPayable += financials.adminPayable;
+        group.totals.sellerCost += financials.sellerCost;
+        group.totals.sellerProfit += financials.sellerProfit;
+        group.totals.ourProfit += financials.ourProfit;
+      }
+    });
+
+    return Object.values(groups).sort((a, b) =>
+      a.sellerName.localeCompare(b.sellerName)
+    );
+  }, [filteredStoreOrders, sellers, checkValues]);
+
+  const formatMoney = (value) =>
+    `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
   /*
    * ------------------------------------------------------------
@@ -682,10 +959,28 @@ const AdminDailyOrders = () => {
       .toLowerCase()
       .replace(/\s+/g, "-");
 
+    const excluded = isProfitExcluded(order);
+    const excludeSaving = savingExclude === `${selectedDate}_${order.orderType}_${order.id}`;
+
     return (
       <tr
         key={`${order.orderType}-${order.id}`}
+        className={excluded ? "profit-excluded-row" : ""}
       >
+        <td className="profit-exclude-cell">
+          <label className="profit-exclude-control" title="Exclude this order from profit calculations">
+            <input
+              type="checkbox"
+              checked={excluded}
+              disabled={excludeSaving}
+              onChange={(event) =>
+                handleProfitExcludeChange(order, event.target.checked)
+              }
+            />
+            <span>Exclude Profit</span>
+          </label>
+        </td>
+
         <td>
           <div className="customer-name">
             {customerName}
@@ -698,6 +993,10 @@ const AdminDailyOrders = () => {
 
         <td className="amount-cell">
           ₹{orderValue}
+        </td>
+
+        <td className={`amount-cell ${calculateNormalOrderProfit(order) < 0 ? "loss" : "gain"} ${excluded ? "excluded-profit-cell" : ""}`}>
+          {excluded ? "Excluded" : formatMoney(calculateNormalOrderProfit(order))}
         </td>
 
         <td>
@@ -757,37 +1056,6 @@ const AdminDailyOrders = () => {
    */
   return (
     <div className="daily-orders-page print-container">
-      {/* PRINT HEADER */}
-      <div className="daily-print-header">
-        <div className="daily-print-header-left">
-          <div className="daily-print-eyebrow">DAILY OPERATIONS</div>
-          <h1>Daily Orders Report</h1>
-          <p>{formatDisplayDate(selectedDate)}</p>
-        </div>
-
-        <div className="daily-print-header-right">
-          <div>
-            <span>Orders</span>
-            <strong>{filteredOrders.length}</strong>
-          </div>
-          <div>
-            <span>Store Orders</span>
-            <strong>{filteredStoreOrders.length}</strong>
-          </div>
-          <div>
-            <span>Total Orders</span>
-            <strong>
-              {filteredOrders.length + filteredStoreOrders.length}
-            </strong>
-          </div>
-          <div>
-            <span>Total Value</span>
-            <strong>
-              ₹{totalOrderValue.toLocaleString("en-IN")}
-            </strong>
-          </div>
-        </div>
-      </div>
       {/* HEADER */}
       <div className="daily-orders-header">
         <div>
@@ -847,7 +1115,6 @@ const AdminDailyOrders = () => {
                 setSelectedDate(event.target.value)
               }
               className="daily-date-input"
-              aria-label="Select order date"
             />
 
             <strong>
@@ -936,32 +1203,52 @@ const AdminDailyOrders = () => {
       <div className="daily-summary">
         <div className="summary-card">
           <span>Normal Orders</span>
-          <strong>{filteredOrders.length}</strong>
+          <strong>{activeNormalOrders.length}</strong>
         </div>
 
         <div className="summary-card">
           <span>Store Orders</span>
-          <strong>
-            {filteredStoreOrders.length}
-          </strong>
+          <strong>{activeStoreOrders.length}</strong>
         </div>
 
         <div className="summary-card">
           <span>Total Orders</span>
-          <strong>
-            {filteredOrders.length +
-              filteredStoreOrders.length}
-          </strong>
+          <strong>{activeNormalOrders.length + activeStoreOrders.length}</strong>
+        </div>
+
+        <div className="summary-card total-value-card">
+          <span>Normal Order Value</span>
+          <strong>{formatMoney(normalOrderTotal)}</strong>
+        </div>
+
+        <div className="summary-card total-value-card">
+          <span>Normal Order Profit</span>
+          <strong>{formatMoney(normalProfitTotal)}</strong>
+        </div>
+
+        <div className="summary-card total-value-card">
+          <span>Store Order Value</span>
+          <strong>{formatMoney(storeFinancialTotals.orderValue)}</strong>
+        </div>
+
+        <div className="summary-card total-value-card">
+          <span>Dropshipper Profit</span>
+          <strong>{formatMoney(totalDropshipperProfit)}</strong>
+        </div>
+
+        <div className="summary-card total-value-card">
+          <span>Our Store Profit</span>
+          <strong>{formatMoney(storeFinancialTotals.ourProfit)}</strong>
         </div>
 
         <div className="summary-card total-value-card">
           <span>Total Order Value</span>
-          <strong>
-            ₹
-            {totalOrderValue.toLocaleString(
-              "en-IN"
-            )}
-          </strong>
+          <strong>{formatMoney(totalBusinessOrderValue)}</strong>
+        </div>
+
+        <div className="summary-card total-value-card">
+          <span>Total Business Profit</span>
+          <strong>{formatMoney(totalOurProfit)}</strong>
         </div>
       </div>
 
@@ -983,7 +1270,7 @@ const AdminDailyOrders = () => {
           </div>
 
           <span className="section-count">
-            {filteredOrders.length} orders
+            {activeNormalOrders.length} included orders
           </span>
         </div>
 
@@ -991,8 +1278,10 @@ const AdminDailyOrders = () => {
           <table className="daily-orders-table">
             <thead>
               <tr>
+                <th>Exclude</th>
                 <th>Customer</th>
                 <th>Order Value</th>
+                <th>Profit</th>
                 <th>Status</th>
                 <th>Seller</th>
                 <th>Seller Name</th>
@@ -1012,7 +1301,7 @@ const AdminDailyOrders = () => {
                 <tr>
                   <td
                     colSpan={
-                      5 + checkLabels.length
+                      7 + checkLabels.length
                     }
                     className="empty-state"
                   >
@@ -1044,61 +1333,219 @@ const AdminDailyOrders = () => {
             <div>
               <h2>Store Orders</h2>
 
-              <p>
-                Marketplace / seller orders
-              </p>
+              <p>Marketplace / seller orders</p>
             </div>
           </div>
 
           <span className="section-count">
-            {filteredStoreOrders.length} orders
+            {activeStoreOrders.length} included orders · {storeOrdersBySeller.length} sellers
           </span>
         </div>
 
-        <div className="daily-table-wrapper">
-          <table className="daily-orders-table">
-            <thead>
-              <tr>
-                <th>Customer</th>
-                <th>Order Value</th>
-                <th>Status</th>
-                <th>Seller</th>
-                <th>Seller Name</th>
+        {/* STORE FINANCIAL SUMMARY */}
+        <div className="store-financial-summary">
+          <div className="store-financial-card store-financial-primary">
+            <span>Total Order Value</span>
+            <strong>{formatMoney(storeFinancialTotals.orderValue)}</strong>
+            <small>Customer selling value</small>
+          </div>
 
-                {checkLabels.map(
-                  (label, index) => (
-                    <th key={index}>
-                      {label}
-                    </th>
-                  )
-                )}
-              </tr>
-            </thead>
+          <div className="store-financial-card">
+            <span>Admin Order Value</span>
+            <strong>{formatMoney(storeFinancialTotals.adminOrderValue)}</strong>
+            <small>Purchase rate × quantity</small>
+          </div>
 
-            <tbody>
-              {filteredStoreOrders.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={
-                      5 + checkLabels.length
-                    }
-                    className="empty-state"
-                  >
-                    No store orders for{" "}
-                    {formatDisplayDate(
-                      selectedDate
-                    )}
-                    .
-                  </td>
-                </tr>
-              ) : (
-                filteredStoreOrders.map(
-                  renderOrderRow
-                )
-              )}
-            </tbody>
-          </table>
+          <div className="store-financial-card store-financial-profit">
+            <span>Our Profit</span>
+            <strong>{formatMoney(storeFinancialTotals.ourProfit)}</strong>
+            <small>Seller cost − admin purchase</small>
+          </div>
+
+          <div className="store-financial-card">
+            <span>Dropshipper Profit</span>
+            <strong>{formatMoney(storeFinancialTotals.sellerProfit)}</strong>
+            <small>Selling total − seller cost</small>
+          </div>
+
+          <div className="store-financial-card">
+            <span>Admin Payable</span>
+            <strong>{formatMoney(storeFinancialTotals.adminPayable)}</strong>
+            <small>Seller cost + shipping</small>
+          </div>
         </div>
+
+        {filteredStoreOrders.length === 0 ? (
+          <div className="daily-table-wrapper">
+            <div className="empty-state store-empty-state">
+              No store orders for {formatDisplayDate(selectedDate)}.
+            </div>
+          </div>
+        ) : (
+          <div className="seller-order-groups">
+            {storeOrdersBySeller.map((group, sellerIndex) => (
+              <div
+                className="seller-order-group"
+                key={group.sellerId}
+              >
+                {/* SELLER HEADER */}
+                <div className="seller-group-header">
+                  <div className="seller-group-title">
+                    <span className="seller-group-number">
+                      {String(sellerIndex + 1).padStart(2, "0")}
+                    </span>
+
+                    <div>
+                      <h3>{group.sellerName}</h3>
+                      <span>
+                        {group.totals.activeOrderCount} included order{group.totals.activeOrderCount === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="seller-group-financials">
+                    <div>
+                      <span>Order Value</span>
+                      <strong>{formatMoney(group.totals.orderValue)}</strong>
+                    </div>
+
+                    {/* <div>
+                      <span>Admin Value</span>
+                      <strong>{formatMoney(group.totals.adminOrderValue)}</strong>
+                    </div> */}
+
+                    <div>
+                      <span>Seller Profit</span>
+                      <strong>{formatMoney(group.totals.sellerProfit)}</strong>
+                    </div>
+
+                    <div className="seller-profit-highlight">
+                      <span>Our Profit</span>
+                      <strong>{formatMoney(group.totals.ourProfit)}</strong>
+                    </div>
+
+                    <div>
+                      <span>Admin Payable</span>
+                      <strong>{formatMoney(group.totals.adminPayable)}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SELLER TABLE */}
+                <div className="daily-table-wrapper seller-table-wrapper">
+                  <table className="daily-orders-table seller-orders-table">
+                    <thead>
+                      <tr>
+                        <th>Exclude</th>
+                        <th>Customer</th>
+                        <th>Order Value</th>
+                        <th>Seller Cost</th>
+                        <th>Dropshipper Profit</th>
+                        <th>Admin Payable</th>
+                        <th>Our Profit</th>
+                        <th>Status</th>
+                        {checkLabels.map((label, index) => (
+                          <th key={index}>{label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {group.orders.map((order) => {
+                        const customerName =
+                          order.billingInfo?.fullName ||
+                          order.customerName ||
+                          order.userName ||
+                          "Unknown Customer";
+                        const financials =
+                          calculateStoreOrderFinancials(order);
+                        const statusClass = String(
+                          order.status || "pending"
+                        )
+                          .toLowerCase()
+                          .replace(/\s+/g, "-");
+                        const excluded = isProfitExcluded(order);
+                        const excludeSaving = savingExclude === `${selectedDate}_${order.orderType}_${order.id}`;
+
+                        return (
+                          <tr
+                            key={`seller-${order.id}`}
+                            className={excluded ? "profit-excluded-row" : ""}
+                          >
+                            <td className="profit-exclude-cell">
+                              <label className="profit-exclude-control" title="Exclude this order from profit calculations">
+                                <input
+                                  type="checkbox"
+                                  checked={excluded}
+                                  disabled={excludeSaving}
+                                  onChange={(event) =>
+                                    handleProfitExcludeChange(order, event.target.checked)
+                                  }
+                                />
+                                <span>Exclude Profit</span>
+                              </label>
+                            </td>
+
+                            <td>
+                              <div className="customer-name">
+                                {customerName}
+                              </div>
+                              <div className="order-id-small">
+                                #{order.id.slice(0, 8)}
+                              </div>
+                            </td>
+
+                            <td className="amount-cell">
+                              {formatMoney(financials.orderValue)}
+                            </td>
+
+                            <td className="amount-cell">
+                              {formatMoney(financials.sellerCost)}
+                            </td>
+
+                            <td className={`amount-cell seller-profit-cell ${excluded ? "excluded-profit-cell" : ""}`}>
+                              {excluded ? "Excluded" : formatMoney(financials.sellerProfit)}
+                            </td>
+
+                            <td className="amount-cell">
+                              {formatMoney(financials.adminPayable)}
+                            </td>
+
+                            <td className={`amount-cell our-profit-cell ${excluded ? "excluded-profit-cell" : ""}`}>
+                              {excluded ? "Excluded" : formatMoney(financials.ourProfit)}
+                            </td>
+
+                            <td>
+                              <span
+                                className={`daily-status status-${statusClass}`}
+                              >
+                                {order.status || "Pending"}
+                              </span>
+                            </td>
+
+                            {renderChecks(order)}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+
+                    <tfoot>
+                      <tr className="seller-table-total-row">
+                        <td colSpan={2}>SELLER TOTAL</td>
+                        <td>{formatMoney(group.totals.orderValue)}</td>
+                        <td>{formatMoney(group.totals.sellerCost)}</td>
+                        <td>{formatMoney(group.totals.sellerProfit)}</td>
+                        <td>{formatMoney(group.totals.adminPayable)}</td>
+                        <td>{formatMoney(group.totals.ourProfit)}</td>
+                        <td colSpan={checkLabels.length}>—</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* PRINT FOOTER */}

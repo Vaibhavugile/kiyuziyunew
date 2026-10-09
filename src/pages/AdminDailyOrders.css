@@ -174,18 +174,11 @@
 }
 
 .daily-date-input {
-  width: auto;
-  min-width: 150px;
-  height: 38px;
-  padding: 0 10px;
-  border: 1px solid #dfe2e8;
-  border-radius: 9px;
-  background: #ffffff;
-  color: #17181c;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .selected-date-wrapper strong {
@@ -609,6 +602,8 @@
 
   .print-container {
     position: static !important;
+    left: auto !important;
+    top: auto !important;
     display: block !important;
 
     width: 100% !important;
@@ -1031,5 +1026,573 @@
 
   .daily-header-actions button {
     width: 100%;
+  }
+}
+
+/* =========================================================
+   STORE ORDER FINANCIALS + SELLER GROUPS
+   ========================================================= */
+
+.store-financial-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 20px;
+}
+
+.store-financial-card {
+  min-width: 0;
+  padding: 18px 18px 16px;
+  border: 1px solid #e4e7ee;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(25, 30, 45, 0.05);
+}
+
+.store-financial-card span,
+.store-financial-card small {
+  display: block;
+}
+
+.store-financial-card span {
+  color: #747b8b;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.store-financial-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 22px;
+  line-height: 1.15;
+  color: #17181c;
+}
+
+.store-financial-card small {
+  margin-top: 7px;
+  color: #969cab;
+  font-size: 11px;
+}
+
+.store-financial-primary {
+  border-color: #cfd8ff;
+  background: linear-gradient(135deg, #ffffff, #f5f7ff);
+}
+
+.store-financial-profit {
+  border-color: #cce9d7;
+  background: linear-gradient(135deg, #ffffff, #f3fbf6);
+}
+
+.store-financial-profit strong,
+.our-profit-cell {
+  color: #15803d !important;
+}
+
+.seller-order-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.seller-order-group {
+  overflow: hidden;
+  border: 1px solid #e1e5ed;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(25, 30, 45, 0.05);
+}
+
+.seller-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e8ebf1;
+  background: linear-gradient(180deg, #fbfcfe, #f6f8fb);
+}
+
+.seller-group-title {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 220px;
+}
+
+.seller-group-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: #17181c;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.seller-group-title h3 {
+  margin: 0;
+  color: #17181c;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.seller-group-title span {
+  display: block;
+  margin-top: 4px;
+  color: #858b99;
+  font-size: 11px;
+}
+
+.seller-group-financials {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(105px, auto));
+  gap: 10px;
+  width: min(100%, 760px);
+}
+
+.seller-group-financials > div {
+  min-width: 0;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e5e8ee;
+}
+
+.seller-group-financials span {
+  display: block;
+  color: #8a909e;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.seller-group-financials strong {
+  display: block;
+  margin-top: 4px;
+  color: #20232a;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.seller-group-financials .seller-profit-highlight {
+  border-color: #cce9d7;
+  background: #f2fbf5;
+}
+
+.seller-group-financials .seller-profit-highlight strong {
+  color: #15803d;
+}
+
+.seller-table-wrapper {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.seller-orders-table {
+  min-width: 1250px;
+}
+
+.seller-orders-table th,
+.seller-orders-table td {
+  white-space: nowrap;
+}
+
+.seller-orders-table .seller-profit-cell {
+  color: #725500;
+  font-weight: 700;
+}
+
+.seller-orders-table .our-profit-cell {
+  font-weight: 800;
+}
+
+.seller-table-total-row td {
+  background: #f5f7fa !important;
+  border-top: 2px solid #dfe3ea !important;
+  color: #20232a !important;
+  font-weight: 800 !important;
+}
+
+.seller-table-total-row td:nth-child(7) {
+  color: #15803d !important;
+}
+
+.store-empty-state {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 1300px) {
+  .store-financial-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .seller-group-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .seller-group-financials {
+    width: 100%;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .store-financial-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .seller-group-financials {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .store-financial-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .seller-group-financials {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* PRINT OVERRIDES FOR SELLER FINANCIAL TABLES */
+@media print {
+  .store-financial-summary {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 2mm !important;
+    margin-bottom: 3mm !important;
+  }
+
+  .store-financial-card {
+    padding: 2.5mm !important;
+    border: 0.25mm solid #cccccc !important;
+    border-radius: 2mm !important;
+    box-shadow: none !important;
+  }
+
+  .store-financial-card span {
+    font-size: 5.5pt !important;
+  }
+
+  .store-financial-card strong {
+    margin-top: 1mm !important;
+    font-size: 9pt !important;
+  }
+
+  .store-financial-card small {
+    margin-top: 1mm !important;
+    font-size: 5pt !important;
+  }
+
+  .seller-order-groups {
+    gap: 4mm !important;
+  }
+
+  .seller-order-group {
+    border: 0.25mm solid #cccccc !important;
+    border-radius: 2mm !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  .seller-group-header {
+    padding: 2.5mm !important;
+    gap: 3mm !important;
+  }
+
+  .seller-group-number {
+    width: 7mm !important;
+    height: 7mm !important;
+    border-radius: 1.5mm !important;
+    font-size: 6pt !important;
+  }
+
+  .seller-group-title h3 {
+    font-size: 9pt !important;
+  }
+
+  .seller-group-title span {
+    font-size: 5.5pt !important;
+  }
+
+  .seller-group-financials {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 1.5mm !important;
+    width: 100% !important;
+  }
+
+  .seller-group-financials > div {
+    padding: 1.5mm !important;
+    border: 0.2mm solid #dddddd !important;
+    border-radius: 1mm !important;
+  }
+
+  .seller-group-financials span {
+    font-size: 4.5pt !important;
+  }
+
+  .seller-group-financials strong {
+    margin-top: 0.5mm !important;
+    font-size: 6.5pt !important;
+  }
+
+  .seller-table-wrapper {
+    overflow: visible !important;
+  }
+
+  .seller-orders-table {
+    min-width: 0 !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+
+  .seller-orders-table th,
+  .seller-orders-table td {
+    font-size: 5.2pt !important;
+    padding: 1.5mm 1mm !important;
+  }
+
+  .seller-table-total-row td {
+    font-size: 5.5pt !important;
+    padding: 1.5mm 1mm !important;
+  }
+}
+
+
+
+/* =========================================================
+   PRINT LAYOUT FIXES
+   ========================================================= */
+
+@media print {
+  /* Allow a seller section to continue onto the next page.
+     Keeping the whole group together was creating large blank
+     areas when the remaining page height was insufficient. */
+  .seller-order-group {
+    overflow: visible !important;
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  .seller-group-header {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  .seller-table-wrapper {
+    overflow: visible !important;
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  .seller-orders-table thead {
+    display: table-header-group !important;
+  }
+
+  .seller-orders-table tbody tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Compact exclusion column for the printed report.
+     The interactive "Exclude Profit" text is useful on screen,
+     but it wastes width in the PDF. */
+  .profit-exclude-cell {
+    width: 11mm !important;
+    min-width: 11mm !important;
+    max-width: 11mm !important;
+    text-align: center !important;
+  }
+
+  .profit-exclude-control {
+    width: 100% !important;
+    justify-content: center !important;
+    gap: 0 !important;
+    font-size: 0 !important;
+  }
+
+  .profit-exclude-control span {
+    display: none !important;
+  }
+
+  .profit-exclude-control input {
+    width: 4mm !important;
+    height: 4mm !important;
+    margin: 0 !important;
+    opacity: 1 !important;
+    pointer-events: none !important;
+    appearance: auto !important;
+    -webkit-appearance: checkbox !important;
+  }
+
+  /* Give the store table predictable widths so customer names,
+     amounts and checklist columns do not overlap. */
+  .seller-orders-table {
+    table-layout: fixed !important;
+  }
+
+  .seller-orders-table th:nth-child(1),
+  .seller-orders-table td:nth-child(1) {
+    width: 11mm !important;
+  }
+
+  .seller-orders-table th:nth-child(2),
+  .seller-orders-table td:nth-child(2) {
+    width: 30mm !important;
+  }
+
+  .seller-orders-table th:nth-child(3),
+  .seller-orders-table td:nth-child(3) {
+    width: 18mm !important;
+  }
+
+  .seller-orders-table th:nth-child(4),
+  .seller-orders-table td:nth-child(4) {
+    width: 18mm !important;
+  }
+
+  .seller-orders-table th:nth-child(5),
+  .seller-orders-table td:nth-child(5) {
+    width: 21mm !important;
+  }
+
+  .seller-orders-table th:nth-child(6),
+  .seller-orders-table td:nth-child(6) {
+    width: 20mm !important;
+  }
+
+  .seller-orders-table th:nth-child(7),
+  .seller-orders-table td:nth-child(7) {
+    width: 18mm !important;
+  }
+
+  .seller-orders-table th:nth-child(8),
+  .seller-orders-table td:nth-child(8) {
+    width: 17mm !important;
+  }
+
+  .seller-orders-table th:nth-child(n + 9),
+  .seller-orders-table td:nth-child(n + 9) {
+    width: 18mm !important;
+  }
+
+  .seller-orders-table th,
+  .seller-orders-table td {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .seller-orders-table .customer-name {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .seller-table-total-row td {
+    overflow: hidden !important;
+    white-space: nowrap !important;
+  }
+
+  /* Keep each seller heading visually attached to its table. */
+  .seller-order-group {
+    margin-bottom: 4mm !important;
+  }
+}
+
+/* =========================================================
+   PROFIT EXCLUSION
+   ========================================================= */
+
+
+.profit-exclude-cell {
+  min-width: 125px;
+}
+
+.profit-exclude-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.profit-exclude-control input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: #dc2626;
+  cursor: pointer;
+}
+
+.profit-excluded-row > td {
+  background: #fff1f2 !important;
+  color: #991b1b !important;
+  border-top: 2px solid #ef4444 !important;
+  border-bottom: 2px solid #ef4444 !important;
+}
+
+.profit-excluded-row > td:first-child {
+  border-left: 4px solid #dc2626 !important;
+}
+
+.profit-excluded-row > td:last-child {
+  border-right: 4px solid #dc2626 !important;
+}
+
+.profit-excluded-row .customer-name,
+.profit-excluded-row .order-id-small,
+.profit-excluded-row strong,
+.profit-excluded-row .daily-status,
+.profit-excluded-row .amount-cell {
+  color: #991b1b !important;
+}
+
+.profit-excluded-row .profit-exclude-control {
+  color: #b91c1c;
+}
+
+.excluded-profit-cell {
+  font-weight: 900 !important;
+  text-transform: uppercase;
+  text-decoration: line-through;
+}
+
+@media print {
+  .profit-excluded-row > td {
+    background: #ffe5e7 !important;
+    border-top: 0.6mm solid #dc2626 !important;
+    border-bottom: 0.6mm solid #dc2626 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .profit-excluded-row > td:first-child {
+    border-left: 1mm solid #dc2626 !important;
+  }
+
+  .profit-excluded-row > td:last-child {
+    border-right: 1mm solid #dc2626 !important;
   }
 }
