@@ -3612,6 +3612,7 @@ alert(
             Orders
           </button>
         )}
+
         {ROLE_PERMISSIONS[currentUserRole]?.includes("dailyorders") && (
              <button
             className="admin-menu-item"
@@ -3621,6 +3622,14 @@ alert(
           </button>
         )}
 
+  {ROLE_PERMISSIONS[currentUserRole]?.includes("lowStock") && (
+             <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/productsale/view")}
+          >
+            Stock Summary
+          </button>
+        )}
 
         
          {ROLE_PERMISSIONS[currentUserRole]?.includes("Storestock") && (
