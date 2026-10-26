@@ -1175,26 +1175,95 @@ useEffect(() => {
   };
 
 
+  // Firestore does NOT automatically delete documents in subcollections.
+  // Explicitly remove product documents before deleting their parent documents.
+  const deleteProductDocuments = async (mainCollectionId, subcollectionId) => {
+    // Products can be saved to either destination from the product upload form.
+    for (const destination of ['products', 'appProducts']) {
+      const productsRef = collection(
+        db,
+        'collections',
+        mainCollectionId,
+        'subcollections',
+        subcollectionId,
+        destination
+      );
+      const productsSnap = await getDocs(productsRef);
+
+      for (const productSnap of productsSnap.docs) {
+        const productData = productSnap.data();
+        const imageUrls = [
+          productData.image,
+          ...(Array.isArray(productData.additionalImages) ? productData.additionalImages : []),
+        ].filter(Boolean);
+
+        // A missing/already-deleted Storage image should not prevent Firestore cleanup.
+        for (const imageUrl of imageUrls) {
+          try {
+            await deleteObject(ref(storage, imageUrl));
+          } catch (storageError) {
+            console.warn('Could not delete product image from Storage:', imageUrl, storageError);
+          }
+        }
+
+        await deleteDoc(productSnap.ref);
+      }
+    }
+  };
+
   const handleDeleteMainCollection = async (item) => {
-    if (!window.confirm('Delete this collection and all its data?')) return;
+    if (!window.confirm('Delete this collection, all its subcollections, products, and images? This cannot be undone.')) return;
 
     try {
+      const subcollectionsRef = collection(db, 'collections', item.id, 'subcollections');
+      const subcollectionsSnap = await getDocs(subcollectionsRef);
+
+      for (const subcollectionSnap of subcollectionsSnap.docs) {
+        const subcollectionData = subcollectionSnap.data();
+
+        // Delete child product documents first.
+        await deleteProductDocuments(item.id, subcollectionSnap.id);
+
+        // Delete the subcollection image, if present.
+        if (subcollectionData.image) {
+          try {
+            await deleteObject(ref(storage, subcollectionData.image));
+          } catch (storageError) {
+            console.warn('Could not delete subcollection image from Storage:', storageError);
+          }
+        }
+
+        await deleteDoc(subcollectionSnap.ref);
+      }
+
+      // Delete main collection images after all child documents are removed.
       const urlsToDelete = [
         item.image,
-        ...(item.additionalImages || []),
-      ];
+        ...(Array.isArray(item.additionalImages) ? item.additionalImages : []),
+      ].filter(Boolean);
 
-      for (const url of urlsToDelete) {
-        if (url) {
-          await deleteObject(ref(storage, url));
+      for (const imageUrl of urlsToDelete) {
+        try {
+          await deleteObject(ref(storage, imageUrl));
+        } catch (storageError) {
+          console.warn('Could not delete collection image from Storage:', imageUrl, storageError);
         }
       }
 
       await deleteDoc(doc(db, 'collections', item.id));
-      fetchMainCollections();
+
+      if (selectedMainCollectionId === item.id) {
+        setSelectedMainCollectionId('');
+        setSelectedSubcollectionId('');
+        setSubcollections([]);
+        setProducts([]);
+      }
+
+      await fetchMainCollections();
+      alert('Collection and its subcollections/products were deleted successfully.');
     } catch (err) {
-      console.error('Error deleting main collection:', err);
-      alert('Failed to delete collection.');
+      console.error('Error deleting main collection and nested data:', err);
+      alert('Failed to fully delete the collection. Check the console; some child documents may remain.');
     }
   };
 
@@ -1360,12 +1429,21 @@ useEffect(() => {
   };
 
   const handleDeleteSubcollection = async (id, imageUrl) => {
-    if (!window.confirm('Are you sure you want to delete this subcollection and all its products?')) {
+    if (!window.confirm('Delete this subcollection and all its website/app products and images? This cannot be undone.')) {
       return;
     }
 
     try {
-      await deleteImageFromStorage(imageUrl);
+      // Remove child product documents before deleting the subcollection document.
+      await deleteProductDocuments(selectedMainCollectionId, id);
+
+      if (imageUrl) {
+        try {
+          await deleteObject(ref(storage, imageUrl));
+        } catch (storageError) {
+          console.warn('Could not delete subcollection image from Storage:', storageError);
+        }
+      }
 
       const docRef = doc(
         db,
@@ -1376,10 +1454,18 @@ useEffect(() => {
       );
 
       await deleteDoc(docRef);
-      fetchSubcollections();
+
+      if (selectedSubcollectionId === id) {
+        setSelectedSubcollectionId('');
+        setProducts([]);
+        setSelectedSubcollectionData(null);
+      }
+
+      await fetchSubcollections();
+      alert('Subcollection and its products were deleted successfully.');
     } catch (error) {
-      console.error('Error deleting subcollection:', error);
-      alert('Failed to delete subcollection.');
+      console.error('Error deleting subcollection and nested products:', error);
+      alert('Failed to fully delete the subcollection. Check the console; some child documents may remain.');
     }
   };
 

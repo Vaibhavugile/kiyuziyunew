@@ -11,6 +11,8 @@ const META_PIXELS = {
   "localhost:3001": "1011222784602653",
   "127.0.0.1:3000": "1011222784602653",
   "wholesaleantitarnishjewellery.com": "2077794193166378",
+  "BlueBarfi.com":"1077668788469766",
+
 };
 
 export const initMetaPixel = () => {

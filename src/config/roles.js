@@ -14,7 +14,7 @@ export const ROLES = {
 export const ROLE_CONFIG = {
   retailer: {
     label: 'Retail Customer',
-    minOrderValue: 0,
+    minOrderValue: 1000,
     canSeeBulkPricing: false,
     pricingKey: 'retail',
 

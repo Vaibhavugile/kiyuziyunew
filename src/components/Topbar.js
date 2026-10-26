@@ -21,7 +21,7 @@ export default function Topbar() {
           <span>Delivering Elegance Across India</span>
           <span>•</span>
 
-          <span>Minimum Order Value 2500</span>
+          <span>Minimum Order Value 3000</span>
           <span>•</span>
 
           {/* DUPLICATE FOR SMOOTH LOOP */}
@@ -39,7 +39,7 @@ export default function Topbar() {
           <span>Delivering Elegance Across India</span>
           <span>•</span>
 
-           <span>Minimum Order Value 2500</span>
+           <span>Minimum Order Value 1000</span>
           <span>•</span>
 
         </div>
