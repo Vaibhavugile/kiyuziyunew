@@ -65,6 +65,8 @@ import DropshipperEnquiries from './pages/dropshipper/DropshipperEnquiries';
 import DropshipperChangePassword from "./pages/dropshipper/DropshipperChangePassword";
 import AdminResellerPayments from './pages/dropshipper/AdminResellerPayments';
 import AdminDailyOrders from "./pages/AdminDailyOrders";
+import RolePricingManagement from './pages/RolePricingManagement';
+import CustomerManagement from './pages/CustomerManagement';
 function App() {
     useEffect(() => {
     initMetaPixel();
@@ -118,9 +120,13 @@ function App() {
             <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/cancellation-policy" element={<CancellationPolicy />} />
             <Route
-  path="/admin/reseller-payments/:sellerId"
-  element={<AdminResellerPayments />}
-/>
+                path="/admin/reseller-payments/:sellerId"
+                element={<AdminResellerPayments />}
+              />
+              <Route
+                path="/admin/customers"
+                element={<CustomerManagement />}
+              />
             <Route
               path="/admin/coupons"
               element={<CouponAdmin />}
@@ -129,6 +135,10 @@ function App() {
             <Route
   path="/dropshipper/change-password"
   element={<DropshipperChangePassword />}
+/>
+<Route
+  path="/admin/role-pricing"
+  element={<RolePricingManagement />}
 />
 
             <Route path="/dropshipper/setup" element={<DropshipperSetup />} />

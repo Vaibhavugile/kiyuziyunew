@@ -41,9 +41,17 @@ const CartPage = () => {
   /* =====================
      ROLE / MIN ORDER
   ===================== */
-const { userRole, roleConfig, currentUser } = useAuth();
+const {
+  userRole,
+  roleConfig,
+  customerMinimumOrderValue,
+  currentUser,
+} = useAuth();
 
-  const minimumRequired = Number(roleConfig?.minOrderValue || 0);
+const minimumRequired =
+  customerMinimumOrderValue !== null
+    ? customerMinimumOrderValue
+    : Number(roleConfig?.minOrderValue || 0);
   const subtotal = getCartSubtotal();
 
   const isMinOrderApplicable = minimumRequired > 0;

@@ -3648,7 +3648,10 @@ alert(
       "storeorders",
       "adminsellers",
       "custombill",
-      "dailyorders"
+      "dailyorders",
+      "roles",
+      "custmin",
+
     ],
 
     manager: [
@@ -3761,6 +3764,22 @@ alert(
             Coupons
           </button>
         )}
+         {ROLE_PERMISSIONS[currentUserRole]?.includes("roles") && (
+          <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/role-pricing")}
+          >
+            Roles
+          </button>
+        )}
+          {ROLE_PERMISSIONS[currentUserRole]?.includes("custmin") && (
+          <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/customers")}
+          >
+            Roles
+          </button>
+        )}     
 
         {ROLE_PERMISSIONS[currentUserRole]?.includes("editOrders") && (
           <button
