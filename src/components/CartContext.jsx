@@ -4,8 +4,10 @@ import React, {
   useContext,
   useEffect,
   useCallback,
+  useMemo,
 } from 'react';
 import { useAuth } from './AuthContext';
+import { getOrderPricingSlabs } from '../config/roles';
 
 /* =======================
    Utility functions
@@ -31,7 +33,7 @@ export const createStablePricingId = (tiers) => {
   if (!tiers) return null;
 
   const sortedTiers = [...tiers].sort(
-    (a, b) => Number(a.min_quantity) - Number(a.min_quantity)
+    (a, b) => Number(a.min_quantity) - Number(b.min_quantity)
   );
 
   return JSON.stringify(
@@ -75,7 +77,9 @@ export const CartContext = createContext();
    Price recalculation
 ======================= */
 
-const recalculateCartPrices = (currentCart, pricingKey) => {
+// Always group by the actual tier array for the selected pricing key.
+// Do not reuse a pricingId created for a different role's tier array.
+const recalculateCartPrices = (currentCart, pricingKey, fallbackPricingKey = null) => {
   const newCart = { ...currentCart };
   const pricingGroups = {};
 
@@ -83,12 +87,18 @@ const recalculateCartPrices = (currentCart, pricingKey) => {
     const item = newCart[cartItemId];
     if (!item.tieredPricing) continue;
 
-    const roleTiers = item.tieredPricing[pricingKey];
-    if (!roleTiers) continue;
+    const requestedTiers = item.tieredPricing[pricingKey];
+    const fallbackTiers = fallbackPricingKey
+      ? item.tieredPricing[fallbackPricingKey]
+      : null;
+    const roleTiers =
+      Array.isArray(requestedTiers) && requestedTiers.length
+        ? requestedTiers
+        : fallbackTiers;
 
-    const pricingId =
-      item.pricingId || createStablePricingId(roleTiers);
+    if (!Array.isArray(roleTiers) || roleTiers.length === 0) continue;
 
+    const pricingId = createStablePricingId(roleTiers);
     if (!pricingGroups[pricingId]) {
       pricingGroups[pricingId] = {
         totalQuantity: 0,
@@ -97,23 +107,61 @@ const recalculateCartPrices = (currentCart, pricingKey) => {
       };
     }
 
-    pricingGroups[pricingId].totalQuantity += item.quantity;
+    pricingGroups[pricingId].totalQuantity += Number(item.quantity || 0);
     pricingGroups[pricingId].cartItemIds.push(cartItemId);
   }
 
   for (const key in pricingGroups) {
     const group = pricingGroups[key];
-    const newPrice = getPriceForQuantity(
-      group.tiers,
-      group.totalQuantity
-    );
+    const newPrice = getPriceForQuantity(group.tiers, group.totalQuantity);
 
     group.cartItemIds.forEach((id) => {
-      newCart[id].price = newPrice;
+      newCart[id] = {
+        ...newCart[id],
+        price: newPrice == null ? Number(newCart[id].price || 0) : newPrice,
+        appliedPricingKey: pricingKey,
+      };
     });
   }
 
   return newCart;
+};
+
+const sumCart = (items) =>
+  Object.values(items).reduce(
+    (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
+    0
+  );
+
+// Qualification is always measured at the customer's permanent role prices.
+// The selected higher role is only used to calculate the current order's price.
+const applyOrderPricing = (currentCart, basePricingKey, slabs) => {
+  const basePricedCart = recalculateCartPrices(currentCart, basePricingKey);
+  const qualificationSubtotal = sumCart(basePricedCart);
+
+  const sortedSlabs = [...(slabs || [])].sort(
+    (a, b) => Number(a.qualifyingValue) - Number(b.qualifyingValue)
+  );
+
+  const activeSlab =
+    [...sortedSlabs]
+      .reverse()
+      .find((slab) => qualificationSubtotal >= Number(slab.qualifyingValue)) ||
+    sortedSlabs[0];
+
+  const activePricingKey = activeSlab?.pricingKey || basePricingKey;
+  const pricedCart = recalculateCartPrices(currentCart, activePricingKey, basePricingKey);
+
+  return {
+    cart: pricedCart,
+    qualificationSubtotal,
+    activePricingKey,
+    activeSlab,
+    nextSlab:
+      sortedSlabs.find(
+        (slab) => Number(slab.qualifyingValue) > qualificationSubtotal
+      ) || null,
+  };
 };
 
 /* =======================
@@ -123,9 +171,12 @@ const recalculateCartPrices = (currentCart, pricingKey) => {
 export const CartProvider = ({ children }) => {
 const { roleConfig, userRole } = useAuth();
 
-
-  const pricingKey = roleConfig?.pricingKey || 'wholesaler';
-  const minOrderValue = roleConfig?.minOrderValue || 0;
+  // pricingKey is the customer's permanent role pricing key.
+  // activeOrderPricingKey is selected dynamically from the order-value slabs.
+  const pricingKey = roleConfig?.pricingKey || 'wholesale';
+  const minOrderValue = Number(roleConfig?.minOrderValue || 0);
+  const normalizedRole = String(userRole || 'wholesaler').toLowerCase();
+  const orderPricingSlabs = getOrderPricingSlabs(normalizedRole);
 
   /* =======================
      CART STATE
@@ -156,12 +207,44 @@ const { roleConfig, userRole } = useAuth();
      TOTALS
   ======================= */
 
-  const getCartSubtotal = useCallback(() => {
-    return Object.values(cart).reduce(
-      (sum, item) => sum + Number(item.price || 0) * item.quantity,
-      0
-    );
-  }, [cart]);
+  const basePricedCart = useMemo(
+    () => recalculateCartPrices(cart, pricingKey),
+    [cart, pricingKey]
+  );
+
+  const qualificationSubtotal = useMemo(
+    () => sumCart(basePricedCart),
+    [basePricedCart]
+  );
+
+  const sortedOrderPricingSlabs = useMemo(
+    () =>
+      [...(orderPricingSlabs || [])].sort(
+        (a, b) => Number(a.qualifyingValue) - Number(b.qualifyingValue)
+      ),
+    [orderPricingSlabs]
+  );
+
+  const activeOrderSlab = useMemo(
+    () =>
+      [...sortedOrderPricingSlabs]
+        .reverse()
+        .find((slab) => qualificationSubtotal >= Number(slab.qualifyingValue)) ||
+      sortedOrderPricingSlabs[0] ||
+      { qualifyingValue: 0, pricingKey, label: roleConfig?.label || 'Current tier' },
+    [sortedOrderPricingSlabs, qualificationSubtotal, pricingKey, roleConfig?.label]
+  );
+
+  const activeOrderPricingKey = activeOrderSlab?.pricingKey || pricingKey;
+  const nextOrderSlab = useMemo(
+    () =>
+      sortedOrderPricingSlabs.find(
+        (slab) => Number(slab.qualifyingValue) > qualificationSubtotal
+      ) || null,
+    [sortedOrderPricingSlabs, qualificationSubtotal]
+  );
+
+  const getCartSubtotal = useCallback(() => sumCart(cart), [cart]);
 
   const getCartTotal = useCallback(() => {
     return getCartSubtotal();
@@ -170,6 +253,41 @@ const { roleConfig, userRole } = useAuth();
   const getFinalTotal = useCallback(() => {
     return Math.max(0, getCartSubtotal() - couponDiscount);
   }, [getCartSubtotal, couponDiscount]);
+
+  const currentCartSubtotal = sumCart(cart);
+  const nextTierCartSubtotal = nextOrderSlab
+    ? sumCart(recalculateCartPrices(cart, nextOrderSlab.pricingKey, pricingKey))
+    : currentCartSubtotal;
+  const nextTierSavings = nextOrderSlab
+    ? Math.max(0, currentCartSubtotal - nextTierCartSubtotal)
+    : 0;
+
+  const orderPricing = useMemo(() => ({
+    basePricingKey: pricingKey,
+    activePricingKey: activeOrderPricingKey,
+    activeSlab: activeOrderSlab,
+    nextSlab: nextOrderSlab,
+    slabs: sortedOrderPricingSlabs,
+    qualificationSubtotal,
+    currentSubtotal: currentCartSubtotal,
+    savings: Math.max(0, qualificationSubtotal - currentCartSubtotal),
+    nextTierSavings,
+    nextTierProjectedSubtotal: nextTierCartSubtotal,
+    amountToNextSlab: nextOrderSlab
+      ? Math.max(0, Number(nextOrderSlab.qualifyingValue) - qualificationSubtotal)
+      : 0,
+  }), [
+    pricingKey,
+    activeOrderPricingKey,
+    activeOrderSlab,
+    nextOrderSlab,
+    sortedOrderPricingSlabs,
+    qualificationSubtotal,
+    cart,
+    currentCartSubtotal,
+    nextTierSavings,
+    nextTierCartSubtotal,
+  ]);
 
   /* =======================
      MIN ORDER CHECK
@@ -233,10 +351,10 @@ const { roleConfig, userRole } = useAuth();
           },
         };
 
-        return recalculateCartPrices(updatedCart, pricingKey);
+        return applyOrderPricing(updatedCart, pricingKey, orderPricingSlabs).cart;
       });
     },
-    [pricingKey]
+    [pricingKey, orderPricingSlabs]
   );
 
   /* =======================
@@ -255,10 +373,10 @@ const { roleConfig, userRole } = useAuth();
           newCart[cartItemId].quantity -= 1;
         }
 
-        return recalculateCartPrices(newCart, pricingKey);
+        return applyOrderPricing(newCart, pricingKey, orderPricingSlabs).cart;
       });
     },
-    [pricingKey]
+    [pricingKey, orderPricingSlabs]
   );
 
   /* =======================
@@ -291,10 +409,10 @@ const { roleConfig, userRole } = useAuth();
           delete newCart[cartItemId];
         });
 
-        return recalculateCartPrices(newCart, pricingKey);
+        return applyOrderPricing(newCart, pricingKey, orderPricingSlabs).cart;
       });
     },
-    [pricingKey]
+    [pricingKey, orderPricingSlabs]
   );
 
   const clearCart = useCallback(() => {
@@ -411,13 +529,13 @@ console.log('👤 userRole (from auth):', userRole);
   ======================= */
 
   useEffect(() => {
-    setCart((prev) =>
-      Object.keys(prev).length > 0
-        ? recalculateCartPrices(prev, pricingKey)
-        : prev
-    );
+    setCart((prev) => {
+      if (!Object.keys(prev).length) return prev;
+      return applyOrderPricing(prev, pricingKey, orderPricingSlabs).cart;
+    });
     removeCoupon();
-  }, [pricingKey]);
+    // Recalculate when the permanent role or its slab configuration changes.
+  }, [pricingKey, normalizedRole]);
 
   /* =======================
      CONTEXT VALUE
@@ -436,6 +554,7 @@ console.log('👤 userRole (from auth):', userRole);
     checkMinOrderValue,
 
     pricingKey,
+    orderPricing,
 
     // 🔥 coupon
     applyCoupon,

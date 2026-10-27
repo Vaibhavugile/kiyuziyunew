@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { useCart } from '../components/CartContext';
 import { useAuth } from '../components/AuthContext';
 import './CartPage.css';
+import './OrderPricingSlabs.css';
 import { useNavigate } from 'react-router-dom';
 import {
   doc,
@@ -27,6 +28,7 @@ const CartPage = () => {
     getCartSubtotal,
     getFinalTotal,
     clearCart,
+    orderPricing,
 
     // 🔥 coupon
     applyCoupon,
@@ -54,6 +56,30 @@ const { userRole, roleConfig, currentUser } = useAuth();
 
   const showMinOrderWarning =
     isMinOrderApplicable && !isMinMet;
+
+  const slabSubtotal = Number(orderPricing?.qualificationSubtotal || 0);
+  const orderSlabs = orderPricing?.slabs || [];
+  const activeSlab = orderPricing?.activeSlab;
+  const nextSlab = orderPricing?.nextSlab;
+  const currentSlabThreshold = Number(activeSlab?.qualifyingValue || 0);
+  const nextSlabThreshold = nextSlab ? Number(nextSlab.qualifyingValue) : null;
+  const slabProgress = nextSlabThreshold
+    ? Math.max(
+        0,
+        Math.min(
+          100,
+          ((slabSubtotal - currentSlabThreshold) /
+            Math.max(1, nextSlabThreshold - currentSlabThreshold)) *
+            100
+        )
+      )
+    : 100;
+
+  const formatMoney = (value) =>
+    `₹${Number(value || 0).toLocaleString('en-IN', {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 0,
+    })}`;
 
   /* =====================
      COUPON LOCAL STATE
@@ -179,6 +205,85 @@ const [couponUiError, setCouponUiError] = useState(null);
         <p className="empty-cart-message">Your cart is empty.</p>
       ) : (
         <div className="cart-main-content-wrapper">
+
+          {/* PREMIUM ORDER-VALUE PRICING LADDER */}
+          {orderPricing && orderSlabs.length > 0 && (
+            <section className="order-pricing-progress" aria-label="Order pricing slabs">
+              <div className="order-pricing-heading">
+                <div className="order-pricing-heading-icon" aria-hidden="true">✦</div>
+                <div className="order-pricing-heading-copy">
+                  <span className="order-pricing-eyebrow">SMART ORDER REWARDS</span>
+                  <h3>Unlock better prices as you shop</h3>
+                  <p>Your role stays the same. Better role pricing applies to this order only.</p>
+                </div>
+                <div className="order-pricing-current-badge">
+                  <span className="order-pricing-pulse" />
+                  {activeSlab?.label || 'Current'} Pricing
+                </div>
+              </div>
+
+              <div className="order-pricing-value-row">
+                <div>
+                  <span className="order-pricing-small-label">Qualifying cart value</span>
+                  <strong>{formatMoney(slabSubtotal)}</strong>
+                  <span className="order-pricing-helper">Calculated using your assigned role prices</span>
+                </div>
+                {Number(orderPricing?.savings || 0) > 0 && (
+                  <div className="order-pricing-savings">
+                    <span>✦ Your order savings</span>
+                    <strong>{formatMoney(orderPricing.savings)}</strong>
+                  </div>
+                )}
+              </div>
+
+              <div className="order-pricing-progress-track" aria-label={`${Math.round(slabProgress)} percent to next slab`}>
+                <span style={{ width: `${slabProgress}%` }} />
+              </div>
+
+              <div className="order-pricing-slab-list">
+                {orderSlabs.map((slab, index) => {
+                  const threshold = Number(slab.qualifyingValue || 0);
+                  const unlocked = slabSubtotal >= threshold;
+                  const current = slab.pricingKey === orderPricing.activePricingKey;
+                  return (
+                    <div
+                      key={`${slab.pricingKey}-${threshold}`}
+                      className={[
+                        'order-pricing-slab',
+                        unlocked ? 'is-unlocked' : 'is-locked',
+                        current ? 'is-current' : '',
+                      ].filter(Boolean).join(' ')}
+                    >
+                      <div className="order-pricing-slab-marker">
+                        {unlocked ? '✓' : index + 1}
+                      </div>
+                      <div className="order-pricing-slab-copy">
+                        <strong>{slab.label}</strong>
+                        <span>{threshold === 0 ? 'Starting tier' : `Unlock at ${formatMoney(threshold)}`}</span>
+                        {current && <em>Applied to this order</em>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="order-pricing-footer">
+                {nextSlab ? (
+                  <>
+                    <span className="order-pricing-footer-icon" aria-hidden="true">↗</span>
+                    <p>
+                      Add <strong>{formatMoney(orderPricing.amountToNextSlab)}</strong> more at your assigned-role prices to unlock <strong>{nextSlab.label}</strong> pricing.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <span className="order-pricing-footer-icon" aria-hidden="true">★</span>
+                    <p><strong>You’ve unlocked the highest available pricing tier for this order.</strong></p>
+                  </>
+                )}
+              </div>
+            </section>
+          )}
 
           {/* =====================
               CART ITEMS

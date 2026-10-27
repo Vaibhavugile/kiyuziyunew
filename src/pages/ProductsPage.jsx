@@ -21,6 +21,9 @@ import {
 import { collectionGroup } from "firebase/firestore";
 
 import ProductCard from '../components/ProductCard';
+import OrderPricingPromo from '../components/OrderPricingPromo';
+import StickyOrderPricingBar from '../components/StickyOrderPricingBar';
+import PriceChangeCelebration from '../components/PriceChangeCelebration';
 import { useCart, getPriceForQuantity, createStablePricingId, getCartItemId } from '../components/CartContext';
 import { useAuth } from '../components/AuthContext';
 import './ProductsPage.css';
@@ -79,7 +82,7 @@ const [downloadAction, setDownloadAction] = useState(null);
 
 const [minDownloadQty, setMinDownloadQty] = useState("");
 const [maxDownloadQty, setMaxDownloadQty] = useState("");
-  const { cart, addToCart, removeFromCart, pricingKey } = useCart();
+  const { cart, addToCart, removeFromCart, pricingKey, orderPricing } = useCart();
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('default');
@@ -1055,6 +1058,8 @@ if (qty < minQty || qty > maxQty) {
   // --- JSX RENDER (UNCHANGED) ---
   return (
     <>
+      {/* Full-screen premium celebration when a better order-pricing tier unlocks */}
+      <PriceChangeCelebration orderPricing={orderPricing} />
       <div className="products-page-container">
 
         {/* HEADER */}
@@ -1241,6 +1246,11 @@ if (qty < minQty || qty > maxQty) {
         </div>
         {/* END OF CONTROLS BLOCK */}
 
+        {/* LIVE ORDER-PRICING SLABS — visible while browsing products */}
+        {orderPricing && orderPricing.slabs?.length > 1 && (
+          <OrderPricingPromo orderPricing={orderPricing} />
+        )}
+
         {/* PRODUCTS GRID */}
 {inStockProducts.length === 0 && !isLoadingProducts && !isFetchingMore ? (
     <div className="no-products-message">
@@ -1321,6 +1331,11 @@ if (qty < minQty || qty > maxQty) {
         {/* The hasMore state is now correctly managed for both the Firebase query and the client-side cache */}
 
 
+
+        {/* STICKY ORDER-PRICING BAR — stays visible while scrolling products */}
+        {orderPricing && orderPricing.slabs?.length > 1 && (
+          <StickyOrderPricingBar orderPricing={orderPricing} />
+        )}
 
         {/* VIEW CART OVERLAY */}
         {cartItemsCount > 0 && (

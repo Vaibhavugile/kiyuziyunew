@@ -438,7 +438,7 @@ navigate('/');
         await setDoc(newUserRef, {
           uid: firebaseUser.uid,
           mobile: fullMobileNumber,
-          role: 'wholesaler',
+          role: 'retailer',
           createdAt: new Date(),
         });
 

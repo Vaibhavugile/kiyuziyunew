@@ -1,0 +1,63 @@
+.sticky-order-pricing {
+  position: fixed;
+  z-index: 1000;
+  left: 50%;
+  bottom: 94px;
+  transform: translateX(-50%);
+  width: min(760px, calc(100vw - 32px));
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid rgba(129, 140, 248, .3);
+  border-radius: 16px;
+  color: #172033;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, .18), 0 2px 8px rgba(99, 102, 241, .1);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  animation: sop-enter .42s cubic-bezier(.2,.75,.25,1) both;
+}
+.sop-main { display:flex; align-items:center; gap:12px; min-width:0; padding:10px 13px 9px; }
+.sop-bolt { display:grid; place-items:center; flex:0 0 34px; width:34px; height:34px; border-radius:11px; color:#fff; background:linear-gradient(135deg,#6366f1,#8b5cf6 58%,#10b981); box-shadow:0 5px 13px rgba(99,102,241,.25); animation:sop-glow 2.8s ease-in-out infinite; }
+.sop-values,.sop-next { display:grid; gap:3px; min-width:0; }
+.sop-values { flex:0 0 auto; }
+.sop-caption { display:block; color:#64748b; font-size:8px; line-height:1.1; font-weight:900; letter-spacing:.09em; white-space:nowrap; }
+.sop-total { color:#172033; font-size:18px; line-height:1.05; font-weight:950; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.sop-divider { width:1px; height:30px; flex:0 0 1px; background:#e2e8f0; }
+.sop-next { flex:1; }
+.sop-next > strong { color:#4f46e5; font-size:13px; line-height:1.1; font-weight:900; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.sop-next > strong small { color:#64748b; font-size:9px; font-weight:750; }
+.sop-max { display:flex; align-items:center; gap:5px; color:#059669 !important; }
+.sop-savings { display:grid; gap:3px; flex:0 0 auto; padding:7px 10px; border:1px solid rgba(16,185,129,.2); border-radius:10px; color:#047857; background:linear-gradient(135deg,#ecfdf5,#d1fae5); }
+.sop-savings span { font-size:7px; line-height:1; font-weight:900; letter-spacing:.08em; white-space:nowrap; }
+.sop-savings strong { font-size:14px; line-height:1; font-weight:950; font-variant-numeric:tabular-nums; }
+.sop-arrow { display:grid; place-items:center; flex:0 0 28px; width:28px; height:28px; border-radius:9px; color:#4f46e5; background:#eef2ff; animation:sop-arrow 1.6s ease-in-out infinite; }
+.sop-progress { height:4px; background:#e8eaf4; }
+.sop-progress span { display:block; height:100%; border-radius:0 999px 999px 0; background:linear-gradient(90deg,#6366f1,#8b5cf6 52%,#10b981); box-shadow:0 0 12px rgba(99,102,241,.3); transition:width .55s cubic-bezier(.2,.75,.25,1); }
+@keyframes sop-enter { from { opacity:0; transform:translate(-50%,10px) scale(.985); } to { opacity:1; transform:translate(-50%,0) scale(1); } }
+@keyframes sop-glow { 0%,100% { box-shadow:0 5px 13px rgba(99,102,241,.2); } 50% { box-shadow:0 6px 18px rgba(16,185,129,.25); } }
+@keyframes sop-arrow { 0%,100% { transform:translateX(0); } 50% { transform:translateX(3px); } }
+@media (max-width:640px) {
+  .sticky-order-pricing { bottom:88px; width:calc(100vw - 18px); border-radius:13px; }
+  .sop-main { gap:8px; padding:8px 9px 7px; }
+  .sop-bolt { flex-basis:28px; width:28px; height:28px; border-radius:9px; font-size:11px; }
+  .sop-caption { font-size:6.5px; letter-spacing:.045em; }
+  .sop-total { font-size:15px; }
+  .sop-divider { height:26px; }
+  .sop-next > strong { font-size:11px; }
+  .sop-next > strong small { font-size:8px; }
+  .sop-savings { padding:6px 7px; border-radius:8px; }
+  .sop-savings span { font-size:6px; letter-spacing:.035em; }
+  .sop-savings strong { font-size:12px; }
+  .sop-arrow { flex-basis:23px; width:23px; height:23px; font-size:9px; }
+  .sop-progress { height:3px; }
+}
+@media (max-width:380px) {
+  .sop-main { gap:6px; padding-left:7px; padding-right:7px; }
+  .sop-bolt { flex-basis:25px; width:25px; height:25px; }
+  .sop-total { font-size:13px; }
+  .sop-next > strong { font-size:10px; }
+  .sop-savings { padding:5px; }
+  .sop-savings strong { font-size:11px; }
+  .sop-arrow { display:none; }
+}
+@media (prefers-reduced-motion:reduce) { .sticky-order-pricing,.sop-bolt,.sop-arrow { animation:none !important; } .sop-progress span { transition:none !important; } }
