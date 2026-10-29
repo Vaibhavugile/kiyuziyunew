@@ -3777,7 +3777,7 @@ alert(
             className="admin-menu-item"
             onClick={() => (window.location.href = "/admin/customers")}
           >
-            Roles
+            Users
           </button>
         )}     
 

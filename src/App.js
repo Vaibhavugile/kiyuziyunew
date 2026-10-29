@@ -25,6 +25,7 @@ import CouponUsageHistory from './pages/CouponUsageHistory';
 import CouponAnalytics from './pages/CouponAnalytics';
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import BulkEnquiryList from "./pages/BulkEnquiryList";
+import CustomerSupportWidget from './support/CustomerSupportWidget';
 import BarcodePrintingPage from './pages/BarcodePrintingPage';
 import PartnerApplicationsList from './pages/PartnerApplicationsList';
 import AdminLeadsDashboard from './pages/AdminLeadsDashboard';
@@ -67,6 +68,8 @@ import AdminResellerPayments from './pages/dropshipper/AdminResellerPayments';
 import AdminDailyOrders from "./pages/AdminDailyOrders";
 import RolePricingManagement from './pages/RolePricingManagement';
 import CustomerManagement from './pages/CustomerManagement';
+import CustomerSupportRoute from './support/CustomerSupportRoute';
+import SupportInboxRoute from './support/SupportInboxRoute';
 function App() {
     useEffect(() => {
     initMetaPixel();
@@ -131,6 +134,8 @@ function App() {
               path="/admin/coupons"
               element={<CouponAdmin />}
             />
+            <Route path="/support" element={<CustomerSupportRoute />} />
+          <Route path="/admin/support" element={<SupportInboxRoute />} />
             <Route path="/dropshipper/login" element={<DropshipperLogin />} />
             <Route
   path="/dropshipper/change-password"
@@ -211,10 +216,11 @@ function App() {
 
 
           </Routes>
+          <CustomerSupportWidget />
      {isMainDomain() && (
   <>
     
-    <FloatingContact />
+
         <Footer/>
 
   </>
