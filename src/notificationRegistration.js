@@ -1,62 +1,138 @@
-// src/notificationRegistration.js
 
-import { auth, db } from './firebase';
+import { auth, db } from "./firebase";
 
 import {
-  collection,
   doc,
   getDoc,
   setDoc,
   serverTimestamp,
-} from 'firebase/firestore';
+} from "firebase/firestore";
 
-import { enableWebNotifications } from './notifications';
+import { enableWebNotifications } from "./notifications";
 
 /**
- * Detect the current browser/device platform.
+ * Detect the user's current platform.
  */
 function detectPlatform() {
-  const ua = navigator.userAgent || '';
-  const platform = navigator.userAgentData?.platform || '';
+  if (typeof navigator === "undefined") return "other";
 
-  // Prefer the browser's platform information when available.
-  if (/Windows/i.test(platform)) return 'windows';
-  if (/macOS|Macintosh|Mac OS X/i.test(platform)) return 'macos';
-  if (/Android/i.test(platform)) return 'android';
-  if (/iOS/i.test(platform)) return 'ios';
-  if (/Linux/i.test(platform)) return 'linux';
+  const ua = navigator.userAgent || "";
+  const platform = navigator.userAgentData?.platform || "";
 
-  // Fallback for browsers without User-Agent Client Hints.
-  if (/Android/i.test(ua)) return 'android';
+  if (/Android/i.test(ua)) return "android";
 
-  // iPadOS may report itself as Macintosh.
+  // iPadOS can report Macintosh in Safari.
   if (
-    /iPad/i.test(ua) ||
+    /iPhone|iPad|iPod/i.test(ua) ||
     (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1)
   ) {
-    return 'ios';
+    return "ios";
   }
 
-  if (/iPhone|iPod/i.test(ua)) return 'ios';
-  if (/Windows/i.test(ua)) return 'windows';
-  if (/Macintosh|Mac OS X/i.test(ua)) return 'macos';
-  if (/Linux/i.test(ua)) return 'linux';
+  if (/Windows/i.test(platform) || /Windows/i.test(ua)) {
+    return "windows";
+  }
 
-  return 'other';
+  if (/macOS|Macintosh|Mac OS X/i.test(platform + " " + ua)) {
+    return "macos";
+  }
+
+  if (/Linux/i.test(platform + " " + ua)) {
+    return "linux";
+  }
+
+  return "other";
+}
+
+/**
+ * Check whether this is an installed Home Screen / desktop web app.
+ */
+function isStandaloneApp() {
+  if (typeof window === "undefined") return false;
+
+  return (
+    window.matchMedia?.("(display-mode: standalone)").matches === true ||
+    window.matchMedia?.("(display-mode: fullscreen)").matches === true ||
+    window.navigator.standalone === true
+  );
+}
+
+/**
+ * Check basic browser requirements before requesting notifications.
+ */
+function checkNotificationEnvironment() {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return {
+      success: false,
+      error: "Notifications must be enabled from a browser.",
+    };
+  }
+
+  if (!window.isSecureContext) {
+    return {
+      success: false,
+      error:
+        "Notifications require HTTPS. Open the secure website and try again.",
+    };
+  }
+
+  if (!("Notification" in window)) {
+    return {
+      success: false,
+      error:
+        "This browser does not support web notifications. Try a supported browser.",
+    };
+  }
+
+  if (!("serviceWorker" in navigator)) {
+    return {
+      success: false,
+      error:
+        "This browser does not support the service worker needed for notifications.",
+    };
+  }
+
+  const platform = detectPlatform();
+
+  // iOS/iPadOS web push requires an installed Home Screen web app.
+  if (platform === "ios" && !isStandaloneApp()) {
+    return {
+      success: false,
+      code: "ios-install-required",
+      error:
+        "On iPhone or iPad, first add this website to your Home Screen. Open it from the new Home Screen icon, then enable notifications.",
+    };
+  }
+
+  if (Notification.permission === "denied") {
+    return {
+      success: false,
+      code: "notification-permission-denied",
+      error:
+        "Notifications are blocked for this website. Open your browser or device settings, allow notifications, and try again.",
+    };
+  }
+
+  return { success: true };
 }
 
 /**
  * Get a persistent ID for this browser installation.
+ *
+ * localStorage is used so repeated registrations on the same browser
+ * normally update the same Firestore device document.
  */
 function getNotificationDeviceId() {
-  const storageKey = 'notificationDeviceId';
+  const storageKey = "notificationDeviceId";
 
-  let deviceId = localStorage.getItem(storageKey);
+  try {
+    let deviceId = localStorage.getItem(storageKey);
 
-  if (!deviceId) {
+    if (deviceId) return deviceId;
+
     if (
-      typeof crypto !== 'undefined' &&
-      typeof crypto.randomUUID === 'function'
+      typeof crypto !== "undefined" &&
+      typeof crypto.randomUUID === "function"
     ) {
       deviceId = crypto.randomUUID();
     } else {
@@ -65,48 +141,74 @@ function getNotificationDeviceId() {
     }
 
     localStorage.setItem(storageKey, deviceId);
-  }
 
-  return deviceId;
+    return deviceId;
+  } catch (error) {
+    // Do not silently generate a new ID on every call if storage is blocked.
+    throw new Error(
+      "Browser storage is unavailable. Please allow site data and try again."
+    );
+  }
 }
 
 /**
- * Enable notifications and save this device's FCM token to Firestore.
+ * Register this browser's FCM token and save it to Firestore.
  *
  * Firestore path:
  * users/{uid}/notificationDevices/{deviceId}
+ *
+ * Call this function after a user action, such as tapping
+ * "Enable notifications".
  */
 export async function registerAndSaveNotificationDevice() {
   try {
-    if (typeof window === 'undefined') {
-      throw new Error('This action must run in a browser.');
-    }
-
     const user = auth.currentUser;
 
     if (!user) {
-      throw new Error(
-        'Please sign in before registering this notification device.'
-      );
+      return {
+        success: false,
+        code: "not-authenticated",
+        error: "Please sign in before enabling notifications.",
+      };
     }
 
+    const environment = checkNotificationEnvironment();
+
+    if (!environment.success) {
+      return environment;
+    }
+
+    // This existing helper requests permission as needed and retrieves
+    // the FCM token using the configured Firebase messaging setup.
     const result = await enableWebNotifications();
 
-    if (!result.success || !result.token) {
-      throw new Error(
-        result.error || 'Firebase did not generate an FCM token.'
-      );
+    if (!result?.success || !result?.token) {
+      return {
+        success: false,
+        code: result?.code || "fcm-token-unavailable",
+        error:
+          result?.error ||
+          "Firebase could not generate a notification token. Please try again.",
+      };
+    }
+
+    // Permission may have changed or been denied during the request.
+    if (Notification.permission !== "granted") {
+      return {
+        success: false,
+        code: "permission-not-granted",
+        error:
+          "Notification permission was not granted. Allow notifications and try again.",
+      };
     }
 
     const deviceId = getNotificationDeviceId();
 
     const deviceRef = doc(
-      collection(
-        db,
-        'users',
-        user.uid,
-        'notificationDevices'
-      ),
+      db,
+      "users",
+      user.uid,
+      "notificationDevices",
       deviceId
     );
 
@@ -115,8 +217,9 @@ export async function registerAndSaveNotificationDevice() {
     const deviceData = {
       token: result.token,
       platform: detectPlatform(),
-      userAgent: navigator.userAgent || '',
+      userAgent: navigator.userAgent || "",
       enabled: true,
+      installedApp: isStandaloneApp(),
       updatedAt: serverTimestamp(),
     };
 
@@ -126,38 +229,46 @@ export async function registerAndSaveNotificationDevice() {
 
     await setDoc(deviceRef, deviceData, { merge: true });
 
-    // Verify that the token was written successfully.
+    // Verify the write.
     const savedSnapshot = await getDoc(deviceRef);
 
     if (
       !savedSnapshot.exists() ||
-      savedSnapshot.data().token !== result.token
+      savedSnapshot.data()?.token !== result.token ||
+      savedSnapshot.data()?.enabled !== true
     ) {
-      throw new Error(
-        'The notification token could not be verified in Firestore.'
-      );
+      return {
+        success: false,
+        code: "firestore-verification-failed",
+        error:
+          "The device token could not be verified in Firestore. Please try again.",
+      };
     }
 
-    console.info(
-      'Notification device saved successfully:',
-      deviceRef.path
-    );
+    console.info("Notification device registered:", {
+      path: deviceRef.path,
+      platform: deviceData.platform,
+      installedApp: deviceData.installedApp,
+    });
 
     return {
       success: true,
-      message: 'Notifications enabled and this device registered successfully.',
+      message: "Notifications enabled for this device.",
+      platform: deviceData.platform,
+      installedApp: deviceData.installedApp,
     };
   } catch (error) {
-    console.error('Notification device registration failed:', {
-      code: error?.code || 'unknown',
+    console.error("Notification device registration failed:", {
+      code: error?.code || "unknown",
       message: error?.message || String(error),
     });
 
     return {
       success: false,
-      error: `${error?.code || 'error'}: ${
-        error?.message || 'Could not register this device.'
-      }`,
+      code: error?.code || "registration-failed",
+      error:
+        error?.message ||
+        "Could not register this device. Please try again.",
     };
   }
 }
