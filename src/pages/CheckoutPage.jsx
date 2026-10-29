@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useCart } from '../components/CartContext';
 import { useAuth } from '../components/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase'
 import { getRoleConfig } from '../config/roles';
 import { trackMetaEvent } from "../utils/pixels";
+import { trackCustomerActivity } from "../utils/customerActivity";
 const SHIPPING_FEE = 249;
 
 const CheckoutPage = () => {
@@ -45,6 +46,7 @@ const CheckoutPage = () => {
   const isOnlinePayment = roleConfig.paymentMode === 'ONLINE';
 
   const [invalidItems, setInvalidItems] = useState([]);
+  const checkoutTrackedRef = useRef(false);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -60,24 +62,40 @@ const CheckoutPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
 
-React.useEffect(() => {
+useEffect(() => {
+  const items = Object.values(cart || {});
+  if (!items.length || checkoutTrackedRef.current) return;
 
-  if (Object.values(cart).length > 0) {
+  checkoutTrackedRef.current = true;
+  const cartValue = Number(getFinalTotal() || 0);
+  const itemCount = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  const activityItems = items.slice(0, 50).map(item => ({
+    productId: item.id || null,
+    productCode: item.productCode || null,
+    productName: item.productName || null,
+    quantity: Number(item.quantity || 0),
+    unitPrice: Number(item.price || 0),
+    variation: item.variation || null
+  }));
 
-    trackMetaEvent("InitiateCheckout", {
-      content_ids: Object.values(cart).map(item => item.id),
-      content_type: "product",
-      value: getFinalTotal(),
-      currency: "INR",
-      num_items: Object.values(cart).reduce(
-        (sum, item) => sum + item.quantity,
-        0
-      )
-    });
+  trackCustomerActivity('checkout_started', {
+    cartValue,
+    currency: 'INR',
+    itemCount,
+    itemKinds: items.length,
+    items: activityItems,
+    shippingFee: SHIPPING_FEE,
+    userRole: userRole || null
+  });
 
-  }
-
-}, []);
+  trackMetaEvent("InitiateCheckout", {
+    content_ids: items.map(item => item.id),
+    content_type: "product",
+    value: cartValue + SHIPPING_FEE,
+    currency: "INR",
+    num_items: itemCount
+  });
+}, [cart, getFinalTotal, userRole]);
 const loadRazorpay = () =>
   new Promise((resolve) => {
     const script = document.createElement('script');
@@ -217,6 +235,24 @@ const loadRazorpay = () =>
       subtotal - couponDiscountFinal + SHIPPING_FEE;
 
 
+    trackCustomerActivity('checkout_details_submitted', {
+      cartValue: Number(totalWithShipping || 0),
+      subtotal: Number(subtotal || 0),
+      shippingFee: SHIPPING_FEE,
+      couponCode: appliedCoupon?.code || null,
+      couponDiscount: Number(couponDiscountFinal || 0),
+      itemCount: validatedItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+      itemKinds: validatedItems.length,
+      items: validatedItems.slice(0, 50).map(item => ({
+        productId: item.productId,
+        productCode: item.productCode,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.priceAtTimeOfOrder,
+        variation: item.variation || null
+      }))
+    });
+
     const orderData = {
       userId: currentUser?.uid || 'guest',
       role: userRole || 'retail',
@@ -276,9 +312,28 @@ const loadRazorpay = () =>
       const createdOrderId = data.orderId;
 
       console.log('✅ Order created with ID:', createdOrderId);
+      trackCustomerActivity('checkout_order_created', {
+        orderId: createdOrderId || null,
+        orderStatus: 'Pending',
+        totalAmount: Number(totalWithShipping || 0),
+        currency: 'INR',
+        paymentMode: isOnlinePayment ? 'ONLINE' : 'MANUAL',
+        itemCount: validatedItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+        itemKinds: validatedItems.length
+      });
 
       // 🔀 STEP 7: Branch payment flow
       if (!isOnlinePayment) {
+
+  trackCustomerActivity('order_placed', {
+    orderId: createdOrderId || null,
+    orderStatus: 'Pending',
+    totalAmount: Number(totalWithShipping || 0),
+    currency: 'INR',
+    paymentMode: 'MANUAL',
+    itemCount: validatedItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+    itemKinds: validatedItems.length
+  });
 
   trackMetaEvent("Purchase", {
     content_ids: Object.values(cart).map(item => item.id),
@@ -311,6 +366,11 @@ await startRazorpayPayment(
 
     } catch (err) {
       if (err.message !== "VALIDATION_FAILED") {
+        trackCustomerActivity('checkout_order_failed', {
+          reason: String(err.message || 'Order failed').slice(0, 250),
+          cartValue: Number((getFinalTotal() || 0) + SHIPPING_FEE),
+          currency: 'INR'
+        });
         setError(err.message || "Order failed.");
       }
     } finally {
@@ -318,8 +378,20 @@ await startRazorpayPayment(
     }
   };
 const startRazorpayPayment = async (orderId, amount) => {
+  trackCustomerActivity('checkout_payment_started', {
+    orderId: orderId || null,
+    paymentMode: 'ONLINE',
+    totalAmount: Number(amount || 0),
+    currency: 'INR'
+  });
+
   const res = await loadRazorpay();
   if (!res) {
+    trackCustomerActivity('checkout_payment_failed', {
+      orderId: orderId || null,
+      totalAmount: Number(amount || 0),
+      reason: 'Razorpay SDK failed to load'
+    });
     setError("Razorpay SDK failed to load");
     return;
   }
@@ -338,6 +410,11 @@ const startRazorpayPayment = async (orderId, amount) => {
   );
 
   if (!orderRes.ok) {
+    trackCustomerActivity('checkout_payment_failed', {
+      orderId: orderId || null,
+      totalAmount: Number(amount || 0),
+      reason: 'Failed to initialize payment'
+    });
     setError("Failed to initialize payment");
     return;
   }
@@ -355,7 +432,7 @@ const startRazorpayPayment = async (orderId, amount) => {
 
     handler: async function (response) {
       // 🔐 STEP 3: Verify payment on backend
-      await fetch(
+      const verifyRes = await fetch(
         "https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/markOrderPaid",
         {
           method: "POST",
@@ -368,6 +445,33 @@ const startRazorpayPayment = async (orderId, amount) => {
           }),
         }
       );
+
+      if (!verifyRes.ok) {
+        trackCustomerActivity('checkout_payment_verification_failed', {
+          orderId: orderId || null,
+          paymentId: response.razorpay_payment_id || null,
+          totalAmount: Number(amount || 0)
+        });
+        setError("Payment verification is pending. Please contact support before trying to pay again.");
+        return;
+      }
+
+      trackCustomerActivity('checkout_payment_completed', {
+        orderId: orderId || null,
+        paymentId: response.razorpay_payment_id || null,
+        razorpayOrderId: response.razorpay_order_id || null,
+        totalAmount: Number(amount || 0),
+        currency: 'INR',
+        paymentMode: 'ONLINE'
+      });
+
+      trackCustomerActivity('order_placed', {
+        orderId: orderId || null,
+        orderStatus: 'Paid',
+        totalAmount: Number(amount || 0),
+        currency: 'INR',
+        paymentMode: 'ONLINE'
+      });
 
       trackMetaEvent("Purchase", {
   content_ids: Object.values(cart).map(item => item.id),
@@ -382,6 +486,16 @@ const startRazorpayPayment = async (orderId, amount) => {
 
 clearCart();
 navigate("/order-success");
+    },
+
+    modal: {
+      ondismiss: () => {
+        trackCustomerActivity('checkout_payment_dismissed', {
+          orderId: orderId || null,
+          totalAmount: Number(amount || 0),
+          paymentMode: 'ONLINE'
+        });
+      }
     },
 
     prefill: {

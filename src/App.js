@@ -71,6 +71,7 @@ import CustomerManagement from './pages/CustomerManagement';
 import CustomerSupportRoute from './support/CustomerSupportRoute';
 import SupportInboxRoute from './support/SupportInboxRoute';
 import PostLoginNotificationPrompt from './PostLoginNotificationPrompt';
+import CustomerActivityReport from './pages/CustomerActivityReport';
 function App() {
     useEffect(() => {
     initMetaPixel();
@@ -127,6 +128,8 @@ function App() {
                 path="/admin/reseller-payments/:sellerId"
                 element={<AdminResellerPayments />}
               />
+              <Route path="/admin/customer-activity" element={<CustomerActivityReport />} />
+
               <Route
                 path="/admin/customers"
                 element={<CustomerManagement />}

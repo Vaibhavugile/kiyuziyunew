@@ -3652,6 +3652,7 @@ alert(
       "roles",
       "custmin",
       "custcare",
+      "custrepo",
 
     ],
 
@@ -3789,7 +3790,14 @@ alert(
             customer care
           </button>
         )}     
-
+ {ROLE_PERMISSIONS[currentUserRole]?.includes("custrepo") && (
+          <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/customer-activity")}
+          >
+            customer report
+          </button>
+        )}  
 
         {ROLE_PERMISSIONS[currentUserRole]?.includes("editOrders") && (
           <button

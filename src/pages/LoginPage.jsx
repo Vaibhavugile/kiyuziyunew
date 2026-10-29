@@ -18,6 +18,7 @@ import {
 import '../styles/LoginPage.css';
 import LogoImage from '../assets/logoj.png';
 import { trackMetaEvent } from "../utils/pixels";
+import { trackCustomerActivity } from "../utils/customerActivity";
 const countryCodes = [
   { code: "+91", name: "India" },
   { code: "+93", name: "Afghanistan" },
@@ -424,6 +425,11 @@ setInfo('OTP sent successfully. Please check your WhatsApp.');
           lastLogin: new Date(),
         });
 
+        // Best-effort activity tracking; never block successful login.
+        await trackCustomerActivity('login', {
+          method: 'WhatsApp OTP',
+        });
+
         // Delete the OLD document (only if the IDs are different)
         if (oldDocId !== firebaseUser.uid) {
           const oldDocRef = doc(db, 'users', oldDocId);
@@ -493,6 +499,11 @@ navigateHomeAfterLogin();
         country: userCountry,
         address: userAddress,
       }, { merge: true });
+
+      // Best-effort activity tracking after the profile is saved.
+      await trackCustomerActivity('signup_completed', {
+        method: 'WhatsApp OTP',
+      });
 
       setInfo('Sign up successful! Redirecting...');
 
