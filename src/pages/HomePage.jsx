@@ -12,6 +12,7 @@ import BulkEnquirySection from '../components/BulkEnquirySection';
 import InstagramReelsSection from "../components/InstagramReelsSection";
 import Topbar from "../components/Topbar";
 import { trackMetaEvent } from "../utils/pixels";
+import EnableNotificationsButton from "../Enablenotification";
 const HomePage = () => {
   const [collections, setCollections] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -151,7 +152,7 @@ const HomePage = () => {
 </section>
       {/* <InstagramReelsSection /> */}
     {/* <BulkEnquirySection /> */}
-  
+  <EnableNotificationsButton />
 
 
       {/* Other sections */}

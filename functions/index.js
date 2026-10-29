@@ -531,3 +531,191 @@ exports.notifyCustomerNewMessage =
       }
     }
   );
+
+////////////////////////////////////////////////////////////
+// SUPPORT TICKET PUSH NOTIFICATIONS
+// Customer message -> assigned staff, or superadmin fallback
+// Staff reply -> ticket customer
+////////////////////////////////////////////////////////////
+
+const SUPPORT_NOTIFICATION_STAFF_ROLES = [
+  "superadmin",
+  "manager",
+  "sales",
+  "admin",
+  "support",
+];
+
+exports.notifySupportTicketMessages = onDocumentCreated(
+  {
+    document: "supportTickets/{ticketId}/messages/{messageId}",
+    region: "asia-south1",
+  },
+  async (event) => {
+    try {
+      if (!event.data) {
+        console.log("Support notification: missing message event data.");
+        return;
+      }
+
+      const message = event.data.data() || {};
+      const { ticketId, messageId } = event.params;
+
+      const ticketRef = db.collection("supportTickets").doc(ticketId);
+      const ticketSnap = await ticketRef.get();
+
+      if (!ticketSnap.exists) {
+        console.log(`Support ticket not found: ${ticketId}`);
+        return;
+      }
+
+      const ticket = ticketSnap.data() || {};
+      const senderUid = String(message.senderUid || "");
+      const senderRole = String(message.senderRole || "").toLowerCase();
+
+      if (!senderUid) {
+        console.log(`Message ${messageId} has no senderUid.`);
+        return;
+      }
+
+      const messageText = String(
+        message.text ||
+        (message.attachment ? "Sent an attachment." : "Sent a message.")
+      ).trim().slice(0, 500);
+
+      let recipients = [];
+      let title = "";
+      let url = "/";
+
+      // CUSTOMER -> assigned staff, or superadmin if unassigned.
+      if (senderRole === "customer") {
+        if (ticket.customerUid !== senderUid) {
+          console.warn(
+            `Customer sender does not match ticket owner: ${ticketId}`
+          );
+          return;
+        }
+
+        if (ticket.assignedTo) {
+          recipients = [String(ticket.assignedTo)];
+        } else {
+          const staffSnap = await db
+            .collection("users")
+            .where("role", "==", "superadmin")
+            .get();
+
+          recipients = staffSnap.docs.map((doc) => doc.id);
+        }
+
+        title = `New support message: ${ticket.subject || "Support request"}`;
+        url = "/";
+
+      // STAFF -> customer who owns this ticket.
+      } else if (SUPPORT_NOTIFICATION_STAFF_ROLES.includes(senderRole)) {
+        if (!ticket.customerUid) {
+          console.warn(`Ticket ${ticketId} has no customerUid.`);
+          return;
+        }
+
+        recipients = [String(ticket.customerUid)];
+        title = "Support replied to your message";
+        url = "/";
+
+      } else {
+        console.log(
+          `Unsupported sender role "${senderRole}" for ticket ${ticketId}.`
+        );
+        return;
+      }
+
+      // Never send a notification to the person who sent the message.
+      recipients = [
+        ...new Set(
+          recipients.filter((uid) => uid && uid !== senderUid)
+        ),
+      ];
+
+      if (!recipients.length) {
+        console.log(`No notification recipients for ticket ${ticketId}.`);
+        return;
+      }
+
+      let sentCount = 0;
+      let failedCount = 0;
+
+      for (const recipientUid of recipients) {
+        const devicesSnap = await db
+          .collection("users")
+          .doc(recipientUid)
+          .collection("notificationDevices")
+          .get();
+
+        for (const deviceDoc of devicesSnap.docs) {
+          const device = deviceDoc.data() || {};
+          const token = String(device.token || "").trim();
+
+          if (!token || device.enabled === false) {
+            continue;
+          }
+
+          try {
+            await messaging.send({
+              token,
+
+              // Data-only payload: the website service worker displays
+              // the notification using data.title, data.body and data.url.
+              data: {
+                title,
+                body: messageText || "You have a new support message.",
+                url,
+                type: "support_message",
+                ticketId: String(ticketId),
+                messageId: String(messageId),
+              },
+
+              webpush: {
+                headers: {
+                  Urgency: "high",
+                },
+              },
+            });
+
+            sentCount++;
+          } catch (error) {
+            failedCount++;
+
+            console.error(
+              `Push failed for recipient ${recipientUid}, device ${deviceDoc.id}:`,
+              error.code || error.message
+            );
+
+            // Remove only tokens Firebase confirms are invalid.
+            if (
+              error.code ===
+                "messaging/registration-token-not-registered" ||
+              error.code === "messaging/invalid-registration-token"
+            ) {
+              await deviceDoc.ref.delete().catch((deleteError) => {
+                console.error(
+                  "Could not delete invalid notification device:",
+                  deleteError.message
+                );
+              });
+            }
+          }
+        }
+      }
+
+      console.log(
+        `Support push complete. Ticket=${ticketId}, ` +
+        `sent=${sentCount}, failed=${failedCount}`
+      );
+    } catch (error) {
+      console.error(
+        "Support ticket notification function failed:",
+        error
+      );
+      throw error;
+    }
+  }
+);

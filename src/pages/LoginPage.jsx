@@ -276,7 +276,17 @@ const LoginPage = () => {
   const [userCountry, setUserCountry] = useState(countryCodes[0].name);
 
   const navigate = useNavigate();
+// Prepare the optional notification prompt after successful login.
+// Any error here must never interrupt authentication.
+const navigateHomeAfterLogin = () => {
+  try {
+    localStorage.setItem('showNotificationPrompt', '1');
+  } catch (error) {
+    console.warn('Could not prepare notification prompt:', error);
+  }
 
+  navigate('/');
+};
   // State to hold the user object after anonymous sign-in, before profile is created
   const [tempUser, setTempUser] = useState(null);
 
@@ -427,7 +437,7 @@ trackMetaEvent("Login", {
   method: "WhatsApp OTP"
 });
 
-navigate('/');
+navigateHomeAfterLogin();
 
       } else {
         // --- NEW USER (SIGN UP) ---
@@ -490,7 +500,7 @@ trackMetaEvent("CompleteRegistration", {
   status: "Success"
 });
 
-setTimeout(() => navigate('/'), 1000);
+setTimeout(() => navigateHomeAfterLogin(), 1000);
 
     } catch (err) {
       console.error('Error during profile setup:', err);

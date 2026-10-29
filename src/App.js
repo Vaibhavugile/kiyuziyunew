@@ -70,6 +70,7 @@ import RolePricingManagement from './pages/RolePricingManagement';
 import CustomerManagement from './pages/CustomerManagement';
 import CustomerSupportRoute from './support/CustomerSupportRoute';
 import SupportInboxRoute from './support/SupportInboxRoute';
+import PostLoginNotificationPrompt from './PostLoginNotificationPrompt';
 function App() {
     useEffect(() => {
     initMetaPixel();
@@ -216,6 +217,7 @@ function App() {
 
 
           </Routes>
+               <PostLoginNotificationPrompt />
           <CustomerSupportWidget />
      {isMainDomain() && (
   <>

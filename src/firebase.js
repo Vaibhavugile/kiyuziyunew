@@ -30,6 +30,12 @@ import {
   signInAnonymously,
 } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import {
+  getMessaging,
+  isSupported,
+  getToken,
+  onMessage,
+} from 'firebase/messaging';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBrxx_BAmHnqKciFqh9E_3Yu6ziRzANnYQ",
@@ -43,6 +49,24 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+// Initialize Firebase Messaging only when supported by the browser.
+export async function getFirebaseMessaging() {
+  try {
+    const supported = await isSupported();
+
+    if (!supported) {
+      console.warn('Firebase Messaging is not supported in this browser.');
+      return null;
+    }
+
+    return getMessaging(app);
+  } catch (error) {
+    console.error('Firebase Messaging initialization failed:', error);
+    return null;
+  }
+}
+
+export { getToken, onMessage };
 const db = getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);

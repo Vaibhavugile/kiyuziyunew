@@ -3651,6 +3651,7 @@ alert(
       "dailyorders",
       "roles",
       "custmin",
+      "custcare",
 
     ],
 
@@ -3780,6 +3781,15 @@ alert(
             Users
           </button>
         )}     
+          {ROLE_PERMISSIONS[currentUserRole]?.includes("custcare") && (
+          <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/support")}
+          >
+            customer care
+          </button>
+        )}     
+
 
         {ROLE_PERMISSIONS[currentUserRole]?.includes("editOrders") && (
           <button
