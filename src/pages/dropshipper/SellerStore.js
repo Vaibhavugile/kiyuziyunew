@@ -94,33 +94,27 @@ const inventoryListeners = useRef([]);
        HOMEPAGE
     =============================== */
 
-    console.time("homepage");
+    console.time("homepage + seller");
 
     const domain = getCleanDomain();
-
     const homepageRef = doc(db, "storeHomepages", domain);
-    const homepageSnap = await getDoc(homepageRef);
+    const sellerQuery = query(
+      collection(db, "users"),
+      where("storeDomain", "==", passedDomain)
+    );
 
-    console.timeEnd("homepage");
+    // These reads are independent, so run them together instead of waiting
+    // for the homepage read before starting the seller lookup.
+    const [homepageSnap, sellerSnap] = await Promise.all([
+      getDoc(homepageRef),
+      getDocs(sellerQuery),
+    ]);
+
+    console.timeEnd("homepage + seller");
 
     if (homepageSnap.exists()) {
       setHomepage(homepageSnap.data());
     }
-
-    /* ===============================
-       SELLER
-    =============================== */
-
-    console.time("seller");
-
-    const sellerSnap = await getDocs(
-      query(
-        collection(db, "users"),
-        where("storeDomain", "==", passedDomain)
-      )
-    );
-
-    console.timeEnd("seller");
 
     if (sellerSnap.empty) {
       console.log("Seller not found");
@@ -142,30 +136,20 @@ const inventoryListeners = useRef([]);
        PRICING
     =============================== */
 
-    console.time("pricing");
-
-    const pricingSnap = await getDocs(
-      collection(db, "dropshipperPricing", sellerId, "pricing")
-    );
-
-    console.timeEnd("pricing");
-
-    const pricingMap = {};
-
-    pricingSnap.docs.forEach(d => {
-      pricingMap[d.id] = d.data();
-    });
-
-    console.log(
-      "Pricing loaded:",
-      Object.keys(pricingMap).length
-    );
-
     /* ===============================
-       PRODUCTS
+       PRICING + FIRST PRODUCT PAGE
+       Independent reads run in parallel.
+       Pagination logic below is unchanged.
     =============================== */
 
-    console.time("products");
+    console.time("pricing + products");
+
+    const pricingRef = collection(
+      db,
+      "dropshipperPricing",
+      sellerId,
+      "pricing"
+    );
 
     const baseRef = collection(
       db,
@@ -177,33 +161,39 @@ const inventoryListeners = useRef([]);
     let q;
 
     if (selectedSubcollection) {
-
-     q = query(
-  baseRef,
-  where("collectionId", "==", selectedCollection),
-  where("subcollectionId", "==", selectedSubcollection),
-  where("enabled", "==", true),
-  ...(searchTerm.trim()
-    ? [where("productCode", "==", searchTerm.trim())]
-    : [limit(25)])
-);
-
-    } else {
-
       q = query(
-  baseRef,
-  where("collectionId", "==", selectedCollection),
-  where("enabled", "==", true),
-  ...(searchTerm.trim()
-    ? [where("productCode", "==", searchTerm.trim())]
-    : [limit(25)])
-);
-
+        baseRef,
+        where("collectionId", "==", selectedCollection),
+        where("subcollectionId", "==", selectedSubcollection),
+        where("enabled", "==", true),
+        ...(searchTerm.trim()
+          ? [where("productCode", "==", searchTerm.trim())]
+          : [limit(25)])
+      );
+    } else {
+      q = query(
+        baseRef,
+        where("collectionId", "==", selectedCollection),
+        where("enabled", "==", true),
+        ...(searchTerm.trim()
+          ? [where("productCode", "==", searchTerm.trim())]
+          : [limit(25)])
+      );
     }
 
-    const storeSnap = await getDocs(q);
+    const [pricingSnap, storeSnap] = await Promise.all([
+      getDocs(pricingRef),
+      getDocs(q),
+    ]);
 
-    console.timeEnd("products");
+    console.timeEnd("pricing + products");
+
+    const pricingMap = {};
+    pricingSnap.docs.forEach(d => {
+      pricingMap[d.id] = d.data();
+    });
+
+    console.log("Pricing loaded:", Object.keys(pricingMap).length);
 
     console.log(
       "FIRST QUERY DOC COUNT:",
@@ -292,24 +282,10 @@ const inventoryListeners = useRef([]);
     p.productId
   );
 
-  console.log("🔎 INVENTORY CHECK:", {
-    storeProductId: p.id,
-    productId: p.productId,
-    productCode: p.productCode,
-    productName: p.productName,
-    path: ref.path,
-  });
-
   const unsub = onSnapshot(
     ref,
     (snap) => {
       if (!snap.exists()) {
-        console.warn("❌ INVENTORY NOT FOUND:", {
-          productName: p.productName,
-          productId: p.productId,
-          path: ref.path,
-        });
-
         setProducts((prev) =>
           prev.map((prod) =>
             prod.id === p.id
@@ -342,14 +318,6 @@ const inventoryListeners = useRef([]);
       } else {
         totalStock = Number(data.quantity || 0);
       }
-
-      console.log("✅ INVENTORY FOUND:", {
-        productName: p.productName,
-        productId: p.productId,
-        inventoryDocId: snap.id,
-        quantity: totalStock,
-        path: ref.path,
-      });
 
       setProducts((prev) =>
         prev.map((prod) => {
@@ -393,98 +361,55 @@ const inventoryListeners = useRef([]);
 
 /* ===============================
    COLLECTIONS + SUBCOLLECTIONS
-   OPTIMIZED
+   Parallel reads; same data and filtering.
 =============================== */
 
 console.time("collections + subcollections");
 
 const subMap = {};
-
 storeProducts.forEach(p => {
-
-  if (!subMap[p.collectionId]) {
-    subMap[p.collectionId] = new Set();
-  }
-
-  subMap[p.collectionId].add(
-    p.subcollectionId
-  );
-
+  if (!subMap[p.collectionId]) subMap[p.collectionId] = new Set();
+  subMap[p.collectionId].add(p.subcollectionId);
 });
 
-const validCollections = [];
-const finalSubMap = {};
+const collectionEntries = await Promise.all(
+  Object.keys(subMap).map(async (colId) => {
+    try {
+      // The collection document and its subcollection list are independent.
+      const [collectionDoc, subSnap] = await Promise.all([
+        getDoc(doc(db, "collections", colId)),
+        getDocs(collection(db, "collections", colId, "subcollections")),
+      ]);
 
-/*
-  Load ONLY collections used
-  by current products
-*/
+      const collectionItem = collectionDoc.exists()
+        ? { id: collectionDoc.id, ...collectionDoc.data() }
+        : null;
 
-for (const colId of Object.keys(subMap)) {
+      const subItems = subSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(sub => subMap[colId].has(sub.id));
 
-  try {
-
-    /* ===============================
-       COLLECTION DOC
-    =============================== */
-
-    const collectionDoc = await getDoc(
-      doc(
-        db,
-        "collections",
-        colId
-      )
-    );
-
-    if (collectionDoc.exists()) {
-
-      validCollections.push({
-        id: collectionDoc.id,
-        ...collectionDoc.data()
-      });
-
+      return { colId, collectionItem, subItems };
+    } catch (err) {
+      console.error("Collection load error:", colId, err);
+      return { colId, collectionItem: null, subItems: [] };
     }
+  })
+);
 
-    /* ===============================
-       SUBCOLLECTIONS
-    =============================== */
+const validCollections = collectionEntries
+  .map(entry => entry.collectionItem)
+  .filter(Boolean);
 
-    const subSnap = await getDocs(
-      collection(
-        db,
-        "collections",
-        colId,
-        "subcollections"
-      )
-    );
-
-    finalSubMap[colId] = subSnap.docs
-      .map(d => ({
-        id: d.id,
-        ...d.data()
-      }))
-      .filter(s =>
-        subMap[colId].has(s.id)
-      );
-
-  } catch (err) {
-
-    console.error(
-      "Collection load error:",
-      colId,
-      err
-    );
-
-  }
-
-}
+const finalSubMap = {};
+collectionEntries.forEach(({ colId, subItems }) => {
+  finalSubMap[colId] = subItems;
+});
 
 setCollections(validCollections);
 setSubcollectionsMap(finalSubMap);
 
-console.timeEnd(
-  "collections + subcollections"
-);
+console.timeEnd("collections + subcollections");
 
 console.log(
   "Collections loaded:",
