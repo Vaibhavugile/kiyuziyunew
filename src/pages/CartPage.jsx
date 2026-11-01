@@ -36,6 +36,13 @@ const CartPage = () => {
     appliedCoupon,
     couponDiscount,
     couponError,
+    availableCredits,
+    creditsLoading,
+    appliedCredits,
+    maximumUsableCredits,
+    creditsError,
+    applyCredits,
+    removeCredits,
   } = useCart();
 
   /* =====================
@@ -93,6 +100,7 @@ const minimumRequired =
      COUPON LOCAL STATE
   ===================== */
   const [couponInput, setCouponInput] = useState('');
+  const [creditInput, setCreditInput] = useState('');
   const [loadingCoupon, setLoadingCoupon] = useState(false);
 const [couponUiError, setCouponUiError] = useState(null);
 
@@ -310,6 +318,38 @@ const [couponUiError, setCouponUiError] = useState(null);
               <span>₹{subtotal.toFixed(2)}</span>
             </div>
 
+            {/* CUSTOMER CREDITS */}
+            <section className="cart-credits-panel">
+              <div className="cart-credits-heading">
+                <div><strong>My Store Credits</strong><small>Use credits to reduce your order total</small></div>
+                <span className="cart-credits-balance">{creditsLoading ? 'Loading…' : formatMoney(availableCredits)}</span>
+              </div>
+              {appliedCredits > 0 ? (
+                <div className="cart-credits-applied">
+                  <span>✓ {formatMoney(appliedCredits)} credits applied</span>
+                  <button type="button" onClick={() => { removeCredits(); setCreditInput(''); }}>Remove</button>
+                </div>
+              ) : (
+                <div className="cart-credits-controls">
+                  <input type="number" min="0" max={maximumUsableCredits} step="0.01" value={creditInput}
+                    onChange={(e) => setCreditInput(e.target.value)}
+                    placeholder={`Amount (up to ${formatMoney(maximumUsableCredits)})`}
+                    disabled={creditsLoading || availableCredits <= 0 || maximumUsableCredits <= 0} />
+                  <button type="button"
+                    onClick={() => { const applied = applyCredits(creditInput === '' ? maximumUsableCredits : Number(creditInput)); setCreditInput(String(applied)); }}
+                    disabled={creditsLoading || availableCredits <= 0 || maximumUsableCredits <= 0 || Number(creditInput) < 0}>Apply</button>
+                </div>
+              )}
+              {availableCredits > 0 && maximumUsableCredits > 0 && appliedCredits === 0 && (
+                <button type="button" className="cart-credits-use-max"
+                  onClick={() => { applyCredits(maximumUsableCredits); setCreditInput(String(maximumUsableCredits)); }}>
+                  Use maximum available ({formatMoney(maximumUsableCredits)})
+                </button>
+              )}
+              {creditsError && <p className="cart-credits-error">{creditsError}</p>}
+              {!creditsLoading && availableCredits <= 0 && <small className="cart-credits-muted">You don't have any credits available yet.</small>}
+            </section>
+
             {/* COUPON SECTION */}
             {/* <div className="coupon-section">
   {!appliedCoupon ? (
@@ -356,6 +396,12 @@ const [couponUiError, setCouponUiError] = useState(null);
                 <span>- ₹{couponDiscount.toFixed(2)}</span>
               </div>
             )} */}
+
+            {appliedCredits > 0 && (
+              <div className="cart-summary-line discount-line cart-credit-discount-line">
+                <p>Credits discount:</p><span>- {formatMoney(appliedCredits)}</span>
+              </div>
+            )}
 
             {/* MINIMUM ORDER */}
             {isMinOrderApplicable && (

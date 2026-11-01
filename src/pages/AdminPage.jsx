@@ -3653,6 +3653,8 @@ alert(
       "custmin",
       "custcare",
       "custrepo",
+      "noti",
+      "sendnoti"
 
     ],
 
@@ -3764,6 +3766,22 @@ alert(
             onClick={() => (window.location.href = "/admin/coupons")}
           >
             Coupons
+          </button>
+        )}
+         {ROLE_PERMISSIONS[currentUserRole]?.includes("noti") && (
+          <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/notification")}
+          >
+            notifications
+          </button>
+        )}
+         {ROLE_PERMISSIONS[currentUserRole]?.includes("sendnoti") && (
+          <button
+            className="admin-menu-item"
+            onClick={() => (window.location.href = "/admin/sendnotification")}
+          >
+            send notification
           </button>
         )}
          {ROLE_PERMISSIONS[currentUserRole]?.includes("roles") && (

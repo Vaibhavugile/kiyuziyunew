@@ -10,6 +10,8 @@ import React, {
 import { useAuth } from './AuthContext';
 import { getOrderPricingSlabs } from '../config/roles';
 import { syncCustomerCart, trackCustomerActivity } from '../utils/customerActivity';
+import { db } from '../firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 /* =======================
    Utility functions
@@ -349,6 +351,32 @@ const { roleConfig, userRole, currentUser } = useAuth();
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponError, setCouponError] = useState(null);
 
+  // Read the live credit balance from users/{uid}. Applying credits locally
+  // does not deduct them; deduction happens only after order/payment success.
+  const [availableCredits, setAvailableCredits] = useState(0);
+  const [creditsLoading, setCreditsLoading] = useState(false);
+  const [appliedCredits, setAppliedCredits] = useState(0);
+  const [creditsError, setCreditsError] = useState(null);
+
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      setAvailableCredits(0);
+      setAppliedCredits(0);
+      setCreditsLoading(false);
+      return undefined;
+    }
+    setCreditsLoading(true);
+    const unsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (snapshot) => {
+      setAvailableCredits(snapshot.exists() ? Math.max(0, Number(snapshot.data()?.creditBalance || 0)) : 0);
+      setCreditsLoading(false);
+    }, (error) => {
+      console.error('[CartContext] Could not load customer credits:', error);
+      setCreditsError('Unable to load your credits. Please refresh and try again.');
+      setCreditsLoading(false);
+    });
+    return unsubscribe;
+  }, [currentUser?.uid]);
+
   /* =======================
      TOTALS
   ======================= */
@@ -397,8 +425,28 @@ const { roleConfig, userRole, currentUser } = useAuth();
   }, [getCartSubtotal]);
 
   const getFinalTotal = useCallback(() => {
-    return Math.max(0, getCartSubtotal() - couponDiscount);
-  }, [getCartSubtotal, couponDiscount]);
+    return Math.max(0, getCartSubtotal() - couponDiscount - appliedCredits);
+  }, [getCartSubtotal, couponDiscount, appliedCredits]);
+
+  const maximumUsableCredits = Math.min(availableCredits, Math.max(0, getCartSubtotal() - couponDiscount));
+
+  useEffect(() => {
+    setAppliedCredits((previous) => Math.min(previous, maximumUsableCredits));
+  }, [maximumUsableCredits]);
+
+  const applyCredits = useCallback((amount = maximumUsableCredits) => {
+    const requested = Math.max(0, Number(amount || 0));
+    const rounded = Math.round(Math.min(requested, maximumUsableCredits) * 100) / 100;
+    setAppliedCredits(rounded);
+    setCreditsError(null);
+    return rounded;
+  }, [maximumUsableCredits]);
+
+  const removeCredits = useCallback(() => {
+    setAppliedCredits(0);
+    setCreditsError(null);
+  }, []);
+
 
   const currentCartSubtotal = sumCart(cart);
   const nextTierCartSubtotal = nextOrderSlab
@@ -569,6 +617,8 @@ const { roleConfig, userRole, currentUser } = useAuth();
     setAppliedCoupon(null);
     setCouponDiscount(0);
     setCouponError(null);
+    setAppliedCredits(0);
+    setCreditsError(null);
   }, []);
 
   /* =======================
@@ -711,6 +761,15 @@ console.log('👤 userRole (from auth):', userRole);
     appliedCoupon,
     couponDiscount,
     couponError,
+
+    // Customer credits
+    availableCredits,
+    creditsLoading,
+    appliedCredits,
+    maximumUsableCredits,
+    creditsError,
+    applyCredits,
+    removeCredits,
   };
 
   return (

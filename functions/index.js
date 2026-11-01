@@ -1,721 +1,211 @@
-const {
-  onDocumentUpdated,
-  onDocumentCreated,
-} = require("firebase-functions/v2/firestore");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { initializeApp } = require("firebase-admin/app");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { getMessaging } = require("firebase-admin/messaging");
+const logger = require("firebase-functions/logger");
 
-const admin = require("firebase-admin");
+initializeApp();
 
-admin.initializeApp();
+const db = getFirestore();
+const REGION = "asia-south1";
 
-const db = admin.firestore();
-const messaging = admin.messaging();
+const ROLE_FIELDS = ["role", "userRole", "accountType", "customerRole", "customerType"];
+const PHONE_FIELDS = ["phoneNumber", "phone", "mobileNumber", "mobile", "whatsappNumber"];
 
-////////////////////////////////////////////////////////////
-/// GET CUSTOMER FCM TOKEN
-////////////////////////////////////////////////////////////
-
-async function getCustomerToken(customerUid) {
-  if (!customerUid) {
-    console.log("❌ Customer UID is missing.");
-    return null;
+function firstValue(data, fields) {
+  for (const key of fields) {
+    const value = data && data[key];
+    if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
   }
+  return "";
+}
+function normalizePhone(value) {
+  return String(value || "").replace(/\D/g, "").replace(/^0+/, "");
+}
+function isAdminUser(data) {
+  if (!data) return false;
+  if (data.isAdmin === true || data.admin === true || data.isSuperAdmin === true) return true;
+  const roles = [data.role, data.userRole, data.accountType, data.type]
+    .filter(Boolean).map(v => String(v).toLowerCase());
+  return roles.some(v => ["admin", "superadmin", "super_admin"].includes(v));
+}
+async function assertAdmin(request) {
+  if (!request.auth || !request.auth.uid) {
+    throw new HttpsError("unauthenticated", "Sign in with an admin account first.");
+  }
+  const uid = request.auth.uid;
+  const allowed = (process.env.ADMIN_UIDS || "").split(",").map(x => x.trim()).filter(Boolean);
+  if (allowed.includes(uid)) return uid;
 
-  console.log(
-    `🔍 Looking for customer: ${customerUid}`
+  const snap = await db.collection("users").doc(uid).get();
+  if (isAdminUser(snap.exists ? snap.data() : null)) return uid;
+
+  throw new HttpsError(
+    "permission-denied",
+    "This account is not authorized to send notification campaigns. Add its UID to ADMIN_UIDS or mark its user document as an admin."
   );
-
-  const userSnap = await db
-    .collection("appUsers")
-    .doc(customerUid)
-    .get();
-
-  if (!userSnap.exists) {
-    console.log(
-      `❌ Appuser not found: ${customerUid}`
-    );
-
-    return null;
+}
+function validatePayload(data) {
+  const title = String(data?.title || "").trim();
+  const body = String(data?.body || "").trim();
+  const imageUrl = String(data?.imageUrl || "").trim();
+  const clickUrl = String(data?.clickUrl || "").trim();
+  if (!title || !body) throw new HttpsError("invalid-argument", "Title and message are required.");
+  if (title.length > 120 || body.length > 500) throw new HttpsError("invalid-argument", "Title or message is too long.");
+  if (imageUrl && !/^https:\/\/.+/i.test(imageUrl)) throw new HttpsError("invalid-argument", "Image URL must use HTTPS.");
+  if (clickUrl && !/^https:\/\/.+/i.test(clickUrl)) throw new HttpsError("invalid-argument", "Destination URL must use HTTPS.");
+  const audience = data.audience || {};
+  const type = audience.type;
+  if (!["all", "role", "phone", "selected"].includes(type)) throw new HttpsError("invalid-argument", "Invalid audience type.");
+  if (type === "role" && !String(audience.role || "").trim()) throw new HttpsError("invalid-argument", "Choose a role.");
+  if (type === "phone" && (!Array.isArray(audience.phoneNumbers) || !audience.phoneNumbers.length)) throw new HttpsError("invalid-argument", "Enter mobile numbers.");
+  if (type === "selected" && (!Array.isArray(audience.userIds) || !audience.userIds.length)) throw new HttpsError("invalid-argument", "Select users.");
+  return { title, body, imageUrl, clickUrl, audience, testOnly: data.testOnly === true };
+}
+async function resolveUsers(audience) {
+  const usersSnap = await db.collection("users").get();
+  const all = usersSnap.docs.map(doc => ({ id: doc.id, data: doc.data() || {} }));
+  if (audience.type === "all") return all;
+  if (audience.type === "role") {
+    const wanted = String(audience.role).trim().toLowerCase();
+    return all.filter(u => firstValue(u.data, ROLE_FIELDS).toLowerCase() === wanted);
   }
-
-  const userData =
-    userSnap.data() || {};
-
-  const token =
-    userData.fcmToken;
-
-  if (
-    typeof token !== "string" ||
-    token.trim().length === 0
-  ) {
-    console.log(
-      `❌ No FCM token found for customer: ${customerUid}`
-    );
-
-    return null;
+  if (audience.type === "phone") {
+    const wanted = new Set(audience.phoneNumbers.map(normalizePhone).filter(Boolean));
+    return all.filter(u => wanted.has(normalizePhone(firstValue(u.data, PHONE_FIELDS))));
   }
-
-  console.log(
-    `✅ Customer FCM token found.`
-  );
-
-  return token.trim();
+  const ids = new Set(audience.userIds.map(String));
+  return all.filter(u => ids.has(u.id));
 }
 
-////////////////////////////////////////////////////////////
-/// 1. CUSTOMER NOTIFICATION
-///    WHEN ORDER STATUS CHANGES
-////////////////////////////////////////////////////////////
+exports.sendNotificationCampaign = onCall(
+  { region: REGION, timeoutSeconds: 540, memory: "1GiB", maxInstances: 3 },
+  async (request) => {
+    const adminUid = await assertAdmin(request);
+    const payload = validatePayload(request.data || {});
+    const matchedUsers = await resolveUsers(payload.audience);
+    if (!matchedUsers.length) {
+      return { targeted: 0, sent: 0, failed: 0, usersMatched: 0, campaignId: null, message: "No matching users." };
+    }
 
-exports.notifyCustomerOrderStatus =
-  onDocumentUpdated(
-    {
-      document: "orderChats/{orderId}",
-      region: "asia-south1",
-    },
-
-    async (event) => {
-      ////////////////////////////////////////////////////////
-      /// SAFETY CHECK
-      ////////////////////////////////////////////////////////
-
-      if (!event.data) {
-        console.log(
-          "❌ Event data is missing."
-        );
-
-        return;
-      }
-
-      ////////////////////////////////////////////////////////
-      /// BEFORE / AFTER
-      ////////////////////////////////////////////////////////
-
-      const before =
-        event.data.before.data() || {};
-
-      const after =
-        event.data.after.data() || {};
-
-      const orderId =
-        event.params.orderId;
-
-      ////////////////////////////////////////////////////////
-      /// OLD / NEW STATUS
-      ////////////////////////////////////////////////////////
-
-      const oldStatus =
-        before.orderStatus;
-
-      const newStatus =
-        after.orderStatus;
-
-      console.log(
-        "======================================"
-      );
-
-      console.log(
-        "🔔 ORDER STATUS CHANGE"
-      );
-
-      console.log(
-        `Order ID   : ${orderId}`
-      );
-
-      console.log(
-        `Old Status : ${oldStatus}`
-      );
-
-      console.log(
-        `New Status : ${newStatus}`
-      );
-
-      console.log(
-        "======================================"
-      );
-
-      ////////////////////////////////////////////////////////
-      /// STATUS DID NOT CHANGE
-      ////////////////////////////////////////////////////////
-
-      if (oldStatus === newStatus) {
-        console.log(
-          "ℹ️ Order status did not change."
-        );
-
-        return;
-      }
-
-      ////////////////////////////////////////////////////////
-      /// CUSTOMER UID
-      ///
-      /// We support these possible fields:
-      /// customerUid
-      /// userId
-      /// uid
-      ////////////////////////////////////////////////////////
-
-      const customerUid =
-            orderChat.customerId;
-
-      if (!customerUid) {
-        console.log(
-          `❌ Customer UID missing for order ${orderId}`
-        );
-
-        return;
-      }
-
-      console.log(
-        `👤 Customer UID: ${customerUid}`
-      );
-
-      ////////////////////////////////////////////////////////
-      /// GET CUSTOMER TOKEN
-      ////////////////////////////////////////////////////////
-
-      const token =
-        await getCustomerToken(
-          customerUid
-        );
-
-      if (!token) {
-        console.log(
-          "❌ Customer token unavailable."
-        );
-
-        return;
-      }
-
-      ////////////////////////////////////////////////////////
-      /// STATUS TEXT
-      ////////////////////////////////////////////////////////
-
-      const statusText =
-        String(
-          newStatus || "Updated"
-        );
-
-      ////////////////////////////////////////////////////////
-      /// SEND NOTIFICATION
-      ////////////////////////////////////////////////////////
-
-      try {
-        const response =
-          await messaging.send({
-            token: token,
-
-            notification: {
-              title: "Order Update",
-              body:
-                `Your order status is now ${statusText}.`,
-            },
-
-            data: {
-              type: "order_status",
-              orderId:
-                String(orderId),
-              orderStatus:
-                statusText,
-            },
-
-            android: {
-              priority: "high",
-
-              notification: {
-                channelId:
-                  "orders",
-                sound:
-                  "default",
-              },
-            },
-          });
-
-        console.log(
-          "✅ Customer order status notification sent."
-        );
-
-        console.log(
-          `FCM Response: ${response}`
-        );
-      } catch (error) {
-        console.error(
-          "❌ Failed to send order status notification:"
-        );
-
-        console.error(error);
-
-        //////////////////////////////////////////////////////
-        /// INVALID TOKEN
-        //////////////////////////////////////////////////////
-
-        if (
-          error.code ===
-            "messaging/registration-token-not-registered" ||
-          error.code ===
-            "messaging/invalid-registration-token"
-        ) {
-          try {
-            await db
-              .collection("appUsers")
-              .doc(customerUid)
-              .update({
-                fcmToken:
-                  admin.firestore.FieldValue.delete(),
-              });
-
-            console.log(
-              "🗑️ Invalid FCM token removed."
-            );
-          } catch (deleteError) {
-            console.error(
-              "❌ Failed to remove invalid token:",
-              deleteError
-            );
-          }
-        }
+    const deviceRefs = [];
+    const deviceTokenRecords = [];
+    for (const user of matchedUsers) {
+      const devicesSnap = await db.collection("users").doc(user.id)
+        .collection("notificationDevices").where("enabled", "==", true).get();
+      for (const deviceDoc of devicesSnap.docs) {
+        const token = String(deviceDoc.data()?.token || "").trim();
+        if (!token) continue;
+        deviceRefs.push(deviceDoc.ref);
+        deviceTokenRecords.push({ token, ref: deviceDoc.ref, userId: user.id });
       }
     }
-  );
 
-////////////////////////////////////////////////////////////
-/// 2. CUSTOMER NOTIFICATION
-///    WHEN NEW CHAT MESSAGE IS CREATED
-////////////////////////////////////////////////////////////
-
-exports.notifyCustomerNewMessage =
-  onDocumentCreated(
-    {
-      document:
-        "orderChats/{orderId}/messages/{messageId}",
-
-      region: "asia-south1",
-    },
-
-    async (event) => {
-      ////////////////////////////////////////////////////////
-      /// SAFETY CHECK
-      ////////////////////////////////////////////////////////
-
-      if (!event.data) {
-        console.log(
-          "❌ Message event data missing."
-        );
-
-        return;
-      }
-
-      ////////////////////////////////////////////////////////
-      /// MESSAGE DATA
-      ////////////////////////////////////////////////////////
-
-      const messageData =
-        event.data.data() || {};
-
-      const orderId =
-        event.params.orderId;
-
-      const messageId =
-        event.params.messageId;
-
-      console.log(
-        "======================================"
-      );
-
-      console.log(
-        "💬 NEW ORDER CHAT MESSAGE"
-      );
-
-      console.log(
-        `Order ID   : ${orderId}`
-      );
-
-      console.log(
-        `Message ID : ${messageId}`
-      );
-
-      console.log(
-        "======================================"
-      );
-
-      ////////////////////////////////////////////////////////
-      /// GET ORDER CHAT
-      ////////////////////////////////////////////////////////
-
-      const orderChatSnap =
-        await db
-          .collection("orderChats")
-          .doc(orderId)
-          .get();
-
-      if (!orderChatSnap.exists) {
-        console.log(
-          `❌ Order chat not found: ${orderId}`
-        );
-
-        return;
-      }
-
-      const orderChat =
-        orderChatSnap.data() || {};
-
-      ////////////////////////////////////////////////////////
-      /// CUSTOMER UID
-      ////////////////////////////////////////////////////////
-
-      const customerUid =
-            orderChat.customerId;
-
-      if (!customerUid) {
-        console.log(
-          `❌ Customer UID missing in orderChats/${orderId}`
-        );
-
-        return;
-      }
-
-      console.log(
-        `👤 Customer UID: ${customerUid}`
-      );
-
-      ////////////////////////////////////////////////////////
-      /// MESSAGE SENDER
-      ////////////////////////////////////////////////////////
-
-      const senderUid =
-        messageData.senderUid ||
-        messageData.userId ||
-        messageData.uid ||
-        messageData.createdBy;
-
-      console.log(
-        `Message sender: ${senderUid || "unknown"}`
-      );
-
-      ////////////////////////////////////////////////////////
-      /// DO NOT NOTIFY CUSTOMER
-      /// ABOUT THEIR OWN MESSAGE
-      ////////////////////////////////////////////////////////
-
-      if (
-        senderUid &&
-        senderUid === customerUid
-      ) {
-        console.log(
-          "ℹ️ Customer sent this message."
-        );
-
-        console.log(
-          "ℹ️ Notification skipped."
-        );
-
-        return;
-      }
-
-      ////////////////////////////////////////////////////////
-      /// GET CUSTOMER TOKEN
-      ////////////////////////////////////////////////////////
-
-      const token =
-        await getCustomerToken(
-          customerUid
-        );
-
-      if (!token) {
-        console.log(
-          "❌ Customer FCM token unavailable."
-        );
-
-        return;
-      }
-
-      ////////////////////////////////////////////////////////
-      /// MESSAGE TEXT
-      ////////////////////////////////////////////////////////
-
-      let messageText =
-        messageData.text ||
-        messageData.message ||
-        messageData.content;
-
-      if (
-        !messageText ||
-        String(messageText).trim().length === 0
-      ) {
-        messageText =
-          "You have a new message.";
-      }
-
-      messageText =
-        String(messageText);
-
-      ////////////////////////////////////////////////////////
-      /// SEND NOTIFICATION
-      ////////////////////////////////////////////////////////
-
-      try {
-        const response =
-          await messaging.send({
-            token: token,
-
-            notification: {
-              title: "New Message",
-              body: messageText,
-            },
-
-            data: {
-              type:
-                "order_message",
-
-              orderId:
-                String(orderId),
-
-              messageId:
-                String(messageId),
-            },
-
-            android: {
-              priority: "high",
-
-              notification: {
-                channelId:
-                  "messages",
-                sound:
-                  "default",
-              },
-            },
-          });
-
-        console.log(
-          "✅ Customer message notification sent."
-        );
-
-        console.log(
-          `FCM Response: ${response}`
-        );
-      } catch (error) {
-        console.error(
-          "❌ Failed to send message notification:"
-        );
-
-        console.error(error);
-
-        //////////////////////////////////////////////////////
-        /// INVALID TOKEN
-        //////////////////////////////////////////////////////
-
-        if (
-          error.code ===
-            "messaging/registration-token-not-registered" ||
-          error.code ===
-            "messaging/invalid-registration-token"
-        ) {
-          try {
-            await db
-              .collection("appUsers")
-              .doc(customerUid)
-              .update({
-                fcmToken:
-                  admin.firestore.FieldValue.delete(),
-              });
-
-            console.log(
-              "🗑️ Invalid customer FCM token removed."
-            );
-          } catch (deleteError) {
-            console.error(
-              "❌ Failed to remove invalid token:",
-              deleteError
-            );
-          }
-        }
-      }
+    // Deduplicate tokens across customer/device records.
+    const unique = new Map();
+    for (const item of deviceTokenRecords) if (!unique.has(item.token)) unique.set(item.token, item);
+    const recipients = [...unique.values()];
+    if (!recipients.length) {
+      return { targeted: 0, sent: 0, failed: 0, usersMatched: matchedUsers.length, campaignId: null, message: "No enabled devices with tokens were found." };
     }
-  );
 
-////////////////////////////////////////////////////////////
-// SUPPORT TICKET PUSH NOTIFICATIONS
-// Customer message -> assigned staff, or superadmin fallback
-// Staff reply -> ticket customer
-////////////////////////////////////////////////////////////
+    const campaignRef = payload.testOnly ? null : db.collection("notificationCampaigns").doc();
+    let sent = 0;
+    let failed = 0;
+    let invalidTokens = 0;
+    const messaging = getMessaging();
 
-const SUPPORT_NOTIFICATION_STAFF_ROLES = [
-  "superadmin",
-  "manager",
-  "sales",
-  "admin",
-  "support",
-];
-
-exports.notifySupportTicketMessages = onDocumentCreated(
-  {
-    document: "supportTickets/{ticketId}/messages/{messageId}",
-    region: "asia-south1",
-  },
-  async (event) => {
-    try {
-      if (!event.data) {
-        console.log("Support notification: missing message event data.");
-        return;
-      }
-
-      const message = event.data.data() || {};
-      const { ticketId, messageId } = event.params;
-
-      const ticketRef = db.collection("supportTickets").doc(ticketId);
-      const ticketSnap = await ticketRef.get();
-
-      if (!ticketSnap.exists) {
-        console.log(`Support ticket not found: ${ticketId}`);
-        return;
-      }
-
-      const ticket = ticketSnap.data() || {};
-      const senderUid = String(message.senderUid || "");
-      const senderRole = String(message.senderRole || "").toLowerCase();
-
-      if (!senderUid) {
-        console.log(`Message ${messageId} has no senderUid.`);
-        return;
-      }
-
-      const messageText = String(
-        message.text ||
-        (message.attachment ? "Sent an attachment." : "Sent a message.")
-      ).trim().slice(0, 500);
-
-      let recipients = [];
-      let title = "";
-      let url = "/";
-
-      // CUSTOMER -> assigned staff, or superadmin if unassigned.
-      if (senderRole === "customer") {
-        if (ticket.customerUid !== senderUid) {
-          console.warn(
-            `Customer sender does not match ticket owner: ${ticketId}`
-          );
-          return;
-        }
-
-        if (ticket.assignedTo) {
-          recipients = [String(ticket.assignedTo)];
-        } else {
-          const staffSnap = await db
-            .collection("users")
-            .where("role", "==", "superadmin")
-            .get();
-
-          recipients = staffSnap.docs.map((doc) => doc.id);
-        }
-
-        title = `New support message: ${ticket.subject || "Support request"}`;
-        url = "/";
-
-      // STAFF -> customer who owns this ticket.
-      } else if (SUPPORT_NOTIFICATION_STAFF_ROLES.includes(senderRole)) {
-        if (!ticket.customerUid) {
-          console.warn(`Ticket ${ticketId} has no customerUid.`);
-          return;
-        }
-
-        recipients = [String(ticket.customerUid)];
-        title = "Support replied to your message";
-        url = "/";
-
-      } else {
-        console.log(
-          `Unsupported sender role "${senderRole}" for ticket ${ticketId}.`
-        );
-        return;
-      }
-
-      // Never send a notification to the person who sent the message.
-      recipients = [
-        ...new Set(
-          recipients.filter((uid) => uid && uid !== senderUid)
-        ),
-      ];
-
-      if (!recipients.length) {
-        console.log(`No notification recipients for ticket ${ticketId}.`);
-        return;
-      }
-
-      let sentCount = 0;
-      let failedCount = 0;
-
-      for (const recipientUid of recipients) {
-        const devicesSnap = await db
-          .collection("users")
-          .doc(recipientUid)
-          .collection("notificationDevices")
-          .get();
-
-        for (const deviceDoc of devicesSnap.docs) {
-          const device = deviceDoc.data() || {};
-          const token = String(device.token || "").trim();
-
-          if (!token || device.enabled === false) {
-            continue;
+    for (let i = 0; i < recipients.length; i += 500) {
+      const batch = recipients.slice(i, i + 500);
+      const message = {
+        tokens: batch.map(x => x.token),
+        notification: {
+          title: payload.title,
+          body: payload.body,
+          ...(payload.imageUrl ? { imageUrl: payload.imageUrl } : {})
+        },
+        data: {
+          title: payload.title,
+          body: payload.body,
+          imageUrl: payload.imageUrl || "",
+          clickUrl: payload.clickUrl || "",
+          campaign: campaignRef ? campaignRef.id : "test",
+          type: "admin_campaign"
+        },
+        android: {
+          priority: "high",
+          notification: {
+            ...(payload.imageUrl ? { imageUrl: payload.imageUrl } : {}),
+            ...(payload.clickUrl ? { clickAction: "FLUTTER_NOTIFICATION_CLICK" } : {})
           }
+        },
+        webpush: {
+          headers: { Urgency: "high" },
+          notification: {
+            title: payload.title,
+            body: payload.body,
+            ...(payload.imageUrl ? { image: payload.imageUrl } : {}),
+            ...(payload.clickUrl ? { click_action: payload.clickUrl } : {})
+          },
+          ...(payload.clickUrl ? { fcmOptions: { link: payload.clickUrl } } : {})
+        },
+        apns: {
+          payload: { aps: { sound: "default" } },
+          ...(payload.imageUrl ? { fcmOptions: { image: payload.imageUrl } } : {})
+        }
+      };
 
-          try {
-            await messaging.send({
-              token,
-
-              // Data-only payload: the website service worker displays
-              // the notification using data.title, data.body and data.url.
-              data: {
-                title,
-                body: messageText || "You have a new support message.",
-                url,
-                type: "support_message",
-                ticketId: String(ticketId),
-                messageId: String(messageId),
-              },
-
-              webpush: {
-                headers: {
-                  Urgency: "high",
-                },
-              },
-            });
-
-            sentCount++;
-          } catch (error) {
-            failedCount++;
-
-            console.error(
-              `Push failed for recipient ${recipientUid}, device ${deviceDoc.id}:`,
-              error.code || error.message
-            );
-
-            // Remove only tokens Firebase confirms are invalid.
-            if (
-              error.code ===
-                "messaging/registration-token-not-registered" ||
-              error.code === "messaging/invalid-registration-token"
-            ) {
-              await deviceDoc.ref.delete().catch((deleteError) => {
-                console.error(
-                  "Could not delete invalid notification device:",
-                  deleteError.message
-                );
-              });
-            }
+      const response = await messaging.sendEachForMulticast(message);
+      response.responses.forEach((result, index) => {
+        if (result.success) sent++;
+        else {
+          failed++;
+          const code = result.error?.code || "";
+          if ([
+            "messaging/invalid-registration-token",
+            "messaging/registration-token-not-registered"
+          ].includes(code)) {
+            invalidTokens++;
+            // Remove unusable tokens from the device record.
+            batch[index].ref.update({
+              enabled: false,
+              token: FieldValue.delete(),
+              tokenInvalidatedAt: FieldValue.serverTimestamp()
+            }).catch(err => logger.warn("Could not disable invalid token", err));
           }
         }
-      }
-
-      console.log(
-        `Support push complete. Ticket=${ticketId}, ` +
-        `sent=${sentCount}, failed=${failedCount}`
-      );
-    } catch (error) {
-      console.error(
-        "Support ticket notification function failed:",
-        error
-      );
-      throw error;
+      });
     }
+
+    if (campaignRef) {
+      await campaignRef.set({
+        title: payload.title,
+        body: payload.body,
+        imageUrl: payload.imageUrl || null,
+        clickUrl: payload.clickUrl || null,
+        audience: payload.audience,
+        createdBy: adminUid,
+        createdAt: FieldValue.serverTimestamp(),
+        usersMatched: matchedUsers.length,
+        targeted: recipients.length,
+        sent,
+        failed,
+        invalidTokens,
+        status: "completed"
+      });
+    }
+
+    logger.info("Notification campaign processed", {
+      adminUid, targeted: recipients.length, sent, failed, usersMatched: matchedUsers.length
+    });
+
+    return {
+      campaignId: campaignRef?.id || null,
+      usersMatched: matchedUsers.length,
+      targeted: recipients.length,
+      sent,
+      failed,
+      invalidTokens
+    };
   }
 );

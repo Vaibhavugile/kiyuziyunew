@@ -72,6 +72,8 @@ import CustomerSupportRoute from './support/CustomerSupportRoute';
 import SupportInboxRoute from './support/SupportInboxRoute';
 import PostLoginNotificationPrompt from './PostLoginNotificationPrompt';
 import CustomerActivityReport from './pages/CustomerActivityReport';
+import NotificationSubscribersPage from './NotificationSubscribersPage';
+import NotificationCampaignPage from './NotificationCampaignPage';
 function App() {
     useEffect(() => {
     initMetaPixel();
@@ -109,6 +111,14 @@ function App() {
 <Route
   path="/admin/daily-orders"
   element={<AdminDailyOrders />}
+/>
+<Route
+  path="/admin/notification"
+  element={<NotificationSubscribersPage />}
+/>
+<Route
+  path="/admin/sendnotification"
+  element={<NotificationCampaignPage />}
 />
             <Route path="/custombill" element={<CustomBillingPage/>} />
             <Route path="/collections/:collectionId" element={<SubcollectionsPage />} />

@@ -24,6 +24,7 @@ const CheckoutPage = () => {
     appliedCoupon,
     couponDiscount,
     removeCoupon,
+    appliedCredits,
   } = useCart();
 
 
@@ -231,8 +232,12 @@ const loadRazorpay = () =>
       couponDiscountFinal = result.discount;
     }
 
+    const creditsAppliedFinal = Math.min(
+      Math.max(0, Number(appliedCredits || 0)),
+      Math.max(0, subtotal - couponDiscountFinal)
+    );
     const totalWithShipping =
-      subtotal - couponDiscountFinal + SHIPPING_FEE;
+      subtotal - couponDiscountFinal - creditsAppliedFinal + SHIPPING_FEE;
 
 
     trackCustomerActivity('checkout_details_submitted', {
@@ -241,6 +246,7 @@ const loadRazorpay = () =>
       shippingFee: SHIPPING_FEE,
       couponCode: appliedCoupon?.code || null,
       couponDiscount: Number(couponDiscountFinal || 0),
+      creditsApplied: Number(creditsAppliedFinal || 0),
       itemCount: validatedItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
       itemKinds: validatedItems.length,
       items: validatedItems.slice(0, 50).map(item => ({
@@ -264,15 +270,21 @@ const loadRazorpay = () =>
       status: 'Pending',
       couponCode: appliedCoupon?.code || null,
       couponDiscount: couponDiscountFinal,
+      creditsApplied: creditsAppliedFinal,
+      creditsDiscount: creditsAppliedFinal,
 
     };
 
     try {
+      const idToken = creditsAppliedFinal > 0 ? await currentUser?.getIdToken?.() : null;
+      const requestHeaders = { 'Content-Type': 'application/json' };
+      if (idToken) requestHeaders.Authorization = `Bearer ${idToken}`;
+
       const response = await fetch(
         'https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/placeorderr',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: requestHeaders,
           body: JSON.stringify(orderData),
         }
       );
@@ -295,7 +307,7 @@ const loadRazorpay = () =>
         );
 
         setInvalidItems(invalid);
-        setError("⚠️ Some items are invalid. You can fix the cart automatically.");
+        setError(body.creditsError || "⚠️ Some items are invalid. You can fix the cart automatically.");
         throw new Error("VALIDATION_FAILED");
       }
 
@@ -346,7 +358,8 @@ const loadRazorpay = () =>
     )
   });
 
-  clearCart();
+  // Credits are validated and deducted atomically by placeorderr.
+  clearCart({ reason: 'order_placed' });
   navigate('/order-success');
   return;
 }
@@ -356,10 +369,7 @@ const loadRazorpay = () =>
       // Razorpay will be added in next step
       console.log('🟡 Starting Razorpay for order:', createdOrderId);
 
-await startRazorpayPayment(
-  createdOrderId,
-  totalWithShipping // final amount
-);
+await startRazorpayPayment(createdOrderId, totalWithShipping);
 
 
 
@@ -484,7 +494,8 @@ const startRazorpayPayment = async (orderId, amount) => {
   )
 });
 
-clearCart();
+// Credits were already deducted atomically when placeorderr created the order.
+clearCart({ reason: 'order_placed' });
 navigate("/order-success");
     },
 
@@ -596,6 +607,12 @@ navigate("/order-success");
               <div className="cart-total-section discount-line">
                 <p>Coupon ({appliedCoupon.code})</p>
                 <p>- ₹{couponDiscount.toFixed(2)}</p>
+              </div>
+            )}
+            {appliedCredits > 0 && (
+              <div className="cart-total-section discount-line">
+                <p>Store Credits Applied</p>
+                <p>- ₹{Number(appliedCredits).toFixed(2)}</p>
               </div>
             )}
 

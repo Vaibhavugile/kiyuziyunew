@@ -15,6 +15,9 @@ import {
   documentId,
   setDoc,
   writeBatch,
+  runTransaction,
+  addDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ROLE_CONFIG as DEFAULT_ROLE_CONFIG } from '../config/roles';
@@ -66,6 +69,7 @@ const toCustomer = (snapshot) => {
     uid: data.uid || snapshot.id,
     role: normalise(data.role) || 'retailer',
     minimumOrderValue: getOverride(data.minimumOrderValue),
+    creditBalance: Number.isFinite(Number(data.creditBalance)) ? Number(data.creditBalance) : 0,
     dirty: false,
   };
 };
@@ -93,6 +97,10 @@ export default function CustomerManagement() {
   const [bulkToRole, setBulkToRole] = useState('retailer');
   const [bulkPreviewDocs, setBulkPreviewDocs] = useState([]);
   const [bulkWorking, setBulkWorking] = useState(false);
+  const [creditDrafts, setCreditDrafts] = useState({});
+  const [creditSavingId, setCreditSavingId] = useState(null);
+  const [creditHistory, setCreditHistory] = useState({});
+  const [historyLoadingId, setHistoryLoadingId] = useState(null);
 
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
@@ -343,6 +351,96 @@ export default function CustomerManagement() {
       )
     );
     setNotice('');
+  };
+
+  const updateCreditDraft = (customerId, field, value) => {
+    setCreditDrafts((old) => ({
+      ...old,
+      [customerId]: { action: 'add', amount: '', note: '', ...(old[customerId] || {}), [field]: value },
+    }));
+  };
+
+  const adjustCredits = async (customer) => {
+    if (creditSavingId) return;
+    const draft = creditDrafts[customer.id] || {};
+    const amount = Number(draft.amount);
+    const action = draft.action || 'add';
+    const note = String(draft.note || '').trim();
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError('Enter a credit amount greater than zero.');
+      return;
+    }
+    if (!note) {
+      setError('Please enter a reason for this credit adjustment.');
+      return;
+    }
+
+    setCreditSavingId(customer.id);
+    setError('');
+    setNotice('');
+    try {
+      const userRef = doc(db, 'users', customer.id);
+      const transactionRef = doc(collection(db, 'creditTransactions'));
+      let updatedBalance = 0;
+      let previousBalance = 0;
+
+      await runTransaction(db, async (transaction) => {
+        const userSnapshot = await transaction.get(userRef);
+        if (!userSnapshot.exists()) throw new Error('Customer document no longer exists.');
+        const current = Number(userSnapshot.data().creditBalance || 0);
+        if (!Number.isFinite(current) || current < 0) throw new Error('The existing customer credit balance is invalid.');
+        previousBalance = current;
+        updatedBalance = action === 'deduct' ? current - amount : current + amount;
+        if (updatedBalance < 0) throw new Error('Insufficient credit balance. You cannot deduct more than the available balance.');
+        transaction.update(userRef, { creditBalance: updatedBalance });
+        transaction.set(transactionRef, {
+          userId: customer.id,
+          uid: customer.uid,
+          customerName: customer.name,
+          customerPhone: customer.phone || '',
+          type: action,
+          amount,
+          previousBalance,
+          newBalance: updatedBalance,
+          note,
+          createdAt: serverTimestamp(),
+        });
+      });
+
+      setCustomers((old) => old.map((item) => item.id === customer.id ? { ...item, creditBalance: updatedBalance } : item));
+      setCreditDrafts((old) => ({ ...old, [customer.id]: { action: 'add', amount: '', note: '' } }));
+      setCreditHistory((old) => ({ ...old, [customer.id]: undefined }));
+      setNotice(`${action === 'add' ? 'Added' : 'Deducted'} ${money(amount)} ${action === 'add' ? 'to' : 'from'} ${customer.name}'s credits. New balance: ${money(updatedBalance)}.`);
+    } catch (err) {
+      console.error('Credit adjustment failed:', err);
+      setError(err.message || 'Could not update customer credits.');
+    } finally {
+      setCreditSavingId(null);
+    }
+  };
+
+  const loadCreditHistory = async (customer) => {
+    if (historyLoadingId) return;
+    setHistoryLoadingId(customer.id);
+    setError('');
+    try {
+      const snapshot = await getDocs(query(
+        collection(db, 'creditTransactions'),
+        where('userId', '==', customer.id),
+        orderBy('createdAt', 'desc'),
+        limit(10)
+      ));
+      setCreditHistory((old) => ({
+        ...old,
+        [customer.id]: snapshot.docs.map((item) => ({ id: item.id, ...item.data() })),
+      }));
+    } catch (err) {
+      console.error('Credit history load failed:', err);
+      setError(err.message || 'Could not load credit history. Firestore may require an index for this query.');
+    } finally {
+      setHistoryLoadingId(null);
+    }
   };
 
   const effectiveMinimum = (customer) =>
@@ -847,6 +945,87 @@ export default function CustomerManagement() {
                       </button>
                     </div>
                   </div>
+
+                  <section className="cm-credit-panel" aria-label={`Credits for ${customer.name}`}>
+                    <div className="cm-credit-summary">
+                      <div>
+                        <span className="cm-credit-label">Available credits</span>
+                        <strong>{money(customer.creditBalance)}</strong>
+                      </div>
+                      <button
+                        type="button"
+                        className="cm-btn cm-btn-light"
+                        onClick={() => loadCreditHistory(customer)}
+                        disabled={historyLoadingId === customer.id}
+                      >
+                        {historyLoadingId === customer.id ? 'Loading history...' : 'View history'}
+                      </button>
+                    </div>
+                    <div className="cm-credit-controls">
+                      <label className="cm-field">
+                        <span>Action</span>
+                        <select
+                          value={creditDrafts[customer.id]?.action || 'add'}
+                          onChange={(event) => updateCreditDraft(customer.id, 'action', event.target.value)}
+                        >
+                          <option value="add">Add credits</option>
+                          <option value="deduct">Deduct credits</option>
+                        </select>
+                      </label>
+                      <label className="cm-field">
+                        <span>Amount (₹)</span>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          inputMode="decimal"
+                          placeholder="Enter amount"
+                          value={creditDrafts[customer.id]?.amount || ''}
+                          onChange={(event) => updateCreditDraft(customer.id, 'amount', event.target.value)}
+                        />
+                      </label>
+                      <label className="cm-field cm-credit-note">
+                        <span>Reason / note (required)</span>
+                        <input
+                          type="text"
+                          maxLength={250}
+                          placeholder="e.g. Promotional credit, refund, correction..."
+                          value={creditDrafts[customer.id]?.note || ''}
+                          onChange={(event) => updateCreditDraft(customer.id, 'note', event.target.value)}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="cm-btn cm-btn-primary cm-credit-submit"
+                        onClick={() => adjustCredits(customer)}
+                        disabled={creditSavingId === customer.id || creditSavingId !== null}
+                      >
+                        {creditSavingId === customer.id ? 'Updating...' : 'Confirm adjustment'}
+                      </button>
+                    </div>
+                    {Array.isArray(creditHistory[customer.id]) && (
+                      <div className="cm-credit-history">
+                        <h4>Recent credit transactions</h4>
+                        {creditHistory[customer.id].length === 0 ? (
+                          <p>No credit transactions recorded yet.</p>
+                        ) : creditHistory[customer.id].map((entry) => (
+                          <div className="cm-credit-history-row" key={entry.id}>
+                            <div>
+                              <strong className={entry.type === 'add' ? 'cm-credit-added' : 'cm-credit-deducted'}>
+                                {entry.type === 'add' ? '+' : '−'}{money(entry.amount)} · {entry.type === 'add' ? 'Added' : 'Deducted'}
+                              </strong>
+                              <span>{entry.note || 'No note'}</span>
+                              <small>{entry.createdAt?.toDate ? entry.createdAt.toDate().toLocaleString('en-IN') : 'Date unavailable'}</small>
+                            </div>
+                            <div className="cm-credit-history-balance">
+                              <small>Balance after</small>
+                              <strong>{money(entry.newBalance)}</strong>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
                 </article>
               );
             })}

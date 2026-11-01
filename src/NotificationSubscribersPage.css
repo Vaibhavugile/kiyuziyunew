@@ -1,0 +1,117 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
+
+.ns-page {
+  --ns-ink: #211b16;
+  --ns-muted: #81776d;
+  --ns-line: #eee8df;
+  --ns-paper: #fffdfa;
+  --ns-bg: #f7f5f1;
+  --ns-gold: #a47b45;
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 30px;
+  color: var(--ns-ink);
+  background: var(--ns-bg);
+  font-family: "DM Sans", Arial, sans-serif;
+}
+.ns-page *, .ns-page *::before, .ns-page *::after { box-sizing: border-box; }
+.ns-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin: 0 auto 26px; max-width: 1500px; }
+.ns-eyebrow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: var(--ns-gold); font-size: 10px; font-weight: 800; letter-spacing: 1.8px; }
+.ns-eyebrow-dot { width: 7px; height: 7px; border-radius: 50%; background: #b18a55; box-shadow: 0 0 0 4px #eee3d3; }
+.ns-header h1 { margin: 0; font-family: Manrope, sans-serif; font-size: clamp(25px, 3vw, 34px); line-height: 1.2; font-weight: 800; letter-spacing: -1.2px; }
+.ns-header p { margin: 9px 0 0; color: var(--ns-muted); font-size: 13px; }
+.ns-header-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.ns-button { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; border: 1px solid transparent; border-radius: 10px; font: 700 12px "DM Sans", sans-serif; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease; }
+.ns-button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 7px 18px rgba(35, 27, 18, .09); }
+.ns-button:disabled { opacity: .5; cursor: not-allowed; }
+.ns-button-primary { color: #fff; background: #211b16; }
+.ns-button-secondary { color: #51483f; background: #fffdfa; border-color: #e8e0d5; }
+.ns-refresh-icon { display: inline-block; font-size: 18px; line-height: 1; }
+.ns-refresh-icon.is-spinning { animation: ns-spin .8s linear infinite; }
+@keyframes ns-spin { to { transform: rotate(360deg); } }
+
+.ns-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; max-width: 1500px; margin: 0 auto 20px; }
+.ns-stat-card { min-width: 0; padding: 19px 20px 17px; border: 1px solid var(--ns-line); border-radius: 15px; background: var(--ns-paper); box-shadow: 0 3px 12px rgba(40, 30, 20, .025); }
+.ns-stat-featured { border-color: #e8d9c2; background: linear-gradient(135deg, #fffdfa, #fbf5eb); }
+.ns-stat-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ns-stat-label { color: var(--ns-muted); font-size: 11px; font-weight: 600; }
+.ns-stat-icon { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 10px; color: #927044; background: #f5eee3; font-size: 17px; }
+.ns-stat-card strong { display: block; margin-top: 11px; font: 800 29px Manrope, sans-serif; letter-spacing: -1px; }
+.ns-stat-foot { display: block; margin-top: 4px; color: #a0988e; font-size: 10px; }
+
+.ns-panel { max-width: 1500px; margin: 0 auto; overflow: hidden; border: 1px solid var(--ns-line); border-radius: 16px; background: var(--ns-paper); box-shadow: 0 5px 22px rgba(40, 30, 20, .025); }
+.ns-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 21px 22px 17px; }
+.ns-panel-heading h2 { margin: 0; font: 800 16px Manrope, sans-serif; letter-spacing: -.3px; }
+.ns-panel-heading p { margin: 5px 0 0; color: #958b80; font-size: 11px; }
+.ns-live-indicator { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border-radius: 20px; color: #36734d; background: #edf6ef; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.ns-live-indicator span, .ns-status span { width: 6px; height: 6px; border-radius: 50%; background: #35a363; box-shadow: 0 0 0 3px rgba(53, 163, 99, .12); }
+.ns-filters { display: flex; gap: 10px; padding: 0 22px 17px; }
+.ns-search { flex: 1; min-width: 180px; height: 41px; display: flex; align-items: center; gap: 9px; padding: 0 12px; border: 1px solid #e9e3da; border-radius: 9px; background: #fff; color: #93877a; }
+.ns-search > span { font-size: 20px; }
+.ns-search input { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--ns-ink); background: transparent; font: 12px "DM Sans", sans-serif; }
+.ns-search input::placeholder { color: #aaa198; }
+.ns-search button { border: 0; background: transparent; color: #8a8178; font-size: 19px; cursor: pointer; }
+.ns-filters select { min-width: 145px; height: 41px; padding: 0 32px 0 11px; border: 1px solid #e9e3da; border-radius: 9px; color: #51483f; background: #fff; font: 11px "DM Sans", sans-serif; outline: 0; }
+.ns-table-wrap { width: 100%; overflow-x: auto; border-top: 1px solid #f0ebe4; }
+.ns-table { width: 100%; border-collapse: collapse; text-align: left; white-space: nowrap; }
+.ns-table th { padding: 12px 18px; color: #9a9085; background: #fcfaf7; font-size: 9px; font-weight: 800; letter-spacing: .9px; text-transform: uppercase; }
+.ns-table td { padding: 13px 18px; border-top: 1px solid #f2eee8; font-size: 11px; }
+.ns-table tbody tr { transition: background .15s ease; }
+.ns-table tbody tr:hover { background: #fdfbf8; }
+.ns-customer { display: flex; align-items: center; gap: 11px; min-width: 220px; }
+.ns-avatar { width: 35px; height: 35px; flex: 0 0 35px; display: grid; place-items: center; border-radius: 11px; color: #88683d; background: #f3ebdf; font: 800 13px Manrope, sans-serif; }
+.ns-customer-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ns-customer-info strong { color: #342b23; font-size: 11px; font-weight: 700; }
+.ns-customer-info span, .ns-customer-info small { max-width: 260px; overflow: hidden; color: #958b80; font-size: 10px; text-overflow: ellipsis; }
+.ns-customer-info small { color: #aaa096; }
+.ns-platform { display: inline-flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: 7px; color: #62594f; background: #f4f1ec; font-size: 9px; font-weight: 800; letter-spacing: .3px; }
+.ns-platform-dot { width: 6px; height: 6px; border-radius: 50%; background: #8c8175; }
+.ns-platform-android { color: #287348; background: #edf6ef; }
+.ns-platform-android .ns-platform-dot { background: #32a45e; }
+.ns-platform-ios { color: #4e5660; background: #eff1f3; }
+.ns-platform-ios .ns-platform-dot { background: #59636f; }
+.ns-platform-windows { color: #276b9b; background: #edf5fa; }
+.ns-platform-windows .ns-platform-dot { background: #268ac5; }
+.ns-platform-macos { color: #5d566d; background: #f2eff8; }
+.ns-platform-macos .ns-platform-dot { background: #8872bd; }
+.ns-app-type { color: #6e6255; font-size: 10px; }
+.ns-date { color: #7f766d; font-size: 10px !important; }
+.ns-status { display: inline-flex; align-items: center; gap: 8px; color: #36734d; font-size: 10px; font-weight: 700; }
+.ns-skeleton-row { height: 38px; max-width: 100%; border-radius: 7px; background: linear-gradient(90deg, #f3f0eb 25%, #faf8f5 50%, #f3f0eb 75%); background-size: 200% 100%; animation: ns-shimmer 1.4s infinite; }
+@keyframes ns-shimmer { to { background-position: -200% 0; } }
+.ns-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; min-height: 220px; padding: 25px; text-align: center; }
+.ns-empty-icon { width: 48px; height: 48px; display: grid; place-items: center; margin-bottom: 5px; border-radius: 15px; color: #9c7b4e; background: #f5eee4; font-size: 24px; }
+.ns-empty strong { color: #4a4036; font: 700 13px Manrope, sans-serif; }
+.ns-empty span { color: #9a9085; font-size: 11px; }
+.ns-note { display: flex; align-items: flex-start; gap: 9px; max-width: 1500px; margin: 14px auto 0; padding: 12px 14px; border: 1px solid #eee6d9; border-radius: 10px; color: #887a68; background: #fbf8f2; }
+.ns-note > span { color: #a27d49; font-size: 14px; }
+.ns-note p { margin: 0; font-size: 10px; line-height: 1.65; }
+.ns-note code { padding: 1px 4px; border-radius: 4px; color: #70552f; background: #f0e7d9; }
+.ns-error { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 13px; max-width: 1500px; margin: 0 auto 18px; padding: 13px 15px; border: 1px solid #f1d3ce; border-radius: 10px; color: #8d342b; background: #fff5f3; font-size: 11px; }
+.ns-error strong { font-size: 12px; }
+.ns-error span { flex: 1; min-width: 160px; }
+.ns-error button { border: 0; color: #8d342b; background: transparent; font: 700 11px "DM Sans", sans-serif; cursor: pointer; }
+
+@media (max-width: 1050px) {
+  .ns-page { padding: 22px; }
+  .ns-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 650px) {
+  .ns-page { padding: 16px 12px 24px; }
+  .ns-header { align-items: flex-start; flex-direction: column; gap: 16px; margin-bottom: 19px; }
+  .ns-header-actions { width: 100%; }
+  .ns-header-actions .ns-button { flex: 1; }
+  .ns-stats { gap: 9px; margin-bottom: 13px; }
+  .ns-stat-card { padding: 14px; border-radius: 12px; }
+  .ns-stat-label { font-size: 10px; }
+  .ns-stat-icon { width: 27px; height: 27px; }
+  .ns-stat-card strong { font-size: 24px; }
+  .ns-stat-foot { font-size: 9px; line-height: 1.4; }
+  .ns-panel { border-radius: 12px; }
+  .ns-panel-heading { padding: 17px 14px 14px; }
+  .ns-filters { flex-direction: column; padding: 0 14px 14px; }
+  .ns-filters select { width: 100%; }
+  .ns-table { min-width: 760px; }
+  .ns-table th, .ns-table td { padding-right: 13px; padding-left: 13px; }
+  .ns-note { margin-top: 11px; }
+}
