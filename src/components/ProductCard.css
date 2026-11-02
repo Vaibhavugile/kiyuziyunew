@@ -1859,3 +1859,39 @@
   );
   border-color: #bfe9d1;
 }
+
+
+/* IMAGE PERFORMANCE + SIZING */
+.product-card.pc-premium-card .product-image-container {
+  contain: layout paint;
+}
+
+.product-card.pc-premium-card .product-image-container [data-rmiz],
+.product-card.pc-premium-card .product-image-container [data-rmiz-wrap],
+.product-card.pc-premium-card .product-image-container [data-rmiz-btn-zoom] {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.product-card.pc-premium-card .product-image-container .progressive-img {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #f5eee3;
+}
+
+.product-card.pc-premium-card .product-image-container .progressive-img img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.product-card.pc-premium-card .product-image-container .progressive-img-fallback {
+  min-height: 100%;
+  background: linear-gradient(135deg, #faf4e9, #efe3cf);
+}

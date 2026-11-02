@@ -897,3 +897,16 @@ button.back-to-collections-icon {
 .view-cart-btn-overlay.w-100{
   width:auto !important;
 }
+
+/* PERFORMANCE: let the browser skip layout/paint work for far-off product cards. */
+@supports (content-visibility: auto) {
+  .products-grid > .product-card {
+    content-visibility: auto;
+    contain-intrinsic-size: 440px;
+  }
+}
+
+/* Keep the grid stable while optimized thumbnails decode. */
+.products-grid {
+  align-items: start;
+}

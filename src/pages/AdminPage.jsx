@@ -656,6 +656,150 @@ const finalTotal =
     return await getDownloadURL(snapshot.ref);
   };
 
+  // Convert product uploads to real WebP files before sending them to Firebase.
+  // This does not use URL query parameters; the files themselves are compressed.
+  const createProductImageBlob = async (
+    file,
+    { maxWidth, maxHeight, maxBytes, quality }
+  ) => {
+    if (!file) throw new Error("No product image was selected.");
+
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(file);
+    } catch {
+      // Fallback for browsers where createImageBitmap cannot decode the file.
+      bitmap = await new Promise((resolve, reject) => {
+        const image = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        image.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          resolve(image);
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          reject(new Error(`Could not read image: ${file.name}`));
+        };
+        image.src = objectUrl;
+      });
+    }
+
+    const originalWidth = bitmap.width || bitmap.naturalWidth;
+    const originalHeight = bitmap.height || bitmap.naturalHeight;
+    if (!originalWidth || !originalHeight) {
+      bitmap.close?.();
+      throw new Error(`Invalid image dimensions: ${file.name}`);
+    }
+
+    let width = Math.min(originalWidth, maxWidth);
+    let height = Math.min(originalHeight, maxHeight);
+    const scale = Math.min(width / originalWidth, height / originalHeight, 1);
+    width = Math.max(1, Math.round(originalWidth * scale));
+    height = Math.max(1, Math.round(originalHeight * scale));
+
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d", { alpha: false });
+    if (!context) {
+      bitmap.close?.();
+      throw new Error("Your browser could not prepare the product image.");
+    }
+
+    let outputBlob = null;
+    let currentQuality = quality;
+
+    // Reduce quality and dimensions until the output reaches the target size.
+    for (let attempt = 0; attempt < 14; attempt += 1) {
+      canvas.width = width;
+      canvas.height = height;
+      context.clearRect(0, 0, width, height);
+      context.drawImage(bitmap, 0, 0, width, height);
+
+      outputBlob = await new Promise((resolve) => {
+        canvas.toBlob(resolve, "image/webp", currentQuality);
+      });
+
+      if (!outputBlob) {
+        bitmap.close?.();
+        throw new Error(`WebP conversion failed for ${file.name}.`);
+      }
+
+      if (outputBlob.size <= maxBytes) break;
+
+      if (currentQuality > 0.40) {
+        currentQuality = Math.max(0.40, currentQuality - 0.08);
+      } else {
+        width = Math.max(160, Math.round(width * 0.82));
+        height = Math.max(160, Math.round(height * 0.82));
+        currentQuality = Math.max(0.28, currentQuality - 0.025);
+      }
+    }
+
+    bitmap.close?.();
+    if (!outputBlob || outputBlob.size > maxBytes) {
+      throw new Error(
+        `Could not compress ${file.name} below ${Math.round(maxBytes / 1024)} KB.`
+      );
+    }
+    return outputBlob;
+  };
+
+  const uploadProductImageVariants = async (imageFile, productCode = "product") => {
+    if (!imageFile) return null;
+
+    const safeCode = String(productCode)
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]/g, "-") || "product";
+    const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const variants = [
+      {
+        key: "image",
+        fileName: "image.webp",
+        maxWidth: 1000,
+        maxHeight: 1000,
+        maxBytes: 80 * 1024,
+        quality: 0.78,
+      },
+      {
+        key: "thumbnail",
+        fileName: "thumbnail.webp",
+        maxWidth: 350,
+        maxHeight: 350,
+        maxBytes: 50 * 1024,
+        quality: 0.62,
+      },
+      {
+        key: "medium",
+        fileName: "medium.webp",
+        maxWidth: 700,
+        maxHeight: 700,
+        maxBytes: 80 * 1024,
+        quality: 0.72,
+      },
+    ];
+
+    const result = {};
+    for (const variant of variants) {
+      const blob = await createProductImageBlob(imageFile, variant);
+      const imageRef = ref(
+        storage,
+        `optimized-products/uploads/${safeCode}/${uploadId}/${variant.fileName}`
+      );
+      const snapshot = await uploadBytes(imageRef, blob, {
+        contentType: "image/webp",
+        cacheControl: "public,max-age=31536000,immutable",
+        customMetadata: {
+          originalName: imageFile.name || "product-image",
+          variant: variant.key,
+        },
+      });
+      result[variant.key] = await getDownloadURL(snapshot.ref);
+      result[`${variant.key}Bytes`] = blob.size;
+    }
+
+    return result;
+  };
+
   const deleteImageFromStorage = async (imageUrl) => {
     if (!imageUrl) return;
     try {
@@ -1194,7 +1338,11 @@ useEffect(() => {
         const productData = productSnap.data();
         const imageUrls = [
           productData.image,
+          productData.thumbnail,
+          productData.medium,
           ...(Array.isArray(productData.additionalImages) ? productData.additionalImages : []),
+          ...(Array.isArray(productData.additionalThumbnails) ? productData.additionalThumbnails : []),
+          ...(Array.isArray(productData.additionalMediumImages) ? productData.additionalMediumImages : []),
         ].filter(Boolean);
 
         // A missing/already-deleted Storage image should not prevent Firestore cleanup.
@@ -1695,6 +1843,8 @@ useEffect(() => {
       productName: productData.productName,
       productCode: productData.productCode,
       image: productData.image,
+      thumbnail: productData.thumbnail || productData.image,
+      medium: productData.medium || productData.image,
       collectionId: selectedMainCollectionId,
       subcollectionId: selectedSubcollectionId,
       enabled: true,
@@ -1735,18 +1885,37 @@ const productCollectionRef = collection(
         /* -----------------------------------------
            STEP 1: UPLOAD ALL IMAGES (MAIN + EXTRA)
         ------------------------------------------ */
-        const uploadedImageUrls = [];
+        const uploadedImageVariants = [];
 
         for (const img of product.images || []) {
           if (img.file) {
-            const url = await uploadImageAndGetURL(img.file);
-            uploadedImageUrls.push(url);
+            const variants = await uploadProductImageVariants(
+              img.file,
+              product.productCode
+            );
+            if (variants) uploadedImageVariants.push(variants);
           }
         }
 
-        // Split images
-        const mainImageUrl = uploadedImageUrls[0] || "";
-        const additionalImageUrls = uploadedImageUrls.slice(1);
+        // The main image has three real WebP variants.
+        // Gallery images are also optimized; their medium-sized URLs are used
+        // in the existing additionalImages field for compatibility.
+        const mainVariants = uploadedImageVariants[0] || {};
+        const mainImageUrl = mainVariants.image || "";
+        const mainThumbnailUrl = mainVariants.thumbnail || "";
+        const mainMediumUrl = mainVariants.medium || "";
+        const additionalImageUrls = uploadedImageVariants
+          .slice(1)
+          .map((item) => item.image)
+          .filter(Boolean);
+        const additionalThumbnailUrls = uploadedImageVariants
+          .slice(1)
+          .map((item) => item.thumbnail)
+          .filter(Boolean);
+        const additionalMediumUrls = uploadedImageVariants
+          .slice(1)
+          .map((item) => item.medium)
+          .filter(Boolean);
 
         /* -----------------------------------------
            STEP 2: HANDLE VARIATIONS / QUANTITY
@@ -1777,8 +1946,19 @@ const productCollectionRef = collection(
           productName: product.productName,
           productCode: product.productCode,
 
-          image: mainImageUrl,                      // ✅ main image
-          additionalImages: additionalImageUrls,    // ✅ REQUIRED BY ProductCard
+          image: mainImageUrl,
+          thumbnail: mainThumbnailUrl,
+          medium: mainMediumUrl,
+          additionalImages: additionalImageUrls,
+          additionalThumbnails: additionalThumbnailUrls,
+          additionalMediumImages: additionalMediumUrls,
+          imageFormat: "webp",
+          imageOptimization: {
+            mainBytes: mainVariants.imageBytes || 0,
+            thumbnailBytes: mainVariants.thumbnailBytes || 0,
+            mediumBytes: mainVariants.mediumBytes || 0,
+            optimizedAt: serverTimestamp(),
+          },
 
           quantity: totalQuantity,
             initialQuantity: totalQuantity, 
@@ -1897,13 +2077,16 @@ for (const product of newProducts) {
       /* -----------------------------------------
          STEP 1: UPLOAD ONLY NEW IMAGES
       ------------------------------------------ */
-      const uploadedNewImageUrls = [];
+      const uploadedNewImageVariants = [];
 
       for (const img of additionalImages) {
-        // img.file exists ONLY for newly added images
+        // img.file exists ONLY for newly added images.
         if (img.file) {
-          const url = await uploadImageAndGetURL(img.file);
-          uploadedNewImageUrls.push(url);
+          const variants = await uploadProductImageVariants(
+            img.file,
+            productCode || editingProduct.productCode
+          );
+          if (variants) uploadedNewImageVariants.push(variants);
         }
       }
 
@@ -1914,14 +2097,30 @@ for (const product of newProducts) {
         .filter(img => !img.file && img.previewUrl)
         .map(img => img.previewUrl);
 
+      const existingThumbnailUrls = additionalImages
+        .filter(img => !img.file && img.previewUrl)
+        .map((img, index) => img.thumbnailUrl || editingProduct.additionalThumbnails?.[index] || "");
+
+      const existingMediumUrls = additionalImages
+        .filter(img => !img.file && img.previewUrl)
+        .map((img, index) => img.mediumUrl || editingProduct.additionalMediumImages?.[index] || "");
+
       const allImageUrls = [
         ...(editingProduct.image ? [editingProduct.image] : []),
         ...existingImageUrls,
-        ...uploadedNewImageUrls,
+        ...uploadedNewImageVariants.map(item => item.image),
       ];
 
       const mainImageUrl = allImageUrls[0] || "";
       const additionalImageUrls = allImageUrls.slice(1);
+      const additionalThumbnailUrls = [
+        ...existingThumbnailUrls,
+        ...uploadedNewImageVariants.map(item => item.thumbnail),
+      ].filter(Boolean);
+      const additionalMediumUrls = [
+        ...existingMediumUrls,
+        ...uploadedNewImageVariants.map(item => item.medium),
+      ].filter(Boolean);
 
       /* -----------------------------------------
          STEP 3: HANDLE VARIATIONS / QUANTITY
@@ -1953,8 +2152,13 @@ for (const product of newProducts) {
         productName,
         productCode,
 
-        image: mainImageUrl,                      // ✅ main image
-        additionalImages: additionalImageUrls,    // ✅ what ProductCard expects
+        image: mainImageUrl,
+        thumbnail: editingProduct.thumbnail || "",
+        medium: editingProduct.medium || "",
+        additionalImages: additionalImageUrls,
+        additionalThumbnails: additionalThumbnailUrls,
+        additionalMediumImages: additionalMediumUrls,
+        imageFormat: "webp",
 
         quantity: finalQuantity,
         variations: finalVariations,
@@ -1994,7 +2198,11 @@ for (const product of newProducts) {
       ------------------------------------------ */
       const imageUrls = [
         product.image,
+        product.thumbnail,
+        product.medium,
         ...(product.additionalImages || []),
+        ...(product.additionalThumbnails || []),
+        ...(product.additionalMediumImages || []),
       ];
 
       /* -----------------------------------------

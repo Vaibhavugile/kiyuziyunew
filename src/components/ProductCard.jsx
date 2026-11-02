@@ -92,12 +92,15 @@ const ProductCard = ({
   onToggleHighlight,
   isCart = false,
   cart: passedCart,
+  imagePriority = false,
 }) => {
   const {
     id,
     productName,
     productCode,
     image,
+    thumbnail,
+    medium,
     additionalImages = [],
     variations,
     quantity,
@@ -531,9 +534,12 @@ const ProductCard = ({
         {mainImage ? (
           <Zoom>
             <ProgressiveImage
+              thumbnailSrc={thumbnail}
+              mediumSrc={medium}
               src={mainImage}
               alt={productName}
               className="product-image"
+              priority={imagePriority}
             />
           </Zoom>
         ) : (

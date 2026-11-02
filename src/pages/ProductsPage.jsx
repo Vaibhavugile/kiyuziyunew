@@ -94,22 +94,12 @@ const [maxDownloadQty, setMaxDownloadQty] = useState("");
   const [visibleProductCount, setVisibleProductCount] = useState(PRODUCTS_PER_PAGE);
   const navigate = useNavigate();
   const loadMoreRef = useRef(null);
-  // Prevent re-prefetching same images
-  const prefetchedImagesRef = useRef(new Set());
   const [isDownloadingImages, setIsDownloadingImages] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadStats, setDownloadStats] = useState({
     total: 0,
     completed: 0
   });
-  const getPreviewImage = (url) => {
-    if (!url) return null;
-
-    // Low-cost preview (small size)
-    return `${url}&w=200&quality=40`;
-  };
-
-
   // ---------------------------------------------------------------------
   // ---------------------------------------------------------------------
 
@@ -119,21 +109,26 @@ const [maxDownloadQty, setMaxDownloadQty] = useState("");
       setError(null);
       setIsMetadataReady(false);
       try {
-        // Fetch Main Collection Title
+        // Fetch collection details and subcollections together instead of sequentially.
         const mainCollectionDocRef = doc(db, "collections", collectionId);
-        const mainCollectionDocSnap = await getDoc(mainCollectionDocRef);
+        const subcollectionRef = collection(db, "collections", collectionId, "subcollections");
+
+        const [mainCollectionDocSnap, subcollectionSnapshot] = await Promise.all([
+          getDoc(mainCollectionDocRef),
+          getDocs(subcollectionRef),
+        ]);
+
         if (!mainCollectionDocSnap.exists()) {
           setError(`Main collection "${collectionId}" not found.`);
           console.error(`Metadata Error: Collection "${collectionId}" not found.`);
           return;
         }
+
         const mainData = { id: mainCollectionDocSnap.id, ...mainCollectionDocSnap.data() };
         setMainCollection(mainData);
         console.log(`Metadata Success: Found main collection: ${mainData.title}`);
 
-        // Fetch Subcollections
-        const subcollectionRef = collection(db, "collections", collectionId, "subcollections");
-        const subcollectionSnapshot = await getDocs(subcollectionRef);
+        // Subcollections are already fetched in parallel above.
         const fetchedSubcollections = subcollectionSnapshot.docs.map(doc => ({
           ...doc.data(),
           id: doc.id
@@ -247,38 +242,6 @@ trackMetaEvent("ViewContent", {
     }
     return Array.from(new Set(urls));
   };
-  const prefetchProductImages = useCallback((productsToPrefetch = []) => {
-    productsToPrefetch.forEach((product) => {
-      const mainImage =
-        product?.image || product?.images?.[0] || null;
-
-      if (!mainImage) return;
-
-      const previewUrl = getPreviewImage(mainImage);
-
-      if (!prefetchedImagesRef.current.has(previewUrl)) {
-        const img = new Image();
-        img.src = previewUrl; // ✅ small preview only
-        prefetchedImagesRef.current.add(previewUrl);
-      }
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!products.length) return;
-
-    const PREFETCH_AHEAD = 10; // 👈 number of upcoming products
-    const startIndex = products.length;
-    const nextProducts = allProductsCache.current.slice(
-      startIndex,
-      startIndex + PREFETCH_AHEAD
-    );
-
-    if (nextProducts.length) {
-      prefetchProductImages(nextProducts);
-    }
-  }, [products, prefetchProductImages]);
-
   const handleLoadMoreAll = async () => {
     if (isFetchingMore || !hasMore || !lastVisibleRef.current) return;
 
@@ -325,9 +288,6 @@ trackMetaEvent("ViewContent", {
       const cacheSeen = new Set(allProductsCache.current.map(p => p.id));
       const uniqueForCache = fetched.filter(p => !cacheSeen.has(p.id));
       allProductsCache.current.push(...uniqueForCache);
-
-      // ✅ 3. 🔥 PREFETCH IMAGES FOR NEXT SCROLL (THIS IS THE KEY ADDITION)
-      prefetchProductImages(uniqueNewProducts);
 
       // ✅ 4. Update cursor
       lastVisibleRef.current = snap.docs[snap.docs.length - 1];
@@ -669,6 +629,8 @@ else if (sortBy === 'qty-desc') {
       productName: product.productName,
       productCode: product.productCode,
       image: product.image,
+      thumbnail: product.thumbnail,
+      medium: product.medium,
       images: product.images,
       tieredPricing: tieredPricingData,
       subcollectionId: product.subcollectionId,
@@ -1277,8 +1239,7 @@ if (qty < minQty || qty > maxQty) {
 ) : (
           <div className="products-grid collections-grid">
             {/* REAL PRODUCTS */}
-            {inStockProducts.map((product) => {
-              const price = getProductPrice(product, subcollectionsMap, pricingKey);
+            {inStockProducts.map((product, index) => {
 
               const subcollection = subcollectionsMap[product.subcollectionId];
               const tieredPricing = subcollection
@@ -1294,6 +1255,7 @@ if (qty < minQty || qty > maxQty) {
                     ...product,
                     tieredPricing
                   }}
+                  imagePriority={index < 4}
                   onIncrement={(productData) =>
                     handleAddToCart(productData, productData.variation)
                   }

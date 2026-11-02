@@ -1,63 +1,126 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
- * Remove Firebase token → allows browser caching
+ * Progressive Firebase product image:
+ * 1. Shows the real, pre-generated thumbnail immediately.
+ * 2. Loads the optimized main image in the background.
+ * 3. Fades the main image in when it has loaded.
+ * 4. Uses the medium image only if the main image fails.
+ *
+ * Pass actual Firebase download URLs from Firestore.
+ * Do not strip Firebase tokens or add ?w= / ?quality= parameters.
  */
-const stripFirebaseToken = (url) => {
-  try {
-    const u = new URL(url);
-    u.searchParams.delete("token");
-    return u.toString();
-  } catch {
-    return url;
-  }
-};
+export default function ProgressiveImage({
+  src,
+  thumbnailSrc,
+  mediumSrc,
+  alt = "",
+  className = "",
+  priority = false,
+}) {
+  const mainSource = src || mediumSrc || thumbnailSrc || "";
+  const previewSource = thumbnailSrc || mediumSrc || mainSource;
 
-/**
- * Build optimized Firebase image URL
- */
-const getOptimizedUrl = (url, { w, q }) => {
-  if (!url) return "";
+  const [mainLoaded, setMainLoaded] = useState(false);
+  const [activeMainSource, setActiveMainSource] = useState(mainSource);
+  const [mainFailed, setMainFailed] = useState(false);
 
-  const cleanUrl = stripFirebaseToken(url);
+  // Reset image state when the product/image URLs change.
+  useEffect(() => {
+    setMainLoaded(false);
+    setMainFailed(false);
+    setActiveMainSource(mainSource);
+  }, [mainSource, mediumSrc]);
 
-  // If params already exist, append safely
-  return `${cleanUrl}${cleanUrl.includes("?") ? "&" : "?"}w=${w}&quality=${q}`;
-};
+  const handleMainError = () => {
+    // Try the medium image once as a fallback, without creating a retry loop.
+    if (mediumSrc && mediumSrc !== activeMainSource) {
+      setMainLoaded(false);
+      setActiveMainSource(mediumSrc);
+      return;
+    }
 
-export default function ProgressiveImage({ src, alt, className = "" }) {
-  const [loaded, setLoaded] = useState(false);
+    setMainFailed(true);
+  };
 
-  // 🔹 Very small blurred placeholder (≈5–10 KB)
-  const lowQualitySrc = getOptimizedUrl(src, {
-    w: 40,
-    q: 10,
-  });
-
-  // 🔹 Main image (≈150–250 KB instead of MBs)
-  const fullQualitySrc = getOptimizedUrl(src, {
-    w: 450,
-    q: 65,
-  });
+  const hasSeparatePreview =
+    Boolean(previewSource) && previewSource !== activeMainSource;
 
   return (
-    <div className={`progressive-img ${className}`}>
-      {/* Placeholder */}
-      <img
-        src={lowQualitySrc}
-        alt=""
-        aria-hidden="true"
-        className="img-placeholder"
-      />
+    <div
+      className={`progressive-img ${className}`}
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        background: "#f2f2f2",
+      }}
+    >
+      {/* Real thumbnail: visible while the optimized image loads. */}
+      {previewSource && (
+        <img
+          src={previewSource}
+          alt=""
+          aria-hidden="true"
+          className="img-placeholder"
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : "auto"}
+          decoding="async"
+          draggable="false"
+          style={{
+            display: "block",
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            opacity: mainLoaded ? 0 : 1,
+            transition: "opacity 220ms ease",
+          }}
+        />
+      )}
 
-      {/* Main image */}
-      <img
-        src={fullQualitySrc}
-        alt={alt}
-        loading="lazy"
-        className={`img-full ${loaded ? "visible" : ""}`}
-        onLoad={() => setLoaded(true)}
-      />
+      {/* Optimized main image loads in the background and fades in. */}
+      {activeMainSource && !mainFailed && (
+        <img
+          key={activeMainSource}
+          src={activeMainSource}
+          alt={alt}
+          className={`img-full ${mainLoaded ? "visible" : ""}`}
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : "auto"}
+          decoding="async"
+          draggable="false"
+          onLoad={() => setMainLoaded(true)}
+          onError={handleMainError}
+          style={{
+            position: hasSeparatePreview ? "absolute" : "relative",
+            inset: hasSeparatePreview ? 0 : "auto",
+            display: "block",
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            opacity: mainLoaded ? 1 : 0,
+            transition: "opacity 220ms ease",
+          }}
+        />
+      )}
+
+      {/* If no image can be loaded, keep a neutral placeholder. */}
+      {!previewSource && (!activeMainSource || mainFailed) && (
+        <div
+          role="img"
+          aria-label={alt || "Image unavailable"}
+          style={{
+            width: "100%",
+            height: "100%",
+            minHeight: 100,
+            display: "grid",
+            placeItems: "center",
+            color: "#999",
+            fontSize: 12,
+          }}
+        >
+          Image unavailable
+        </div>
+      )}
     </div>
   );
 }

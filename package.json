@@ -16,6 +16,7 @@
     "@testing-library/user-event": "^13.5.0",
     "file-saver": "^2.0.5",
     "firebase": "^12.1.0",
+    "firebase-admin": "^14.5.0",
     "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.14.0",
     "html5-qrcode": "^2.3.8",
@@ -72,5 +73,19 @@
     "http-proxy-middleware": "^3.0.5",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.7"
-  }
+  },
+  "description": "This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).",
+  "main": "cleanup-dropshipper-store-products.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Vaibhavugile/kiyuziyunew.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Vaibhavugile/kiyuziyunew/issues"
+  },
+  "homepage": "https://github.com/Vaibhavugile/kiyuziyunew#readme"
 }
