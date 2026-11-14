@@ -127,6 +127,8 @@ const [variantSelectionProduct, setVariantSelectionProduct] = useState(null);
 
   // New states for Orders and Low Stock Alerts
   const [activeTab, setActiveTab] = useState('collections');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState('collections'); // New state for sub-tabs
   const [orders, setOrders] = useState([]);
   const [isOrderLoading, setIsOrderLoading] = useState(false);
@@ -152,6 +154,7 @@ const [variantSelectionProduct, setVariantSelectionProduct] = useState(null);
 
   // NEW: State for search and filter
   const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [productStockFilter, setProductStockFilter] = useState('all');
   const [groupedOrders, setGroupedOrders] = useState({});
 
   const [orderReports, setOrderReports] = useState([]);
@@ -2486,12 +2489,39 @@ for (const product of newProducts) {
     setCurrentImageIndex(0);
   };
 
-  // NEW: Filter products based on search term
+  // When a product has variations, variation quantities are the source of truth.
+  // Do not fall back to the parent product quantity: older records may contain
+  // a stale positive parent quantity even when every variation is empty/zero.
+  const productHasAvailableStock = (product) => {
+    const variations = Array.isArray(product?.variations)
+      ? product.variations
+      : [];
+
+    if (variations.length > 0) {
+      return variations.some((variation) => {
+        const quantity = Number(variation?.quantity);
+        return Number.isFinite(quantity) && quantity > 0;
+      });
+    }
+
+    const quantity = Number(product?.quantity);
+    return Number.isFinite(quantity) && quantity > 0;
+  };
+
+  // Search + stock filters for the Current Products list.
   const filteredProducts = products.filter(product => {
-    const searchTerm = productSearchTerm.toLowerCase();
+    const searchTerm = productSearchTerm.trim().toLowerCase();
     const productNameMatch = (product.productName || '').toLowerCase().includes(searchTerm);
     const productCodeMatch = (product.productCode || '').toLowerCase().includes(searchTerm);
-    return productNameMatch || productCodeMatch;
+    const matchesSearch = !searchTerm || productNameMatch || productCodeMatch;
+
+    const hasStock = productHasAvailableStock(product);
+    const matchesStock =
+      productStockFilter === 'all' ||
+      (productStockFilter === 'inStock' && hasStock) ||
+      (productStockFilter === 'outOfStock' && !hasStock);
+
+    return matchesSearch && matchesStock;
   });
   const fetchMainCollectionsForOffline = async () => {
     setIsOfflineProductsLoading(true);
@@ -3862,7 +3892,10 @@ alert(
       "custcare",
       "custrepo",
       "noti",
-      "sendnoti"
+      "sendnoti",
+      "pre",
+      "prer",
+      "preo"
 
     ],
 
@@ -3891,202 +3924,86 @@ alert(
   }
   return (
 
-    <div className="admin-page">
+    <div className={`admin-page admin-shell ${sidebarCollapsed ? "admin-shell--collapsed" : ""} ${mobileSidebarOpen ? "admin-shell--mobile-open" : ""}`}>
+      <aside className="admin-sidebar">
+        <div className="admin-sidebar-brand">
+          <div className="admin-brand-mark">A</div>
+          <div className="admin-brand-copy">
+            <strong>Admin Studio</strong>
+            <span>Management workspace</span>
+          </div>
+          <button className="admin-sidebar-collapse" type="button" onClick={() => setSidebarCollapsed(v => !v)} aria-label="Collapse sidebar">
+            {sidebarCollapsed ? "›" : "‹"}
+          </button>
+        </div>
 
-      <h1>Admin Dashboard</h1>
-      <div className="admin-tabs">
+        <div className="admin-sidebar-profile">
+          <div className="admin-profile-avatar">{String(currentUserRole || "A").slice(0,1).toUpperCase()}</div>
+          <div className="admin-profile-copy">
+            <strong>{String(currentUserRole || "Admin").replace(/[-_]/g, " ")}</strong>
+            <span>Workspace access</span>
+          </div>
+        </div>
 
-        {ROLE_PERMISSIONS[currentUserRole]?.includes("collections") && (
-          <button
-            className={activeTab === "collections" ? "active" : ""}
-            onClick={() => setActiveTab("collections")}
-          >
-            Collections
-          </button>
-        )}
+        <nav className="admin-sidebar-nav">
+          {ROLE_PERMISSIONS[currentUserRole]?.includes("collections") && (
+            <section className="admin-nav-group">
+              <span className="admin-nav-label">CATALOGUE</span>
+              <button className={`admin-nav-item ${activeTab === "collections" ? "active" : ""}`} onClick={() => { setActiveTab("collections"); setMobileSidebarOpen(false); }}><i>▦</i><span>Collections & Products</span></button>
+            </section>
+          )}
 
-        {ROLE_PERMISSIONS[currentUserRole]?.includes("orders") && (
-          <button
-            className={activeTab === "orders" ? "active" : ""}
-            onClick={() => setActiveTab("orders")}
-          >
-            Orders
-          </button>
-        )}
+          <section className="admin-nav-group">
+            <span className="admin-nav-label">ORDERS & INVENTORY</span>
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("orders") && <button className={`admin-nav-item ${activeTab === "orders" ? "active" : ""}`} onClick={() => { setActiveTab("orders"); setMobileSidebarOpen(false); }}><i>▤</i><span>Customer Orders</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("dailyorders") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/daily-orders")}><i>◷</i><span>Daily Order Report</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("lowStock") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/productsale/view")}><i>▥</i><span>Stock Summary</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("Storestock") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/stockcheck")}><i>▧</i><span>Store Stock Check</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("reports") && <button className="admin-nav-item" onClick={() => (window.location.href = "/inventory/stock")}><i>▤</i><span>Inventory Reports</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("editOrders") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/orders/edit")}><i>✎</i><span>Edit Orders</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("storeorders") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/store-orders")}><i>▣</i><span>Store Orders</span></button>}
+          </section>
 
-        {ROLE_PERMISSIONS[currentUserRole]?.includes("dailyorders") && (
-             <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/daily-orders")}
-          >
-            Daily Order Report
-          </button>
-        )}
+          {(ROLE_PERMISSIONS[currentUserRole]?.includes("pre") || ROLE_PERMISSIONS[currentUserRole]?.includes("preo") || ROLE_PERMISSIONS[currentUserRole]?.includes("prer")) && (
+            <section className="admin-nav-group">
+              <span className="admin-nav-label">PRE-ORDERS</span>
+              {ROLE_PERMISSIONS[currentUserRole]?.includes("pre") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/preorders")}><i>＋</i><span>Add Products</span></button>}
+              {ROLE_PERMISSIONS[currentUserRole]?.includes("preo") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/preorder-orders")}><i>▤</i><span>Pre-order Orders</span></button>}
+              {ROLE_PERMISSIONS[currentUserRole]?.includes("prer") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/preorder-report")}><i>▥</i><span>Product Reports</span></button>}
+            </section>
+          )}
 
-  {ROLE_PERMISSIONS[currentUserRole]?.includes("lowStock") && (
-             <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/productsale/view")}
-          >
-            Stock Summary
-          </button>
-        )}
+          <section className="admin-nav-group">
+            <span className="admin-nav-label">CUSTOMERS & SALES</span>
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("users") && <button className={`admin-nav-item ${activeTab === "users" ? "active" : ""}`} onClick={() => { setActiveTab("users"); setMobileSidebarOpen(false); }}><i>♙</i><span>User Management</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("custmin") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/customers")}><i>♧</i><span>Customers</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("custcare") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/support")}><i>♡</i><span>Customer Care</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("custrepo") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/customer-activity")}><i>◷</i><span>Customer Activity</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("leads") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/leads")}><i>⌁</i><span>Leads</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("offline-billing") && <button className={`admin-nav-item ${activeTab === "offline-billing" ? "active" : ""}`} onClick={() => { setActiveTab("offline-billing"); setMobileSidebarOpen(false); }}><i>▣</i><span>Offline Billing</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("custombill") && <button className="admin-nav-item" onClick={() => (window.location.href = "/custombill")}><i>▧</i><span>Custom Bill</span></button>}
+          </section>
 
-        
-         {ROLE_PERMISSIONS[currentUserRole]?.includes("Storestock") && (
-             <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/stockcheck")}
-          >
-            Stock Summary
-          </button>
-        )}
-        {ROLE_PERMISSIONS[currentUserRole]?.includes("reports") && (
-          <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/inventory/stock")}
-          >
-            Reports
-          </button>
-        )}
+          <section className="admin-nav-group">
+            <span className="admin-nav-label">ADMINISTRATION</span>
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("roles") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/role-pricing")}><i>⚙</i><span>Roles & Pricing</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("adminsellers") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/sellers")}><i>♧</i><span>Sellers</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("sellerprofit") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/seller-profits")}><i>◈</i><span>Seller Profit</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("coupons") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/coupons")}><i>◇</i><span>Coupons</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("barcode") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/barcode-printing")}><i>▥</i><span>Barcode Printing</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("noti") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/notification")}><i>♢</i><span>Notifications</span></button>}
+            {ROLE_PERMISSIONS[currentUserRole]?.includes("sendnoti") && <button className="admin-nav-item" onClick={() => (window.location.href = "/admin/sendnotification")}><i>➤</i><span>Send Notification</span></button>}
+          </section>
+        </nav>
+        <div className="admin-sidebar-footer"><span className="admin-online-dot" /> <span>Workspace is active</span></div>
+      </aside>
 
-        {ROLE_PERMISSIONS[currentUserRole]?.includes("users") && (
-          <button
-            className={activeTab === "users" ? "active" : ""}
-            onClick={() => setActiveTab("users")}
-          >
-            User Management
-          </button>
-        )}
-
-        {ROLE_PERMISSIONS[currentUserRole]?.includes("offline-billing") && (
-          <button
-            className={`admin-menu-item ${activeTab === "offline-billing" ? "active" : ""}`}
-            onClick={() => setActiveTab("offline-billing")}
-          >
-            Offline Billing
-          </button>
-        )}
-
-        {ROLE_PERMISSIONS[currentUserRole]?.includes("coupons") && (
-          <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/coupons")}
-          >
-            Coupons
-          </button>
-        )}
-         {ROLE_PERMISSIONS[currentUserRole]?.includes("noti") && (
-          <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/notification")}
-          >
-            notifications
-          </button>
-        )}
-         {ROLE_PERMISSIONS[currentUserRole]?.includes("sendnoti") && (
-          <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/sendnotification")}
-          >
-            send notification
-          </button>
-        )}
-         {ROLE_PERMISSIONS[currentUserRole]?.includes("roles") && (
-          <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/role-pricing")}
-          >
-            Roles
-          </button>
-        )}
-          {ROLE_PERMISSIONS[currentUserRole]?.includes("custmin") && (
-          <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/customers")}
-          >
-            Users
-          </button>
-        )}     
-          {ROLE_PERMISSIONS[currentUserRole]?.includes("custcare") && (
-          <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/support")}
-          >
-            customer care
-          </button>
-        )}     
- {ROLE_PERMISSIONS[currentUserRole]?.includes("custrepo") && (
-          <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/customer-activity")}
-          >
-            customer report
-          </button>
-        )}  
-
-        {ROLE_PERMISSIONS[currentUserRole]?.includes("editOrders") && (
-          <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/orders/edit")}
-          >
-            Edit Orders
-          </button>
-        )}
-        {ROLE_PERMISSIONS[currentUserRole]?.includes("leads") && (
-          <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/leads")}
-          >
-            leads
-          </button>
-        )}
-         {ROLE_PERMISSIONS[currentUserRole]?.includes("barcode") && (
-          <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/barcode-printing")}
-          >
-            Barcode Print
-          </button>
-        )}
-        
-        {ROLE_PERMISSIONS[currentUserRole]?.includes("custombill") && (
-          <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/custombill")}
-          >
-            Cuustom Bill
-          </button>
-        )}
-         {ROLE_PERMISSIONS[currentUserRole]?.includes("adminsellers") && (
-          <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/sellers")}
-          >
-            Sellers
-          </button>
-        )}
-          {ROLE_PERMISSIONS[currentUserRole]?.includes("storeorders") && (
-          <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/store-orders")}
-          >
-            Store Orders
-          </button>
-        )}
-          {ROLE_PERMISSIONS[currentUserRole]?.includes("sellerprofit") && (
-          <button
-            className="admin-menu-item"
-            onClick={() => (window.location.href = "/admin/seller-profits")}
-          >
-            Seller Profit
-          </button>
-        )}
-
-
-      </div>
-
-
+      <div className="admin-main-area">
+        <header className="admin-topbar">
+          <button className="admin-mobile-menu" type="button" onClick={() => setMobileSidebarOpen(v => !v)} aria-label="Toggle navigation">☰</button>
+          <div><span className="admin-topbar-kicker">WORKSPACE</span><h1>Admin Dashboard</h1></div>
+          <div className="admin-topbar-role"><span className="admin-online-dot" />{String(currentUserRole || "Admin").replace(/[-_]/g, " ")}</div>
+        </header>
       <div className="tab-content">
         {/* --- Collections, Subcollections, and Products Tabs --- */}
         {activeTab === 'collections' &&
@@ -4672,14 +4589,42 @@ alert(
                         <p>Loading products...</p>
                       ) : (
                         <>
-                          <div className="search-container">
+                          <div
+                            className="search-container"
+                            style={{
+                              display: 'flex',
+                              gap: '10px',
+                              alignItems: 'center',
+                              flexWrap: 'wrap',
+                            }}
+                          >
                             <input
                               type="text"
                               placeholder="Search by name or code..."
                               value={productSearchTerm}
                               onChange={(e) => setProductSearchTerm(e.target.value)}
                               className="search-input"
+                              style={{ flex: '1 1 220px' }}
                             />
+                            <select
+                              value={productStockFilter}
+                              onChange={(e) => setProductStockFilter(e.target.value)}
+                              aria-label="Filter products by stock"
+                              style={{
+                                minWidth: '155px',
+                                height: '42px',
+                                padding: '0 12px',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '8px',
+                                background: '#fff',
+                                color: '#222',
+                                fontSize: '14px',
+                              }}
+                            >
+                              <option value="all">All products</option>
+                              <option value="inStock">In stock</option>
+                              <option value="outOfStock">Out of stock</option>
+                            </select>
                           </div>
                           <div className="collections-grid">
                             {filteredProducts.length > 0 ? (
@@ -4695,7 +4640,7 @@ alert(
                                 />
                               ))
                             ) : (
-                              <p>No products found matching your search criteria.</p>
+                              <p>No products found for the selected search and stock filters.</p>
                             )}
                           </div>
                         </>
@@ -5759,6 +5704,7 @@ alert(
 
 
 
+      </div>
     </div>
   );
 };

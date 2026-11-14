@@ -910,3 +910,90 @@ button.back-to-collections-icon {
 .products-grid {
   align-items: start;
 }
+
+
+/* ============================================================
+   STABLE PRODUCT GRID — PREVENT WIDTH JUMPS DURING AUTO-LOAD
+   Each product and each skeleton is locked to one grid cell.
+============================================================ */
+
+.products-grid.collections-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  align-items: stretch;
+  justify-items: stretch;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.products-grid.collections-grid > .product-grid-item {
+  display: block;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 100%;
+  grid-column: auto / span 1;
+  box-sizing: border-box;
+  overflow: hidden;
+  contain: layout;
+}
+
+.products-grid.collections-grid > .product-grid-item > * {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.products-grid.collections-grid > .product-grid-item .product-card,
+.products-grid.collections-grid > .product-grid-item .product-card-skeleton,
+.products-grid.collections-grid > .product-grid-item [class*="skeleton"] {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Keep loading placeholders in normal grid cells; never let one span a row. */
+.products-grid.collections-grid > .product-grid-skeleton {
+  grid-column: auto / span 1 !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden;
+}
+
+/* Intrinsic image dimensions must never determine the grid track width. */
+.products-grid.collections-grid img,
+.products-grid.collections-grid picture,
+.products-grid.collections-grid .progressive-img {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (max-width: 991px) {
+  .products-grid.collections-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px;
+    padding: 5px;
+  }
+}
+
+@media (max-width: 360px) {
+  .products-grid.collections-grid {
+    gap: 6px;
+    padding: 4px;
+  }
+}
+
+/* Avoid content-visibility intrinsic sizing from creating unexpected width. */
+@supports (content-visibility: auto) {
+  .products-grid.collections-grid > .product-grid-item {
+    contain: layout paint;
+    contain-intrinsic-size: auto 440px;
+  }
+}

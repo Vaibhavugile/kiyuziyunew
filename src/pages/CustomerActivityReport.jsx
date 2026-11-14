@@ -52,6 +52,24 @@ const customerName = (u) => u.name || u.fullName || u.displayName || 'Unnamed cu
 const customerPhone = (u) => u.mobile || u.phone || u.phoneNumber || '';
 const getUid = (user) => String(user?.uid || user?.id || '');
 const eventIs = (events, types) => events.some((e) => types.includes(e.type));
+const cartAdditionsInRange = (events = [], from, to) => events
+  .filter((event) => event.type === 'cart_items_added' && inRange(eventTime(event), from, to))
+  .sort((a, b) => (eventTime(b)?.getTime() || 0) - (eventTime(a)?.getTime() || 0));
+
+const addedItemQuantity = (item) => Number(item.quantityAdded ?? item.quantity ?? item.qty ?? 1) || 0;
+const addedItemUnitPrice = (item) => {
+  const value = item.unitPrice ?? item.price ?? item.sellingPrice ?? item.productPrice;
+  return value == null || value === '' || !Number.isFinite(Number(value)) ? null : Number(value);
+};
+const addedItemTotal = (item) => {
+  const total = item.lineTotal ?? item.totalPrice ?? item.total;
+  if (total != null && total !== '' && Number.isFinite(Number(total))) return Number(total);
+  const price = addedItemUnitPrice(item);
+  return price === null ? null : price * addedItemQuantity(item);
+};
+const eventAddedItems = (event) => Array.isArray(event.details?.addedItems)
+  ? event.details.addedItems : [];
+
 const removedQuantityInRange = (events = [], from, to) => events.reduce((sum, event) => {
   if (event.type !== 'cart_items_removed' || !inRange(eventTime(event), from, to)) return sum;
   return sum + Math.max(0, Number(event.details?.removedQuantity || 0));
@@ -222,6 +240,11 @@ export default function CustomerActivityReport() {
         case 'signup': matchesFilter = signupInRange; break;
         case 'login': matchesFilter = loginInRange; break;
         case 'cart': matchesFilter = cartHasItems; break;
+        case 'cartAdded':
+          matchesFilter = r.events.some((e) =>
+            e.type === 'cart_items_added' && inRange(eventTime(e), from, to)
+          );
+          break;
         case 'removed': matchesFilter = r.events.some((e) => e.type === 'cart_items_removed' && inRange(eventTime(e), from, to)); break;
         case 'checkout': matchesFilter = hasCheckoutInRange; break;
         case 'incomplete': matchesFilter = r.checkout.candidate; break;
@@ -265,6 +288,12 @@ export default function CustomerActivityReport() {
   // Orphaned/stale customerCarts documents are not counted as customers.
   const customersWithCart = allRows.filter((r) => Number(r.cart?.itemCount || 0) > 0);
   const activeCarts = customersWithCart.length;
+  const customersWhoAddedInRange = allRows.filter((r) =>
+    r.events.some((event) =>
+      event.type === 'cart_items_added' &&
+      inRange(eventTime(event), from, to)
+    )
+  ).length;
   const trackedCartValue = customersWithCart.reduce((sum, r) =>
     sum + Number(r.cart?.cartValue || 0), 0);
   const checkoutStartedToday = Object.values(eventsByUid).flat().filter((e) =>
@@ -353,6 +382,7 @@ export default function CustomerActivityReport() {
         <article className="car-metric"><span>New signups today</span><strong>{newToday}</strong><small>Users created today</small></article>
         <article className="car-metric"><span>Logged in today</span><strong>{loggedToday}</strong><small>Based on users.lastLogin</small></article>
         <article className="car-metric"><span>Customers with carts</span><strong>{activeCarts}</strong><small>Latest synced carts</small></article>
+        <article className="car-metric"><span>Customers who added to cart</span><strong>{customersWhoAddedInRange}</strong><small>Cart additions from {from} to {to}</small></article>
         <article className="car-metric"><span>Tracked cart value</span><strong>{money(trackedCartValue)}</strong><small>Cart snapshot, not sales</small></article>
         <article className="car-metric"><span>Checkout started today</span><strong>{checkoutStartedToday}</strong><small>Tracked checkout_started events</small></article>
         <article className="car-metric"><span>Incomplete checkout candidates</span><strong>{incompleteCheckoutCount}</strong><small>Checkout event with no later tracked order</small></article>
@@ -373,6 +403,7 @@ export default function CustomerActivityReport() {
             <option value="homepage">Homepage activity</option>
             <option value="product">Product / collection activity</option>
             <option value="cart">Has cart items</option>
+            <option value="cartAdded">Added items to cart in date range</option>
             <option value="removed">Removed items in date range</option>
             <option value="checkout">Checkout activity</option>
             <option value="incomplete">Incomplete checkout candidates</option>
@@ -382,9 +413,9 @@ export default function CustomerActivityReport() {
 
         <div className="car-table-wrap">
           <table className="car-table">
-            <thead><tr><th>Customer</th><th>Signup</th><th>Last login</th><th>Cart</th><th>Checkout</th><th>Follow-up</th><th>Action</th></tr></thead>
+            <thead><tr><th>Customer</th><th>Signup</th><th>Last login</th><th>Cart</th><th>Cart added in range</th><th>Checkout</th><th>Follow-up</th><th>Action</th></tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan="7" className="car-empty">Loading customer data…</td></tr> :
+              {loading ? <tr><td colSpan="8" className="car-empty">Loading customer data…</td></tr> :
                 rows.map((r) => (
                   <tr key={r.user.id}>
                     <td>
@@ -395,6 +426,38 @@ export default function CustomerActivityReport() {
                     <td>{dateTime(r.user.createdAt)}</td>
                     <td>{dateTime(r.user.lastLogin)}</td>
                     <td><strong>{Number(r.cart?.itemCount || 0)} items</strong><small>{money(r.cart?.cartValue || 0)}</small><small>Removed in range: {removedQuantityInRange(r.events, from, to)}</small></td>
+                    <td>
+                      {(() => {
+                        const additions = cartAdditionsInRange(r.events, from, to);
+                        if (!additions.length) return <span className="car-muted">No additions in range</span>;
+                        const items = additions.flatMap(event => eventAddedItems(event));
+                        const knownTotals = items.map(addedItemTotal).filter(v => v !== null);
+                        const hasUnpriced = items.length !== knownTotals.length;
+                        return (
+                          <div style={{ minWidth: 230, maxWidth: 360, whiteSpace: 'normal' }}>
+                            <strong>{additions.length} cart addition {additions.length === 1 ? 'event' : 'events'}</strong>
+                            <small>{items.length ? `${items.reduce((n, item) => n + addedItemQuantity(item), 0)} units added` : 'Item details not recorded'}</small>
+                            {knownTotals.length > 0 && <small>Recorded added value: <b>{money(knownTotals.reduce((sum, v) => sum + v, 0))}</b>{hasUnpriced ? ' (partial)' : ''}</small>}
+                            <details style={{ marginTop: 7 }}>
+                              <summary style={{ cursor: 'pointer', fontWeight: 700, color: '#6355c7' }}>View added products & prices</summary>
+                              {additions.map(event => (
+                                <div key={event.id} style={{ padding: '9px 0', borderBottom: '1px solid #eee' }}>
+                                  <small style={{ marginBottom: 6 }}>{dateTime(eventTime(event))}</small>
+                                  {eventAddedItems(event).length ? eventAddedItems(event).map((item, index) => (
+                                    <div key={`${event.id}-${index}`} style={{ padding: '7px 0' }}>
+                                      <strong style={{ display: 'block' }}>{item.productName || item.name || item.productId || 'Product'}</strong>
+                                      {(item.sku || item.productCode) && <small>Code: {item.sku || item.productCode}</small>}
+                                      <small>Qty: {addedItemQuantity(item)} · Unit price: {addedItemUnitPrice(item) === null ? 'Not recorded' : money(addedItemUnitPrice(item))}</small>
+                                      <small>Added total: {addedItemTotal(item) === null ? 'Not recorded' : money(addedItemTotal(item))}</small>
+                                    </div>
+                                  )) : <small>Product details were not recorded for this event.</small>}
+                                </div>
+                              ))}
+                            </details>
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td>
                       <span className={`car-status ${r.checkout.candidate ? 'car-status-warning' : ''}`}>
                         {r.checkout.candidate ? 'Incomplete candidate' : r.checkout.started ? 'Started' : 'Not tracked'}
@@ -408,7 +471,7 @@ export default function CustomerActivityReport() {
                     <td><button type="button" className="car-btn car-btn-small" onClick={() => openCustomer(r)}>View / Follow up</button></td>
                   </tr>
                 ))}
-              {!loading && rows.length === 0 && <tr><td colSpan="7" className="car-empty">No customers match this filter and date range.</td></tr>}
+              {!loading && rows.length === 0 && <tr><td colSpan="8" className="car-empty">No customers match this filter and date range.</td></tr>}
             </tbody>
           </table>
         </div>

@@ -1,0 +1,701 @@
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,500;0,600;1,500&display=swap');
+
+.admin-preorder-orders {
+  --apo-ink: #29251f;
+  --apo-muted: #887d6b;
+  --apo-green: #087950;
+  --apo-green-dark: #244a3c;
+  --apo-gold: #a66b08;
+  --apo-border: #eddfc9;
+  min-height: 100vh;
+  padding: 34px clamp(16px, 4vw, 54px) 70px;
+  background: #faf8f2;
+  color: var(--apo-ink);
+  font-family: 'DM Sans', sans-serif;
+}
+
+.admin-preorder-orders * { box-sizing: border-box; }
+
+.apo-header {
+  max-width: 1500px;
+  margin: 0 auto 28px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.apo-eyebrow {
+  display: block;
+  color: #9a8053;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+.apo-header h1 {
+  margin: 9px 0 8px;
+  font: 500 clamp(36px, 4vw, 52px)/1.08 'Playfair Display', serif;
+  letter-spacing: -1px;
+}
+
+.apo-header h1 em { color: #a98245; font-weight: 500; }
+.apo-header p { margin: 0; color: var(--apo-muted); font-size: 12px; line-height: 1.7; }
+.apo-header-actions { display: flex; gap: 9px; flex-wrap: wrap; }
+
+.apo-button {
+  min-height: 42px;
+  padding: 0 15px;
+  border-radius: 10px;
+  font: 800 10px 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: .2s ease;
+}
+
+.apo-button:disabled { opacity: .5; cursor: not-allowed; }
+.apo-button-dark { border: 1px solid #244a3c; background: #244a3c; color: #fff; }
+.apo-button-dark:hover:not(:disabled) { background: #173c30; transform: translateY(-1px); }
+.apo-button-light { border: 1px solid #e5d8c2; background: #fffdf8; color: #6d5733; }
+.apo-button-light:hover:not(:disabled) { border-color: #c9ae7b; background: #fff9ed; }
+
+.apo-alert {
+  max-width: 1500px;
+  margin: 0 auto 18px;
+  padding: 12px 15px;
+  border: 1px solid #f0cfc8;
+  border-radius: 10px;
+  background: #fff1ee;
+  color: #a3483b;
+  font-size: 11px;
+}
+
+.apo-stats {
+  max-width: 1500px;
+  margin: 0 auto 22px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.apo-stat-card {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 17px 15px;
+  border: 1px solid #eee4d3;
+  border-radius: 15px;
+  background: #fffdf9;
+  box-shadow: 0 4px 15px rgba(55,42,20,.035);
+}
+
+.apo-stat-icon {
+  width: 39px;
+  height: 39px;
+  flex: 0 0 39px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #eaf4ed;
+  color: #087950;
+  font-size: 18px;
+}
+
+.apo-icon-amber { background: #fff3df; color: #ad761e; }
+.apo-icon-blue { background: #eaf1fa; color: #547eae; }
+.apo-icon-green { background: #e6f5eb; color: #168353; }
+.apo-icon-gold { background: #f7efdf; color: #a66b08; }
+
+.apo-stat-card div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.apo-stat-card small { color: #998b75; font-size: 7px; font-weight: 900; letter-spacing: 1px; white-space: nowrap; }
+.apo-stat-card strong { color: #30291f; font: 700 25px 'Playfair Display', serif; line-height: 1.1; }
+.apo-stat-card div > span { color: #9a907f; font-size: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.apo-stat-total { background: linear-gradient(135deg, #fffaf0, #fffdf8); }
+
+.apo-orders-panel {
+  max-width: 1500px;
+  margin: 0 auto;
+  border: 1px solid #e9dfcf;
+  border-radius: 17px;
+  background: #fffdf9;
+  box-shadow: 0 7px 25px rgba(55,42,20,.045);
+  overflow: hidden;
+}
+
+.apo-panel-heading {
+  padding: 22px 23px 17px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.apo-panel-heading h2 { margin: 7px 0 0; font: 500 25px 'Playfair Display', serif; }
+
+.apo-panel-heading h2 span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 23px;
+  height: 23px;
+  margin-left: 5px;
+  padding: 0 6px;
+  border-radius: 20px;
+  background: #edf5ee;
+  color: #087950;
+  font: 800 9px 'DM Sans', sans-serif;
+  vertical-align: middle;
+}
+
+.apo-filter-count { color: #a09582; font-size: 9px; }
+
+.apo-toolbar {
+  padding: 0 23px 17px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 170px 155px;
+  gap: 9px;
+  border-bottom: 1px solid #f0e9dd;
+}
+
+.apo-search {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border: 1px solid #e9dfcf;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.apo-search > span { color: #a58a5b; font-size: 22px; line-height: 1; }
+.apo-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #30291f; font: 500 10px 'DM Sans', sans-serif; }
+.apo-search input::placeholder { color: #b0a794; }
+
+.apo-toolbar select,
+.apo-status-field select {
+  height: 40px;
+  padding: 0 11px;
+  border: 1px solid #e9dfcf;
+  border-radius: 9px;
+  background: #fff;
+  color: #655b4b;
+  font: 700 9px 'DM Sans', sans-serif;
+  outline: none;
+}
+
+.apo-toolbar select:focus,
+.apo-status-field select:focus {
+  border-color: #9bc9ad;
+  box-shadow: 0 0 0 3px rgba(8,121,80,.07);
+}
+
+.apo-table-wrap { width: 100%; overflow-x: auto; }
+.apo-table { width: 100%; border-collapse: collapse; text-align: left; white-space: nowrap; }
+
+.apo-table th {
+  height: 42px;
+  padding: 0 15px;
+  background: #fcfaf5;
+  color: #a09582;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.apo-table th:first-child,
+.apo-table td:first-child { padding-left: 23px; }
+
+.apo-table td {
+  height: 72px;
+  padding: 10px 15px;
+  border-top: 1px solid #f1ebdf;
+  color: #504839;
+  font-size: 10px;
+  vertical-align: middle;
+}
+
+.apo-table tbody tr { transition: background .16s ease; }
+.apo-table tbody tr:hover { background: #fffaf0; }
+
+.apo-order-number {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #087950;
+  font: 900 10px 'DM Sans', sans-serif;
+  cursor: pointer;
+}
+
+.apo-order-number:hover { text-decoration: underline; }
+
+.apo-order-id,
+.apo-customer-phone,
+.apo-item-preview,
+.apo-time {
+  display: block;
+  margin-top: 5px;
+  color: #a69b88;
+  font-size: 8px;
+}
+
+.apo-customer-name { display: block; color: #30291f; font-size: 10px; }
+.apo-item-preview { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.apo-box-count { color: #087950; font: 700 18px 'Playfair Display', serif; }
+.apo-date { color: #5c5345; font-size: 9px; }
+.apo-time { font-size: 8px; }
+
+.apo-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 23px;
+  padding: 4px 9px;
+  border: 1px solid transparent;
+  border-radius: 30px;
+  font-size: 8px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.apo-status-placed,
+.apo-status-pending { background: #fff3df; border-color: #f0dfbc; color: #9b6815; }
+.apo-status-confirmed { background: #eaf2ff; border-color: #d6e3fa; color: #426da7; }
+.apo-status-processing { background: #f1edff; border-color: #e2dafb; color: #7558a7; }
+.apo-status-ready { background: #e5f6f0; border-color: #c9eadd; color: #16805b; }
+.apo-status-completed { background: #e8f5e9; border-color: #cfe8d1; color: #287c43; }
+.apo-status-cancelled { background: #fff0ed; border-color: #f2d5ce; color: #ad5145; }
+
+.apo-view-button {
+  padding: 7px 10px;
+  border: 1px solid #e5dac7;
+  border-radius: 8px;
+  background: #fff;
+  color: #725c37;
+  font: 800 8px 'DM Sans', sans-serif;
+  cursor: pointer;
+}
+
+.apo-view-button:hover { border-color: #c9ad78; background: #fff9ed; }
+
+.apo-pagination {
+  min-height: 58px;
+  padding: 10px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #f0e9dd;
+  color: #a09582;
+  font-size: 9px;
+}
+
+.apo-pagination > div { display: flex; gap: 7px; }
+
+.apo-pagination button {
+  height: 31px;
+  padding: 0 11px;
+  border: 1px solid #e9dfcf;
+  border-radius: 8px;
+  background: #fff;
+  color: #685b45;
+  font: 800 8px 'DM Sans', sans-serif;
+  cursor: pointer;
+}
+
+.apo-pagination button:disabled { opacity: .4; cursor: not-allowed; }
+
+.apo-state {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: #827764;
+}
+
+.apo-state strong { color: #443d32; font-size: 12px; }
+.apo-state small { color: #a59a87; font-size: 9px; }
+
+.apo-empty > span {
+  width: 47px;
+  height: 47px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 3px;
+  border-radius: 15px;
+  background: #f4efe5;
+  color: #a98245;
+  font-size: 22px;
+}
+
+.apo-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #e8dfd0;
+  border-top-color: #087950;
+  border-radius: 50%;
+  animation: apo-spin .8s linear infinite;
+}
+
+@keyframes apo-spin { to { transform: rotate(360deg); } }
+
+.apo-modal-backdrop {
+  position: fixed;
+  z-index: 1200;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(30,35,29,.38);
+  backdrop-filter: blur(3px);
+}
+
+.apo-detail-drawer {
+  width: min(540px, 100%);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #fffdf8;
+  box-shadow: -15px 0 50px rgba(0,0,0,.15);
+  animation: apo-drawer-in .25s ease both;
+}
+
+@keyframes apo-drawer-in {
+  from { transform: translateX(25px); opacity: .5; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.apo-drawer-header {
+  padding: 25px 25px 19px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: 1px solid #eee5d6;
+}
+
+.apo-drawer-header h2 { margin: 7px 0 5px; color: #30291f; font: 500 28px 'Playfair Display', serif; }
+.apo-drawer-header small { color: #9b907d; font-size: 9px; }
+
+.apo-close {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #e9dfcf;
+  border-radius: 50%;
+  background: #fff;
+  color: #756b5b;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.apo-drawer-content { flex: 1; overflow-y: auto; padding: 4px 25px 22px; }
+
+.apo-detail-section { padding: 19px 0; border-bottom: 1px solid #eee7dc; }
+.apo-detail-section h3 { margin: 0 0 13px; color: #3b3429; font-size: 11px; font-weight: 900; }
+
+.apo-detail-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.apo-detail-section-title h3 { margin-bottom: 12px; }
+.apo-detail-section-title > span:not(.apo-status) { color: #9b907d; font-size: 8px; }
+
+.apo-status-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #827764;
+  font-size: 9px;
+}
+
+.apo-status-field select { width: 180px; }
+.apo-saving { display: block; margin-top: 8px; color: #a17a35; font-size: 8px; }
+
+.apo-customer-detail { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; }
+.apo-customer-detail strong { color: #30291f; font-size: 13px; }
+.apo-customer-detail a { color: #087950; font-size: 10px; text-decoration: none; }
+.apo-customer-detail p { margin: 2px 0 0; color: #766c5c; font-size: 10px; line-height: 1.7; }
+
+.apo-detail-items { display: flex; flex-direction: column; gap: 11px; }
+
+.apo-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px;
+  border: 1px solid #eee5d6;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.apo-detail-product-image {
+  width: 53px;
+  height: 53px;
+  flex: 0 0 53px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #f4eee3;
+  color: #a98245;
+  font-size: 18px;
+}
+
+.apo-detail-product-image img { width: 100%; height: 100%; object-fit: cover; }
+
+.apo-detail-product-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.apo-detail-product-info strong { overflow: hidden; color: #30291f; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.apo-detail-product-info small { color: #927f60; font-size: 8px; }
+.apo-detail-product-info > span { color: #a49a89; font-size: 7px; }
+.apo-detail-quantity { min-width: 47px; text-align: center; }
+.apo-detail-quantity strong { display: block; color: #087950; font: 700 21px 'Playfair Display', serif; }
+.apo-detail-quantity small { color: #a09582; font-size: 7px; }
+
+.apo-detail-total {
+  margin-top: 13px;
+  padding: 13px 2px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #eee5d6;
+  color: #776b57;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.apo-detail-total strong { color: #087950; font: 700 25px 'Playfair Display', serif; }
+
+.apo-payment-note {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 15px 12px;
+  margin-top: 14px;
+  border: 1px solid #e8e2d3;
+  border-radius: 11px;
+  background: #faf8f1;
+}
+
+.apo-payment-note > span { color: #a98245; font-size: 21px; }
+.apo-payment-note div { display: flex; flex-direction: column; gap: 4px; }
+.apo-payment-note strong { color: #5b513f; font-size: 9px; }
+.apo-payment-note small { color: #9b907d; font-size: 8px; line-height: 1.5; }
+
+.apo-detail-meta { padding: 17px 0; display: flex; flex-direction: column; gap: 11px; }
+.apo-detail-meta div { display: flex; flex-direction: column; gap: 4px; }
+.apo-detail-meta span { color: #a09582; font-size: 8px; }
+.apo-detail-meta strong,
+.apo-detail-meta code { color: #685e4d; font-size: 9px; overflow-wrap: anywhere; }
+
+.apo-drawer-footer {
+  padding: 14px 25px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid #eee5d6;
+  background: #fffdf8;
+}
+
+.apo-delete-button {
+  padding: 0 12px;
+  border: 1px solid #f0d2cc;
+  border-radius: 9px;
+  background: #fff5f2;
+  color: #ad5145;
+  font: 800 9px 'DM Sans', sans-serif;
+  cursor: pointer;
+}
+
+.apo-delete-button:disabled { opacity: .5; cursor: not-allowed; }
+.apo-footer-note { align-self: center; color: #9b907d; font-size: 8px; }
+
+/* Product image preview and zoom */
+
+.apo-image-open {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.apo-image-open img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .25s ease;
+}
+
+.apo-image-open:hover img { transform: scale(1.07); }
+
+.apo-image-zoom-hint {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(35,43,35,.78);
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.apo-image-lightbox {
+  position: fixed;
+  z-index: 1400;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 22px 15px;
+  background: rgba(15,19,16,.96);
+  color: #fff;
+  animation: apo-lightbox-in .18s ease both;
+}
+
+@keyframes apo-lightbox-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.apo-lightbox-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  min-height: 42px;
+  color: #d7c6a6;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+.apo-lightbox-controls { display: flex; align-items: center; gap: 8px; }
+
+.apo-lightbox-controls button {
+  width: 34px;
+  height: 32px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 8px;
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  font: 700 18px 'DM Sans', sans-serif;
+  cursor: pointer;
+}
+
+.apo-lightbox-controls button:disabled { opacity: .35; cursor: not-allowed; }
+
+.apo-lightbox-controls > span {
+  min-width: 46px;
+  text-align: center;
+  color: #f3eadb;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.apo-lightbox-controls .apo-zoom-reset { width: auto; padding: 0 10px; font-size: 9px; }
+.apo-lightbox-controls .apo-lightbox-close { margin-left: 7px; border-color: rgba(255,255,255,.35); font-size: 23px; }
+
+.apo-lightbox-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 20px;
+  overscroll-behavior: contain;
+}
+
+.apo-lightbox-stage img {
+  display: block;
+  max-width: min(88vw, 1100px);
+  max-height: calc(100vh - 125px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  transform-origin: center center;
+  transition: transform .16s ease;
+  user-select: none;
+}
+
+.apo-lightbox-tip {
+  padding: 5px 0 0;
+  text-align: center;
+  color: rgba(255,255,255,.55);
+  font-size: 9px;
+}
+
+/* Responsive */
+
+@media (max-width: 1100px) {
+  .apo-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .apo-stat-total { grid-column: auto; }
+}
+
+@media (max-width: 760px) {
+  .admin-preorder-orders { padding: 23px 13px 45px; }
+  .apo-header { align-items: flex-start; flex-direction: column; }
+  .apo-header-actions { width: 100%; }
+  .apo-header-actions button { flex: 1; }
+  .apo-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .apo-stat-card { padding: 13px 10px; gap: 9px; }
+  .apo-stat-icon { width: 33px; height: 33px; flex-basis: 33px; }
+  .apo-stat-card strong { font-size: 22px; }
+  .apo-panel-heading { padding: 18px 14px 14px; align-items: flex-start; flex-direction: column; }
+  .apo-toolbar { padding: 0 14px 14px; grid-template-columns: 1fr 1fr; }
+  .apo-search { grid-column: 1 / -1; }
+  .apo-table { min-width: 850px; }
+  .apo-table th:first-child,
+  .apo-table td:first-child { padding-left: 14px; }
+  .apo-pagination { padding: 10px 14px; }
+}
+
+@media (max-width: 520px) {
+  .apo-image-lightbox { padding: 10px; }
+  .apo-lightbox-top { align-items: flex-start; flex-direction: column; padding: 6px 2px; }
+  .apo-lightbox-controls { width: 100%; gap: 6px; }
+  .apo-lightbox-controls button { height: 34px; }
+  .apo-lightbox-stage { padding: 8px 0; }
+  .apo-lightbox-stage img { max-width: 96vw; max-height: calc(100vh - 135px); }
+  .apo-lightbox-tip { font-size: 8px; }
+}
+
+@media (max-width: 420px) {
+  .apo-stat-card div > span { font-size: 7px; }
+  .apo-stat-card small { font-size: 6px; }
+  .apo-toolbar select { font-size: 8px; }
+  .apo-drawer-header { padding: 20px 17px 15px; }
+  .apo-drawer-content { padding: 4px 17px 18px; }
+  .apo-drawer-footer { padding: 12px 17px; }
+  .apo-status-field { align-items: flex-start; flex-direction: column; }
+  .apo-status-field select { width: 100%; }
+}
+
+@media print {
+  body * { visibility: hidden !important; }
+  .apo-detail-drawer,
+  .apo-detail-drawer * { visibility: visible !important; }
+  .apo-modal-backdrop { position: static; background: #fff; }
+  .apo-detail-drawer { position: absolute; inset: 0; width: 100%; height: auto; box-shadow: none; }
+  .apo-drawer-footer,
+  .apo-close { display: none !important; }
+  .apo-drawer-content { overflow: visible; }
+}

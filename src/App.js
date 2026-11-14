@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Outlet, useLocation } from 'react-router-dom';
 import { useEffect } from "react";
 import './App.css';
 import { initMetaPixel } from "./utils/pixels";
@@ -74,6 +74,28 @@ import PostLoginNotificationPrompt from './PostLoginNotificationPrompt';
 import CustomerActivityReport from './pages/CustomerActivityReport';
 import NotificationSubscribersPage from './NotificationSubscribersPage';
 import NotificationCampaignPage from './NotificationCampaignPage';
+import DropshipperManagement from "./pages/DropshipperManagement";
+import AdminPreorderPage from "./pages/AdminPreorderPage";
+import { PreorderStoreProvider } from "./pages/preorder/PreorderStoreContext";
+import PreorderHomePage from "./pages/preorder/PreorderHomePage";
+import PreorderCollectionPage from "./pages/preorder/PreorderCollectionPage";
+import PreorderProductPage from "./pages/preorder/PreorderProductPage";
+import PreorderCheckoutPage from "./pages/preorder/PreorderCheckoutPage";
+import PreorderSuccessPage from "./pages/preorder/PreorderSuccessPage";
+import AdminPreorderOrdersPage from "./pages/AdminPreorderOrdersPage";
+import AdminPreorderReportPage from "./pages/AdminPreorderReportPage";
+function ConditionalCustomerSupportWidget() {
+  const { pathname } = useLocation();
+
+  // Hide the floating support chat on all pre-order pages,
+  // including the customer store and admin pre-order pages.
+  const isPreorderRoute =
+    pathname.startsWith("/preorder") ||
+    pathname.startsWith("/admin/preorder");
+
+  return isPreorderRoute ? null : <CustomerSupportWidget />;
+}
+
 function App() {
     useEffect(() => {
     initMetaPixel();
@@ -120,6 +142,57 @@ function App() {
   path="/admin/sendnotification"
   element={<NotificationCampaignPage />}
 />
+
+{/* ==========================================
+    CUSTOMER PREORDER STORE
+========================================== */}
+
+<Route
+  element={
+    <PreorderStoreProvider>
+      <Outlet />
+    </PreorderStoreProvider>
+  }
+>
+  <Route
+    path="/preorder"
+    element={<PreorderHomePage />}
+  />
+
+  <Route
+    path="/preorder/collection/:categoryId"
+    element={<PreorderCollectionPage />}
+  />
+
+  <Route
+    path="/preorder/product/:productId"
+    element={<PreorderProductPage />}
+  />
+
+  <Route
+    path="/preorder/checkout"
+    element={<PreorderCheckoutPage />}
+  />
+
+  <Route
+    path="/preorder/success/:orderId"
+    element={<PreorderSuccessPage />}
+  />
+
+
+</Route>
+  <Route
+  path="/admin/preorders"
+  element={<AdminPreorderPage />}
+/>
+<Route
+  path="/admin/preorder-orders"
+  element={<AdminPreorderOrdersPage />}
+/>
+<Route
+  path="/admin/preorder-report"
+  element={<AdminPreorderReportPage />}
+/>
             <Route path="/custombill" element={<CustomBillingPage/>} />
             <Route path="/collections/:collectionId" element={<SubcollectionsPage />} />
             <Route path="/collections/:collectionId/all-products" element={<ProductsPage />} />            <Route path="/cart" element={<CartPage />} />
@@ -134,6 +207,10 @@ function App() {
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/cancellation-policy" element={<CancellationPolicy />} />
+            <Route
+  path="/dropshippers/manage"
+  element={<DropshipperManagement />}
+/>
             <Route
                 path="/admin/reseller-payments/:sellerId"
                 element={<AdminResellerPayments />}
@@ -231,7 +308,7 @@ function App() {
 
           </Routes>
                <PostLoginNotificationPrompt />
-          <CustomerSupportWidget />
+          <ConditionalCustomerSupportWidget />
      {isMainDomain() && (
   <>
     

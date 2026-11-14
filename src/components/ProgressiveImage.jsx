@@ -1,15 +1,5 @@
 import { useEffect, useState } from "react";
 
-/**
- * Progressive Firebase product image:
- * 1. Shows the real, pre-generated thumbnail immediately.
- * 2. Loads the optimized main image in the background.
- * 3. Fades the main image in when it has loaded.
- * 4. Uses the medium image only if the main image fails.
- *
- * Pass actual Firebase download URLs from Firestore.
- * Do not strip Firebase tokens or add ?w= / ?quality= parameters.
- */
 export default function ProgressiveImage({
   src,
   thumbnailSrc,
@@ -19,102 +9,105 @@ export default function ProgressiveImage({
   priority = false,
 }) {
   const mainSource = src || mediumSrc || thumbnailSrc || "";
-  const previewSource = thumbnailSrc || mediumSrc || mainSource;
+  const previewSource = thumbnailSrc || mediumSrc || "";
 
+  const [activeSource, setActiveSource] = useState(mainSource);
   const [mainLoaded, setMainLoaded] = useState(false);
-  const [activeMainSource, setActiveMainSource] = useState(mainSource);
   const [mainFailed, setMainFailed] = useState(false);
 
-  // Reset image state when the product/image URLs change.
   useEffect(() => {
+    setActiveSource(mainSource);
     setMainLoaded(false);
     setMainFailed(false);
-    setActiveMainSource(mainSource);
   }, [mainSource, mediumSrc]);
 
-  const handleMainError = () => {
-    // Try the medium image once as a fallback, without creating a retry loop.
-    if (mediumSrc && mediumSrc !== activeMainSource) {
+  const handleError = () => {
+    if (mediumSrc && activeSource !== mediumSrc) {
+      setActiveSource(mediumSrc);
       setMainLoaded(false);
-      setActiveMainSource(mediumSrc);
+      setMainFailed(false);
       return;
     }
-
     setMainFailed(true);
   };
 
-  const hasSeparatePreview =
-    Boolean(previewSource) && previewSource !== activeMainSource;
+  const frameStyle = {
+    position: "absolute",
+    inset: 0,
+    display: "block",
+    width: "100%",
+    height: "100%",
+    minWidth: 0,
+    minHeight: 0,
+    maxWidth: "none",
+    maxHeight: "none",
+    margin: 0,
+    padding: 0,
+    border: 0,
+    objectFit: "cover",
+    objectPosition: "center",
+    transform: "none",
+    pointerEvents: "none",
+    userSelect: "none",
+    transition: "opacity 180ms ease",
+  };
 
   return (
     <div
       className={`progressive-img ${className}`}
+      role={alt ? "img" : undefined}
+      aria-label={alt || undefined}
       style={{
-        position: "relative",
+        position: "absolute",
+        inset: 0,
+        display: "block",
+        width: "100%",
+        height: "100%",
+        minWidth: 0,
+        minHeight: 0,
         overflow: "hidden",
-        background: "#f2f2f2",
+        isolation: "isolate",
+        background: "#f5eee3",
       }}
     >
-      {/* Real thumbnail: visible while the optimized image loads. */}
-      {previewSource && (
+      {previewSource && previewSource !== activeSource && (
         <img
           src={previewSource}
           alt=""
           aria-hidden="true"
-          className="img-placeholder"
           loading={priority ? "eager" : "lazy"}
           fetchPriority={priority ? "high" : "auto"}
           decoding="async"
           draggable="false"
-          style={{
-            display: "block",
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            opacity: mainLoaded ? 0 : 1,
-            transition: "opacity 220ms ease",
-          }}
+          style={{ ...frameStyle, zIndex: 1, opacity: mainLoaded ? 0 : 1 }}
         />
       )}
 
-      {/* Optimized main image loads in the background and fades in. */}
-      {activeMainSource && !mainFailed && (
+      {activeSource && !mainFailed && (
         <img
-          key={activeMainSource}
-          src={activeMainSource}
-          alt={alt}
-          className={`img-full ${mainLoaded ? "visible" : ""}`}
+          key={activeSource}
+          src={activeSource}
+          alt=""
+          aria-hidden="true"
           loading={priority ? "eager" : "lazy"}
           fetchPriority={priority ? "high" : "auto"}
           decoding="async"
           draggable="false"
           onLoad={() => setMainLoaded(true)}
-          onError={handleMainError}
-          style={{
-            position: hasSeparatePreview ? "absolute" : "relative",
-            inset: hasSeparatePreview ? 0 : "auto",
-            display: "block",
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            opacity: mainLoaded ? 1 : 0,
-            transition: "opacity 220ms ease",
-          }}
+          onError={handleError}
+          style={{ ...frameStyle, zIndex: 2, opacity: mainLoaded ? 1 : 0 }}
         />
       )}
 
-      {/* If no image can be loaded, keep a neutral placeholder. */}
-      {!previewSource && (!activeMainSource || mainFailed) && (
+      {(!activeSource || mainFailed) && !previewSource && (
         <div
-          role="img"
-          aria-label={alt || "Image unavailable"}
           style={{
-            width: "100%",
-            height: "100%",
-            minHeight: 100,
+            position: "absolute",
+            inset: 0,
             display: "grid",
             placeItems: "center",
-            color: "#999",
+            color: "#a99a82",
+            background: "linear-gradient(135deg, #faf4e9, #efe3cf)",
             fontSize: 12,
           }}
         >

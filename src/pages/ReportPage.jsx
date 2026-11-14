@@ -247,7 +247,7 @@ const ReportPage = () => {
         if (currentUser && Object.keys(subcollectionsMap).length > 0) {
             fetchOrders(false); // Initial load
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
     }, [currentUser, subcollectionsMap]); 
 
     

@@ -1,8 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import './ProductCard.css';
-import Zoom from 'react-medium-image-zoom';
-import 'react-medium-image-zoom/dist/styles.css';
 import { getCartItemId, useCart } from './CartContext';
 import ProgressiveImage from './ProgressiveImage';
 import { useAuth } from './AuthContext';
@@ -530,18 +528,27 @@ const ProductCard = ({
 
       {/* PRODUCT IMAGE */}
 
-      <div className="product-image-container">
+      <div
+        className="product-image-container"
+        style={{
+          position: "relative",
+          display: "block",
+          width: "100%",
+          height: "auto",
+          aspectRatio: "1 / 1",
+          minHeight: 0,
+          overflow: "hidden",
+          isolation: "isolate",
+        }}
+      >
         {mainImage ? (
-          <Zoom>
-            <ProgressiveImage
-              thumbnailSrc={thumbnail}
-              mediumSrc={medium}
-              src={mainImage}
-              alt={productName}
-              className="product-image"
-              priority={imagePriority}
-            />
-          </Zoom>
+          <ProgressiveImage
+            thumbnailSrc={thumbnail}
+            mediumSrc={medium}
+            src={mainImage}
+            alt={productName}
+            priority={imagePriority}
+          />
         ) : (
           <div className="product-image-placeholder">
             No image available

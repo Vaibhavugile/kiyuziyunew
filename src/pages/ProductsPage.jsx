@@ -1246,23 +1246,59 @@ if (qty < minQty || qty > maxQty) {
                 ? subcollection.tieredPricing ?? null
                 : null;
 
+// 🔍 DEBUG PRODUCT PRICING
+if (String(product.productCode) === "9544") {
+  console.group("🔍 PRODUCT 9544 PRICING DIAGNOSTIC");
+
+  console.log("Product Name:", product.productName);
+  console.log("Product ID:", product.id);
+  console.log("Product Code:", product.productCode);
+
+  console.log("Main Collection ID:", collectionId);
+  console.log("Subcollection ID:", product.subcollectionId);
+  console.log("Subcollection Data:", subcollection);
+
+  console.log("All Pricing Keys:",
+    Object.keys(tieredPricing || {})
+  );
+
+  console.log("Base Pricing Key:", pricingKey);
+  console.log("Active Pricing Key:", orderPricing?.activePricingKey);
+
+  console.log("Base Role Tiers:",
+    tieredPricing?.[pricingKey]
+  );
+
+  console.log("Active Role Tiers:",
+    tieredPricing?.[orderPricing?.activePricingKey || pricingKey]
+  );
+
+  console.log("Complete Tiered Pricing:", tieredPricing);
+
+  console.groupEnd();
+}
+
+
 
 
               return (
-                <ProductCard
+                <div
+                  className="product-grid-item"
                   key={`${product.id}-${product.subcollectionId || "all"}`}
-                  product={{
-                    ...product,
-                    tieredPricing
-                  }}
-                  imagePriority={index < 4}
-                  onIncrement={(productData) =>
-                    handleAddToCart(productData, productData.variation)
-                  }
-                  onDecrement={(cartItemId) => removeFromCart(cartItemId)}
-                  cart={cart}
-                />
-
+                >
+                  <ProductCard
+                    product={{
+                      ...product,
+                      tieredPricing
+                    }}
+                    imagePriority={index < 4}
+                    onIncrement={(productData) =>
+                      handleAddToCart(productData, productData.variation)
+                    }
+                    onDecrement={(cartItemId) => removeFromCart(cartItemId)}
+                    cart={cart}
+                  />
+                </div>
               );
             })}
 
@@ -1270,7 +1306,9 @@ if (qty < minQty || qty > maxQty) {
             {/* 🔥 SKELETONS WHILE LOADING MORE */}
             {(isLoadingProducts || isFetchingMore) &&
               Array.from({ length: 6 }).map((_, index) => (
-                <ProductCardSkeleton key={`skeleton-${index}`} />
+                <div className="product-grid-item product-grid-skeleton" key={`skeleton-${index}`}>
+                  <ProductCardSkeleton />
+                </div>
               ))}
           </div>
 
