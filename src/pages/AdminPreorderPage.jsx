@@ -1,55 +1,22 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  db, collection, getDocs, getDoc, updateDoc, deleteDoc, doc, storage, ref,
+  db, collection, getDocs, updateDoc, deleteDoc, doc, storage, ref,
   uploadBytes, getDownloadURL, deleteObject, serverTimestamp,
-  query, orderBy, limit, startAfter, writeBatch, runTransaction,
+  query, orderBy, limit, startAfter, writeBatch,
 } from "../firebase";
 import "./AdminPreorderPage.css";
 
 const PREORDER_COLLECTION = "preorderProducts";
-const PRODUCT_COUNTER_REF = doc(db, "preorderCounters", "productName");
-
-async function reserveProductNames(count) {
-  if (!count) return [];
-
-  // Initialize from existing chainNNN names only when the counter document is absent.
-  const counterSnapshot = await getDoc(PRODUCT_COUNTER_REF);
-  let initialNextNumber = 1;
-
-  if (!counterSnapshot.exists()) {
-    const existing = await getDocs(collection(db, PREORDER_COLLECTION));
-    const highest = existing.docs.reduce((max, item) => {
-      const match = String(item.data().productName || "").match(/^chain(\d+)$/i);
-      return match ? Math.max(max, Number(match[1])) : max;
-    }, 0);
-    initialNextNumber = highest + 1;
-  }
-
-  return runTransaction(db, async (transaction) => {
-    const latest = await transaction.get(PRODUCT_COUNTER_REF);
-    const start = latest.exists()
-      ? Number(latest.data().nextNumber || 1)
-      : initialNextNumber;
-    const names = Array.from({ length: count }, (_, index) =>
-      `chain${String(start + index).padStart(3, "0")}`
-    );
-    transaction.set(PRODUCT_COUNTER_REF, {
-      prefix: "chain",
-      nextNumber: start + count,
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
-    return names;
-  });
-}
-
+const PREORDER_CATEGORY_COLLECTION = "preorderCollections";
+const PREORDER_PUBLIC_URL = "https://kiyuziyuofficial.com/preorder";
 const slugify = (value = "preorder") =>
   String(value).toLowerCase().trim().replace(/[^a-z0-9_-]+/g, "-").replace(/^-|-$/g, "") || "preorder";
 
-const makeDraft = (file, generatedName) => ({
+const makeDraft = (file) => ({
   id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
   file,
   previewUrl: URL.createObjectURL(file),
-  productName: generatedName,
+  productName: "",
   quantityType: "boxes",
   boxQuantity: "",
   variants: [],
@@ -146,6 +113,14 @@ const removeStorageUrl = async (url) => {
 export default function AdminPreorderPage() {
   const [categories, setCategories] = useState([]);
   const [categoryId, setCategoryId] = useState("");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryImage, setNewCategoryImage] = useState(null);
+  const [newCategoryImagePreview, setNewCategoryImagePreview] = useState("");
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [editCategoryTitle, setEditCategoryTitle] = useState("");
+  const [editCategoryImage, setEditCategoryImage] = useState(null);
+  const [editCategoryImagePreview, setEditCategoryImagePreview] = useState("");
+  const [creatingCategory, setCreatingCategory] = useState(false);
   const [drafts, setDrafts] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [savedProducts, setSavedProducts] = useState([]);
@@ -155,11 +130,12 @@ export default function AdminPreorderPage() {
   const [loadingSaved, setLoadingSaved] = useState(true);
   const [loadingMoreSaved, setLoadingMoreSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [allocatingNames, setAllocatingNames] = useState(false);
   const [bulkBoxQuantity, setBulkBoxQuantity] = useState("");
   const [saveProgress, setSaveProgress] = useState({ completed: 0, total: 0 });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [preorderUrlCopied, setPreorderUrlCopied] = useState(false);
+  const [zoomedImage, setZoomedImage] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [editMainFile, setEditMainFile] = useState(null);
@@ -170,10 +146,44 @@ export default function AdminPreorderPage() {
   const activeDraft = drafts[activeIndex] || null;
   const selectedCategory = categories.find((item) => item.id === categoryId);
 
+  useEffect(() => {
+    if (!zoomedImage) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setZoomedImage(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [zoomedImage]);
+
+  const copyPreorderUrl = async () => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(PREORDER_PUBLIC_URL);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = PREORDER_PUBLIC_URL;
+        textArea.setAttribute("readonly", "");
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.select();
+        const copied = document.execCommand("copy");
+        document.body.removeChild(textArea);
+        if (!copied) throw new Error("Clipboard copy was not available.");
+      }
+
+      setPreorderUrlCopied(true);
+      window.setTimeout(() => setPreorderUrlCopied(false), 2200);
+    } catch (err) {
+      console.error("Could not copy pre-order URL:", err);
+      setError("Could not copy the link. Please copy it manually: " + PREORDER_PUBLIC_URL);
+    }
+  };
+
   const loadCategories = async () => {
     setLoadingCategories(true);
     try {
-      const snapshot = await getDocs(collection(db, "collections"));
+      const snapshot = await getDocs(collection(db, PREORDER_CATEGORY_COLLECTION));
       const rows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
       rows.sort((a, b) => Number(a.showNumber || 0) - Number(b.showNumber || 0));
       setCategories(rows);
@@ -181,6 +191,120 @@ export default function AdminPreorderPage() {
       console.error("Failed to load categories:", err);
       setError("Could not load categories. Please refresh and try again.");
     } finally { setLoadingCategories(false); }
+  };
+
+  const uploadCollectionImage = async (file, categoryId) => {
+    const blob = await compressToWebp(file, {
+      maxWidth: 1200, maxHeight: 1200, maxBytes: 200 * 1024, quality: 0.78,
+    });
+    const imageRef = ref(storage, `preorder-collections/${categoryId}/cover-${Date.now()}.webp`);
+    const snapshot = await uploadBytes(imageRef, blob, {
+      contentType: "image/webp",
+      cacheControl: "public,max-age=31536000,immutable",
+    });
+    return getDownloadURL(snapshot.ref);
+  };
+
+  const createPreorderCategory = async () => {
+    const title = newCategoryName.trim();
+    if (!title) { setError("Enter a collection name first."); return; }
+    if (!newCategoryImage) { setError("Please choose a collection image."); return; }
+
+    const duplicate = categories.some(
+      (item) => String(item.title || item.name || "").trim().toLowerCase() === title.toLowerCase()
+    );
+    if (duplicate) { setError("A pre-order collection with this name already exists."); return; }
+
+    setCreatingCategory(true);
+    setError("");
+    setSuccess("");
+    try {
+      const categoryRef = doc(collection(db, PREORDER_CATEGORY_COLLECTION));
+      const image = await uploadCollectionImage(newCategoryImage, categoryRef.id);
+      const batch = writeBatch(db);
+      batch.set(categoryRef, {
+        title, name: title, slug: slugify(title), image, imageUrl: image,
+        showNumber: categories.length + 1, type: "preorder",
+        createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      });
+      await batch.commit();
+      await loadCategories();
+      setCategoryId(categoryRef.id);
+      setNewCategoryName("");
+      setNewCategoryImage(null);
+      if (newCategoryImagePreview) URL.revokeObjectURL(newCategoryImagePreview);
+      setNewCategoryImagePreview("");
+      setSuccess(`Pre-order collection "${title}" created.`);
+    } catch (err) {
+      console.error("Could not create pre-order collection:", err);
+      setError(err.message || "Could not create the pre-order collection.");
+    } finally { setCreatingCategory(false); }
+  };
+
+  const openEditCategory = (category) => {
+    setEditingCategory(category);
+    setEditCategoryTitle(category.title || category.name || "");
+    setEditCategoryImage(null);
+    setEditCategoryImagePreview(category.image || category.imageUrl || "");
+  };
+
+  const closeEditCategory = () => {
+    setEditingCategory(null);
+    setEditCategoryTitle("");
+    setEditCategoryImage(null);
+    setEditCategoryImagePreview("");
+  };
+
+  const saveEditedCategory = async () => {
+    if (!editingCategory) return;
+    const title = editCategoryTitle.trim();
+    if (!title) { setError("Collection name is required."); return; }
+    const duplicate = categories.some((item) =>
+      item.id !== editingCategory.id &&
+      String(item.title || item.name || "").trim().toLowerCase() === title.toLowerCase()
+    );
+    if (duplicate) { setError("Another pre-order collection already uses this name."); return; }
+
+    setCreatingCategory(true);
+    setError("");
+    try {
+      let image = editingCategory.image || editingCategory.imageUrl || "";
+      if (editCategoryImage) image = await uploadCollectionImage(editCategoryImage, editingCategory.id);
+      await updateDoc(doc(db, PREORDER_CATEGORY_COLLECTION, editingCategory.id), {
+        title, name: title, slug: slugify(title), image, imageUrl: image,
+        updatedAt: serverTimestamp(),
+      });
+      if (editCategoryImage) {
+        const oldImage = editingCategory.image || editingCategory.imageUrl;
+        if (oldImage && oldImage !== image) await removeStorageUrl(oldImage);
+      }
+      await loadCategories();
+      setSuccess(`Collection "${title}" updated.`);
+      closeEditCategory();
+    } catch (err) {
+      console.error("Could not update pre-order collection:", err);
+      setError(err.message || "Could not update this collection.");
+    } finally { setCreatingCategory(false); }
+  };
+
+  const deletePreorderCategory = async (category) => {
+    const productsSnapshot = await getDocs(collection(db, PREORDER_COLLECTION));
+    const linkedProducts = productsSnapshot.docs.filter((item) => item.data().categoryId === category.id);
+    if (linkedProducts.length) {
+      setError(`Cannot delete "${category.title || category.name}" because ${linkedProducts.length} product(s) are assigned to it. Move or delete those products first.`);
+      return;
+    }
+    if (!window.confirm(`Delete pre-order collection "${category.title || category.name}"? This cannot be undone.`)) return;
+    try {
+      await deleteDoc(doc(db, PREORDER_CATEGORY_COLLECTION, category.id));
+      await removeStorageUrl(category.image || category.imageUrl);
+      if (categoryId === category.id) setCategoryId("");
+      await loadCategories();
+      setSuccess("Pre-order collection deleted.");
+    } catch (err) {
+      console.error("Could not delete pre-order collection:", err);
+      setError(err.message || "Could not delete this collection.");
+    }
   };
 
   const loadSavedProducts = async (reset = true) => {
@@ -238,24 +362,19 @@ export default function AdminPreorderPage() {
     setSuccess(`Applied ${quantity} boxes to all ${drafts.length} products in this upload batch.`);
   };
 
-  const handlePrimaryImages = async (event) => {
+  const handlePrimaryImages = (event) => {
     const files = Array.from(event.target.files || []).filter((file) => file.type.startsWith("image/"));
     event.target.value = "";
     if (!files.length) return;
 
     setError("");
     setSuccess("");
-    setAllocatingNames(true);
-    try {
-      const generatedNames = await reserveProductNames(files.length);
-      const newDrafts = files.map((file, index) => makeDraft(file, generatedNames[index]));
-      setDrafts((current) => [...current, ...newDrafts]);
-    } catch (err) {
-      console.error("Could not reserve unique pre-order product names:", err);
-      setError("Could not generate unique product names. Check Firestore permissions and try again.");
-    } finally {
-      setAllocatingNames(false);
-    }
+    const newDrafts = files.map((file) => makeDraft(file));
+    setDrafts((current) => [...current, ...newDrafts]);
+  };
+
+  const openImageZoom = (src, alt = "Product image") => {
+    if (src) setZoomedImage({ src, alt });
   };
 
   const handleAdditionalImages = (event) => {
@@ -517,23 +636,70 @@ export default function AdminPreorderPage() {
     <div className="admin-preorder-page">
       <header className="preorder-header">
         <div><span className="preorder-eyebrow">CATALOG MANAGEMENT</span><h1>Pre-order products</h1><p>Upload all product photos first, then complete each product one by one.</p></div>
-        <div className="preorder-header-stat"><strong>{drafts.length}</strong><span>Products in this upload</span></div>
+        <div className="preorder-header-actions">
+          <button type="button" className={`preorder-copy-url-button${preorderUrlCopied ? " copied" : ""}`} onClick={copyPreorderUrl}>
+            <span aria-hidden="true">{preorderUrlCopied ? "✓" : "↗"}</span>
+            {preorderUrlCopied ? "Link copied" : "Copy pre-order URL"}
+          </button>
+          <div className="preorder-header-stat"><strong>{drafts.length}</strong><span>Products in this upload</span></div>
+        </div>
       </header>
 
       {error && <div className="preorder-alert error">{error}</div>}
       {success && <div className="preorder-alert success">{success}</div>}
 
       <section className="preorder-panel">
-        <div className="preorder-section-heading"><div><span className="preorder-step">01</span><div><h2>Choose category & upload images</h2><p>Select one category, then select all main product images together.</p></div></div></div>
+        <div className="preorder-section-heading"><div><span className="preorder-step">01</span><div><h2>Choose pre-order collection & upload images</h2><p>Create or select a dedicated pre-order collection, then upload all main product images together.</p></div></div></div>
         <div className="preorder-top-controls">
-          <label className="preorder-field preorder-category-field"><span>Product category</span>
-            <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} disabled={loadingCategories}>
-              <option value="">{loadingCategories ? "Loading categories..." : "Select category"}</option>
-              {categories.map((category) => <option key={category.id} value={category.id}>{category.title || category.name || "Untitled category"}</option>)}
-            </select>
-          </label>
+          <div className="preorder-category-manager">
+            <label className="preorder-field preorder-category-field"><span>Pre-order collection</span>
+              <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} disabled={loadingCategories}>
+                <option value="">{loadingCategories ? "Loading pre-order collections..." : "Select pre-order collection"}</option>
+                {categories.map((category) => <option key={category.id} value={category.id}>{category.title || category.name || "Untitled collection"}</option>)}
+              </select>
+              <small>These collections are separate from your regular store collections.</small>
+            </label>
+            <div className="preorder-create-collection">
+              <label className="preorder-field">
+                <span>Create a new pre-order collection</span>
+                <input value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); createPreorderCategory(); } }}
+                  placeholder="e.g. Diwali Pre-order" maxLength={60} />
+                <input type="file" accept="image/*" onChange={(event) => {
+                  const file = event.target.files?.[0] || null;
+                  setNewCategoryImage(file);
+                  setNewCategoryImagePreview(file ? URL.createObjectURL(file) : "");
+                  event.target.value = "";
+                }} />
+                {newCategoryImagePreview && <img className="preorder-category-preview preorder-zoomable-image" src={newCategoryImagePreview} alt="Collection preview" onClick={() => openImageZoom(newCategoryImagePreview, "Collection preview")} />}
+              </label>
+              <button type="button" className="preorder-secondary-button"
+                onClick={createPreorderCategory} disabled={creatingCategory || !newCategoryName.trim() || !newCategoryImage}>
+                {creatingCategory ? "Creating..." : "＋ Create collection"}
+              </button>
+            </div>
+          </div>
           <input ref={fileInputRef} type="file" accept="image/*" multiple hidden onChange={handlePrimaryImages} />
-          <button className="preorder-primary-button" type="button" disabled={allocatingNames || saving} onClick={() => fileInputRef.current?.click()}><span>＋</span> {allocatingNames ? "Generating product names..." : "Upload all product images"}</button>
+          <button className="preorder-primary-button" type="button" disabled={saving} onClick={() => fileInputRef.current?.click()}><span>＋</span> {"Upload all product images"}</button>
+        </div>
+
+        <div className="preorder-collections-management">
+          <div className="preorder-collections-heading"><div><h3>Manage pre-order collections</h3><p>Edit collection names and images, or delete unused collections.</p></div><span>{categories.length} collections</span></div>
+          {categories.length === 0 ? <p className="preorder-empty">No collections created yet.</p> : (
+            <div className="preorder-collections-grid">
+              {categories.map((category) => <article className="preorder-collection-card" key={category.id}>
+                <img className="preorder-zoomable-image" role="button" tabIndex={0}
+                  onClick={() => openImageZoom(category.image || category.imageUrl, category.title || category.name || "Collection image")}
+                  onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openImageZoom(category.image || category.imageUrl, category.title || category.name || "Collection image"); } }}
+                  src={category.image || category.imageUrl || "https://placehold.co/320x220?text=Collection"} alt={category.title || category.name} />
+                <div><strong>{category.title || category.name}</strong><small>Display order: {category.showNumber || "—"}</small></div>
+                <div className="preorder-collection-actions">
+                  <button type="button" className="preorder-edit-button" onClick={() => openEditCategory(category)}>Edit</button>
+                  <button type="button" className="preorder-delete-button" onClick={() => deletePreorderCategory(category)}>Delete</button>
+                </div>
+              </article>)}
+            </div>
+          )}
         </div>
 
         {drafts.length > 0 && <>
@@ -566,14 +732,14 @@ export default function AdminPreorderPage() {
           <div className="preorder-workspace">
             <aside className="preorder-image-queue">
               {drafts.map((draft, index) => <button type="button" key={draft.id} className={index === activeIndex ? "queue-item active" : "queue-item"} onClick={() => setActiveIndex(index)}>
-                <img src={draft.previewUrl} alt="" /><span><b>{String(index + 1).padStart(2, "0")}</b>{draft.productName || draft.file.name}</span>
+                <img className="preorder-zoomable-image" src={draft.previewUrl} alt="" onClick={(event) => { event.stopPropagation(); openImageZoom(draft.previewUrl, draft.productName || "Product image"); }} /><span><b>{String(index + 1).padStart(2, "0")}</b>{draft.productName || "Name this product"}</span>
                 <i>{draft.quantityType === "variants" ? `${draft.variants.length} variants` : draft.boxQuantity !== "" ? `${draft.boxQuantity} boxes` : "Pending"}</i>
               </button>)}
             </aside>
             {activeDraft && <div className="preorder-product-editor">
               <div className="preorder-editor-title"><div><span>PRODUCT {String(activeIndex + 1).padStart(2, "0")} / {String(drafts.length).padStart(2, "0")}</span><h3>Product details</h3></div><button type="button" className="preorder-remove-link" onClick={() => removeDraft(activeDraft.id)}>Remove image</button></div>
               <div className="preorder-editor-grid">
-                <div className="preorder-main-photo"><img src={activeDraft.previewUrl} alt={activeDraft.productName} /><span>MAIN PRODUCT IMAGE</span></div>
+                <div className="preorder-main-photo"><img className="preorder-zoomable-image" role="button" tabIndex={0} onClick={() => openImageZoom(activeDraft.previewUrl, activeDraft.productName || "Product image")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openImageZoom(activeDraft.previewUrl, activeDraft.productName || "Product image"); } }} src={activeDraft.previewUrl} alt={activeDraft.productName || "Product image"} /><span>MAIN PRODUCT IMAGE</span></div>
                 <div className="preorder-editor-fields">
                   <label className="preorder-field"><span>Product name</span><input value={activeDraft.productName} onChange={(e) => updateDraft(activeDraft.id, { productName: e.target.value })} placeholder="Enter product name" /></label>
                   <div className="preorder-field"><span>Quantity setup</span><div className="preorder-toggle">
@@ -586,7 +752,7 @@ export default function AdminPreorderPage() {
                       {activeDraft.variants.length > 0 && <div className="preorder-variant-list">{activeDraft.variants.map((variant, index) => <div key={index}><input value={variant.name} onChange={(e) => updateVariant(activeDraft.id, index, { name: e.target.value })} /><input aria-label="Box quantity" type="number" min="0" value={variant.boxQuantity} onChange={(e) => updateVariant(activeDraft.id, index, { boxQuantity: e.target.value })} /><button type="button" onClick={() => updateDraft(activeDraft.id, { variants: activeDraft.variants.filter((_, i) => i !== index) })}>×</button></div>)}</div>}
                     </div>}
                   <div className="preorder-field"><span>Additional product images <small>(optional)</small></span><input ref={additionalInputRef} type="file" accept="image/*" multiple hidden onChange={handleAdditionalImages} /><button type="button" className="preorder-secondary-button" onClick={() => additionalInputRef.current?.click()}>＋ Add additional images</button>
-                    {activeDraft.additionalFiles.length > 0 && <div className="preorder-additional-grid">{activeDraft.additionalFiles.map((item, index) => <div key={item.previewUrl}><img src={item.previewUrl} alt="" /><button type="button" onClick={() => removeAdditional(activeDraft.id, index)}>×</button></div>)}</div>}
+                    {activeDraft.additionalFiles.length > 0 && <div className="preorder-additional-grid">{activeDraft.additionalFiles.map((item, index) => <div key={item.previewUrl}><img className="preorder-zoomable-image" role="button" tabIndex={0} onClick={() => openImageZoom(item.previewUrl, "Additional product image")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openImageZoom(item.previewUrl, "Additional product image"); } }} src={item.previewUrl} alt="" /><button type="button" onClick={() => removeAdditional(activeDraft.id, index)}>×</button></div>)}</div>}
                   </div>
                   <label className="preorder-field"><span>Description / note <small>(optional)</small></span><textarea rows="3" value={activeDraft.description} onChange={(e) => updateDraft(activeDraft.id, { description: e.target.value })} placeholder="Add product details, material, sizes, delivery note..." /></label>
                 </div>
@@ -603,7 +769,10 @@ export default function AdminPreorderPage() {
         {loadingSaved ? <p className="preorder-empty">Loading saved products...</p> : savedProducts.length === 0 ? <p className="preorder-empty">No pre-order products saved yet.</p> :
           <>
             <div className="preorder-saved-grid">{savedProducts.map((product) => <article className="preorder-saved-card" key={product.id}>
-              <img src={product.thumbnail || product.image} alt={product.productName} />
+              <img className="preorder-zoomable-image" role="button" tabIndex={0}
+                onClick={() => openImageZoom(product.image || product.mainImage || product.thumbnail, product.productName || "Product image")}
+                onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openImageZoom(product.image || product.mainImage || product.thumbnail, product.productName || "Product image"); } }}
+                src={product.thumbnail || product.image} alt={product.productName || "Product image"} />
               <div className="preorder-saved-info"><span>{product.categoryName || "Uncategorized"}</span><h3>{product.productName}</h3><p>{product.quantityType === "variants" ? (product.variants || []).map((v) => `${v.name}: ${v.boxQuantity} boxes`).join(" · ") : `${product.boxQuantity || 0} boxes`}</p><small>{product.additionalImages?.length || 0} additional images</small></div>
               <div className="preorder-card-actions">
                 <button type="button" className="preorder-edit-button" onClick={() => openEditProduct(product)}>Edit</button>
@@ -615,6 +784,28 @@ export default function AdminPreorderPage() {
           </>}
       </section>
 
+      {editingCategory && <div className="preorder-modal-backdrop" role="presentation" onClick={(event) => {
+        if (event.target === event.currentTarget && !creatingCategory) closeEditCategory();
+      }}>
+        <div className="preorder-edit-modal" role="dialog" aria-modal="true" aria-labelledby="preorder-edit-collection-title">
+          <div className="preorder-modal-heading"><div><span className="preorder-eyebrow">COLLECTION MANAGEMENT</span><h2 id="preorder-edit-collection-title">Edit collection</h2><p>Change its name or cover image.</p></div>
+            <button type="button" onClick={closeEditCategory} disabled={creatingCategory} aria-label="Close">×</button></div>
+          <label className="preorder-field"><span>Collection name</span><input value={editCategoryTitle} onChange={(event) => setEditCategoryTitle(event.target.value)} maxLength={60} /></label>
+          <label className="preorder-field"><span>Collection image</span><input type="file" accept="image/*" onChange={(event) => {
+            const file = event.target.files?.[0] || null;
+            setEditCategoryImage(file);
+            if (editCategoryImagePreview && editCategoryImage) URL.revokeObjectURL(editCategoryImagePreview);
+            setEditCategoryImagePreview(file ? URL.createObjectURL(file) : (editingCategory.image || editingCategory.imageUrl || ""));
+            event.target.value = "";
+          }} /></label>
+          {editCategoryImagePreview && <img className="preorder-category-edit-preview preorder-zoomable-image" src={editCategoryImagePreview} alt="Collection cover preview" onClick={() => openImageZoom(editCategoryImagePreview, "Collection cover preview")} />}
+          <div className="preorder-modal-actions">
+            <button type="button" className="preorder-secondary-button" onClick={closeEditCategory} disabled={creatingCategory}>Cancel</button>
+            <button type="button" className="preorder-primary-button" onClick={saveEditedCategory} disabled={creatingCategory}>{creatingCategory ? "Saving..." : "Save collection"}</button>
+          </div>
+        </div>
+      </div>}
+
       {editingProduct && editForm && <div className="preorder-modal-backdrop" role="presentation" onClick={(event) => {
         if (event.target === event.currentTarget && !editSaving) closeEditProduct();
       }}>
@@ -622,6 +813,36 @@ export default function AdminPreorderPage() {
           <div className="preorder-modal-heading">
             <div><span className="preorder-eyebrow">PRODUCT MANAGEMENT</span><h2 id="preorder-edit-title">Edit pre-order product</h2><p>Update product information, quantities and images.</p></div>
             <button type="button" onClick={closeEditProduct} disabled={editSaving} aria-label="Close">×</button>
+          </div>
+          <div className="preorder-edit-main-image">
+            <div className="preorder-edit-main-image-copy">
+              <strong>Main product image</strong>
+              <span>This is the image currently saved for this product. Click to view it full size.</span>
+            </div>
+            {(editingProduct.image || editingProduct.mainImage || editingProduct.medium || editingProduct.thumbnail) ? (
+              <img
+                className="preorder-zoomable-image"
+                role="button"
+                tabIndex={0}
+                src={editingProduct.image || editingProduct.mainImage || editingProduct.medium || editingProduct.thumbnail}
+                alt={`${editForm.productName || "Product"} main image`}
+                onClick={() => openImageZoom(
+                  editingProduct.image || editingProduct.mainImage || editingProduct.medium || editingProduct.thumbnail,
+                  `${editForm.productName || "Product"} main image`
+                )}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openImageZoom(
+                      editingProduct.image || editingProduct.mainImage || editingProduct.medium || editingProduct.thumbnail,
+                      `${editForm.productName || "Product"} main image`
+                    );
+                  }
+                }}
+              />
+            ) : (
+              <div className="preorder-edit-main-image-empty">No main image saved for this product.</div>
+            )}
           </div>
           <div className="preorder-modal-grid">
             <label className="preorder-field"><span>Product name</span><input value={editForm.productName} onChange={(e) => setEditForm((v) => ({ ...v, productName: e.target.value }))} /></label>
@@ -653,6 +874,12 @@ export default function AdminPreorderPage() {
             <button type="button" className="preorder-primary-button" onClick={saveEditedProduct} disabled={editSaving}>{editSaving ? "Saving changes..." : "Save changes"}</button>
           </div>
         </div>
+      </div>}
+
+      {zoomedImage && <div className="preorder-image-lightbox" role="presentation" onClick={() => setZoomedImage(null)}>
+        <button type="button" className="preorder-image-lightbox-close" aria-label="Close image preview" onClick={() => setZoomedImage(null)}>×</button>
+        <img src={zoomedImage.src} alt={zoomedImage.alt} onClick={(event) => event.stopPropagation()} />
+        <span>{zoomedImage.alt}</span>
       </div>}
     </div>
   );

@@ -138,7 +138,7 @@ function PreorderProductCard({ product, index }) {
           <h2>{product.productName || "Pre-order product"}</h2>
 
           <span className="px-product-stock">
-            {remainingStock} left
+            {remainingStock} Box left
           </span>
         </div>
 
@@ -445,6 +445,11 @@ export default function PreorderCollectionPage() {
     (item) => item.id === categoryId
   );
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [downloadingImages, setDownloadingImages] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState({ done: 0, total: 0 });
+  const [downloadMessage, setDownloadMessage] = useState("");
+
   const rows = useMemo(() => {
     return products.filter((product) => {
       if (product.categoryId !== categoryId) return false;
@@ -458,6 +463,81 @@ export default function PreorderCollectionPage() {
       return getAvailableBoxes(product) > 0;
     });
   }, [products, categoryId]);
+
+  const visibleRows = useMemo(() => {
+    const term = searchTerm.trim().toLocaleLowerCase();
+    if (!term) return rows;
+    return rows.filter((product) =>
+      String(product.productName || "").toLocaleLowerCase().includes(term)
+    );
+  }, [rows, searchTerm]);
+
+  const downloadInStockImages = async () => {
+    if (downloadingImages) return;
+
+    const files = rows.flatMap((product) => {
+      const productName = String(product.productName || "product");
+      const safeName = productName
+        .normalize("NFKD")
+        .replace(/[^a-zA-Z0-9_-]+/g, "-")
+        .replace(/^-|-$/g, "") || "product";
+      const primaryImage = getProductImage(product);
+      const additional = Array.isArray(product.additionalImages)
+        ? product.additionalImages
+        : [];
+      const urls = [primaryImage, ...additional].filter(Boolean);
+
+      return urls.map((url, index) => ({
+        url,
+        filename: `${safeName}${index === 0 ? "" : `-additional-${String(index).padStart(2, "0")}`}.webp`,
+      }));
+    });
+
+    if (!files.length) {
+      setDownloadMessage("No in-stock product images are available to download.");
+      return;
+    }
+
+    setDownloadingImages(true);
+    setDownloadMessage("");
+    setDownloadProgress({ done: 0, total: files.length });
+    let failed = 0;
+
+    try {
+      for (let index = 0; index < files.length; index += 1) {
+        const file = files[index];
+        try {
+          const response = await fetch(file.url);
+          if (!response.ok) throw new Error(`Image request failed (${response.status})`);
+          const blob = await response.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          const anchor = document.createElement("a");
+          anchor.href = objectUrl;
+          anchor.download = file.filename;
+          anchor.style.display = "none";
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
+        } catch (error) {
+          failed += 1;
+          console.error("Could not download pre-order image:", file.url, error);
+        }
+        setDownloadProgress({ done: index + 1, total: files.length });
+        // A small pause helps browsers process each individual download.
+        await new Promise((resolve) => window.setTimeout(resolve, 350));
+      }
+
+      const successful = files.length - failed;
+      setDownloadMessage(
+        failed
+          ? `Downloaded ${successful} of ${files.length} images. ${failed} could not be downloaded.`
+          : `Started ${successful} individual image downloads.`
+      );
+    } finally {
+      setDownloadingImages(false);
+    }
+  };
 
   return (
     <main className="px-collection-page">
@@ -503,30 +583,60 @@ export default function PreorderCollectionPage() {
 
         {/* COLLECTION INTRO */}
 
-        <div className="px-collection-intro">
-          <div>
-            <span className="px-collection-overline">
-              THE COLLECTION
-            </span>
-
+        <div className="px-collection-intro px-collection-intro-tools">
+          <div className="px-collection-intro-copy">
+            <span className="px-collection-overline">THE COLLECTION</span>
             <h1>
               {category
                 ? getCategoryName(category)
                 : "Discover products"}
               <i>.</i>
             </h1>
-
             <p>
               Explore available products and reserve your
               required box quantities.
             </p>
           </div>
 
-          <div className="px-collection-total">
-            <strong>{String(rows.length).padStart(2, "0")}</strong>
-            <span>PRODUCTS</span>
+          <div className="px-collection-tools">
+            <div className="px-collection-total">
+              <strong>{String(visibleRows.length).padStart(2, "0")}</strong>
+              <span>PRODUCTS</span>
+            </div>
+            <button
+              type="button"
+              className="px-download-images-button"
+              onClick={downloadInStockImages}
+              disabled={downloadingImages || rows.length === 0}
+            >
+              <span aria-hidden="true">↓</span>
+              {downloadingImages
+                ? `Downloading ${downloadProgress.done}/${downloadProgress.total}`
+                : "Download in-stock images"}
+            </button>
           </div>
         </div>
+
+        <div className="px-collection-search-row">
+          <label className="px-collection-search">
+            <span aria-hidden="true">⌕</span>
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search by product name..."
+              aria-label="Search products by name"
+            />
+            {searchTerm && (
+              <button type="button" onClick={() => setSearchTerm("")} aria-label="Clear search">×</button>
+            )}
+          </label>
+          <span className="px-collection-search-count">{visibleRows.length} of {rows.length} in-stock products</span>
+        </div>
+
+        {downloadMessage && (
+          <div className="px-download-images-message" role="status">{downloadMessage}</div>
+        )}
 
         {catalogError && (
           <div className="px-collection-error">
@@ -539,9 +649,9 @@ export default function PreorderCollectionPage() {
             <i />
             Loading products...
           </div>
-        ) : rows.length ? (
+        ) : visibleRows.length ? (
           <div className="px-products-grid">
-            {rows.map((product, index) => (
+            {visibleRows.map((product, index) => (
               <PreorderProductCard
                 key={product.id}
                 product={product}
@@ -552,10 +662,11 @@ export default function PreorderCollectionPage() {
         ) : (
           <div className="px-collection-empty">
             <span>✳</span>
-            <h2>No products currently available</h2>
+            <h2>{searchTerm.trim() ? "No matching products found" : "No products currently available"}</h2>
             <p>
-              This collection currently has no products
-              with available stock.
+              {searchTerm.trim()
+                ? "Try another product name or clear your search."
+                : "This collection currently has no products with available stock."}
             </p>
             <Link to="/preorder">
               Back to collections ↗

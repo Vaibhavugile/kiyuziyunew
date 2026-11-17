@@ -699,3 +699,20 @@
   .apo-close { display: none !important; }
   .apo-drawer-content { overflow: visible; }
 }
+
+
+/* Accessibility and viewport refinements */
+.admin-preorder-orders button:focus-visible,
+.admin-preorder-orders select:focus-visible,
+.admin-preorder-orders input:focus-visible {
+  outline: 3px solid rgba(8, 121, 80, .2);
+  outline-offset: 2px;
+}
+@media (max-width: 640px) {
+  .apo-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .apo-stat-card { padding: 13px 10px; gap: 8px; }
+  .apo-stat-icon { width: 33px; height: 33px; flex-basis: 33px; }
+  .apo-stat-card strong { font-size: 21px; }
+  .apo-toolbar { grid-template-columns: 1fr; padding-left: 14px; padding-right: 14px; }
+  .apo-panel-heading { align-items: flex-start; flex-direction: column; padding-left: 14px; padding-right: 14px; }
+}

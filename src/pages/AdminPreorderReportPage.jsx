@@ -31,6 +31,9 @@ const getStock = (product) => {
 
 const getOrderQuantity = (item) => Math.max(0, Number(item?.boxQuantity ?? item?.quantity) || 0);
 
+const getCategoryLabel = (category) =>
+  category?.title || category?.name || category?.categoryName || "Untitled collection";
+
 const safeText = (value) => String(value ?? "").replace(/[,\r\n]+/g, " ").trim();
 
 function downloadCsv(filename, rows) {
@@ -67,17 +70,17 @@ export default function AdminPreorderReportPage() {
     setError("");
     try {
       const [categorySnap, productSnap, orderSnap] = await Promise.all([
-        getDocs(collection(db, "collections")),
+        getDocs(collection(db, "preorderCollections")),
         getDocs(collection(db, "preorderProducts")),
         getDocs(collection(db, "preorders")),
       ]);
 
       const categoryRows = categorySnap.docs.map((item) => ({ id: item.id, ...item.data() }));
-      categoryRows.sort((a, b) => Number(a.showNumber || 9999) - Number(b.showNumber || 9999));
+      categoryRows.sort((a, b) => Number(a.showNumber ?? 9999) - Number(b.showNumber ?? 9999));
 
       const productRows = productSnap.docs
         .map((item) => ({ id: item.id, ...item.data() }))
-        .filter((item) => item.status === "preorder" || item.categoryId)
+        .filter((item) => item.status === "preorder" && item.categoryId)
         .sort((a, b) => String(a.productName || "").localeCompare(String(b.productName || "")));
 
       const orderRows = orderSnap.docs
@@ -168,7 +171,7 @@ export default function AdminPreorderReportPage() {
     if (!selectedProduct) return;
     const rows = [
       ["Product", selectedProduct.productName || "Unnamed product"],
-      ["Collection", selectedCategory?.title || selectedCategory?.name || selectedProduct.categoryName || ""],
+      ["Collection", (selectedCategory ? getCategoryLabel(selectedCategory) : selectedProduct.categoryName || "")],
       ["Stock added / initial stock", stockAdded],
       ["Total ordered", totalOrdered],
       ["Remaining stock", remaining],
@@ -211,7 +214,7 @@ export default function AdminPreorderReportPage() {
           <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} disabled={loading}>
             <option value="">All collections</option>
             {categories.map((category) => (
-              <option key={category.id} value={category.id}>{category.title || category.name || "Untitled collection"}</option>
+              <option key={category.id} value={category.id}>{getCategoryLabel(category)}</option>
             ))}
           </select>
         </label>
@@ -245,7 +248,7 @@ export default function AdminPreorderReportPage() {
                 : <span>◇</span>}
             </div>
             <div className="apr-product-copy">
-              <span>{selectedCategory?.title || selectedCategory?.name || selectedProduct.categoryName || "Collection"}</span>
+              <span>{(selectedCategory ? getCategoryLabel(selectedCategory) : selectedProduct.categoryName || "Collection")}</span>
               <h2>{selectedProduct.productName || "Unnamed product"}</h2>
               <small>Product ID: {selectedProduct.id}</small>
             </div>
@@ -279,6 +282,7 @@ export default function AdminPreorderReportPage() {
             <div><span className="apr-dot apr-dot-placed" />Placed <b>{statusCounts.placed || 0}</b></div>
             <div><span className="apr-dot apr-dot-confirmed" />Confirmed <b>{statusCounts.confirmed || 0}</b></div>
             <div><span className="apr-dot apr-dot-processing" />Processing <b>{statusCounts.processing || 0}</b></div>
+            <div><span className="apr-dot apr-dot-ready" />Ready <b>{statusCounts.ready || 0}</b></div>
             <div><span className="apr-dot apr-dot-completed" />Completed <b>{statusCounts.completed || 0}</b></div>
             <div><span className="apr-dot apr-dot-cancelled" />Cancelled <b>{statusCounts.cancelled || 0}</b></div>
           </section>

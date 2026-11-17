@@ -5,6 +5,7 @@ import {
 import { db } from "../../firebase";
 
 const PRODUCTS_COLLECTION = "preorderProducts";
+const CATEGORIES_COLLECTION = "preorderCollections";
 const ORDERS_COLLECTION = "preorders";
 const StoreContext = createContext(null);
 
@@ -42,7 +43,7 @@ export function PreorderStoreProvider({ children }) {
     setCatalogError("");
     try {
       const [categorySnapshot, productSnapshot] = await Promise.all([
-        getDocs(collection(db, "collections")),
+        getDocs(collection(db, CATEGORIES_COLLECTION)),
         getDocs(collection(db, PRODUCTS_COLLECTION)),
       ]);
       const categoryRows = categorySnapshot.docs
@@ -74,11 +75,12 @@ export function PreorderStoreProvider({ children }) {
   }, [cart]);
 
   const addToCart = useCallback((product, variantName, quantity) => {
+    const safeQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
     const key = cartKey(product.id, variantName || "");
     const category = categories.find((item) => item.id === product.categoryId);
     const available = getAvailableBoxes(product, variantName || "");
     const existing = cart.find((item) => item.key === key);
-    const nextQuantity = (existing?.quantity || 0) + quantity;
+    const nextQuantity = (existing?.quantity || 0) + safeQuantity;
     if (nextQuantity > available) {
       throw new Error(`Only ${available} boxes are currently available for this selection.`);
     }
@@ -94,16 +96,29 @@ export function PreorderStoreProvider({ children }) {
       categoryName: product.categoryName || getCategoryName(category),
       quantityType: product.quantityType === "variants" ? "variants" : "boxes",
       variantName: variantName || "",
-      quantity,
+      quantity: safeQuantity,
       image: getProductImage(product),
     }]);
   }, [categories, cart]);
 
   const updateCartQuantity = useCallback((key, quantity) => {
-    setCart((current) => current.map((item) =>
-      item.key === key ? { ...item, quantity: Math.max(1, Math.floor(Number(quantity) || 1)) } : item
-    ));
-  }, []);
+    const requestedQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
+
+    setCart((current) => current.map((item) => {
+      if (item.key !== key) return item;
+
+      const product = products.find((entry) => entry.id === item.productId);
+      if (!product || product.status !== "preorder") {
+        return { ...item, quantity: requestedQuantity };
+      }
+
+      const available = getAvailableBoxes(product, item.variantName || "");
+      return {
+        ...item,
+        quantity: Math.min(requestedQuantity, Math.max(1, available)),
+      };
+    }));
+  }, [products]);
 
   const removeFromCart = useCallback((key) => {
     setCart((current) => current.filter((item) => item.key !== key));

@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { createPreorderOrder, usePreorderStore } from "./PreorderStoreContext";
+import { createPreorderOrder, getAvailableBoxes, usePreorderStore } from "./PreorderStoreContext";
 import "./PreorderCheckoutPage.css";
 
 export default function PreorderCheckoutPage() {
   const navigate = useNavigate();
-  const { cart, totalBoxes, updateCartQuantity, removeFromCart, clearCart } = usePreorderStore();
+  const { cart, products, totalBoxes, updateCartQuantity, removeFromCart, clearCart } = usePreorderStore();
   const [customer, setCustomer] = useState({ name: "", phone: "", email: "", address: "", city: "", state: "", pincode: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -72,11 +72,18 @@ export default function PreorderCheckoutPage() {
             <aside className="px-checkout-summary">
               <div className="px-summary-title"><div><span>02</span><h2>Your selection</h2></div><small>{cart.length} {cart.length === 1 ? "item" : "items"}</small></div>
               <div className="px-summary-items">
-                {cart.map((item) => <article className="px-summary-row" key={item.key}>
-                  {item.image ? <img src={item.image} alt={item.productName}/> : <div className="px-summary-image-empty">✳</div>}
-                  <div className="px-summary-row-copy"><strong>{item.productName}</strong><small>{item.variantName || item.categoryName}</small><div className="px-summary-quantity"><button type="button" disabled={item.quantity <= 1} onClick={() => updateCartQuantity(item.key, item.quantity - 1)}>−</button><span>{item.quantity} boxes</span><button type="button" onClick={() => updateCartQuantity(item.key, item.quantity + 1)}>+</button></div></div>
-                  <button className="px-summary-remove" type="button" aria-label={`Remove ${item.productName}`} onClick={() => removeFromCart(item.key)}>×</button>
-                </article>)}
+                {cart.map((item) => {
+                  const product = products.find((entry) => entry.id === item.productId);
+                  const available = product
+                    ? getAvailableBoxes(product, item.variantName || "")
+                    : 0;
+
+                  return <article className="px-summary-row" key={item.key}>
+                    {item.image ? <img src={item.image} alt={item.productName}/> : <div className="px-summary-image-empty">✳</div>}
+                    <div className="px-summary-row-copy"><strong>{item.productName}</strong><small>{item.variantName || item.categoryName}</small><div className="px-summary-quantity"><button type="button" disabled={item.quantity <= 1} onClick={() => updateCartQuantity(item.key, item.quantity - 1)}>−</button><span>{item.quantity} boxes</span><button type="button" disabled={!product || item.quantity >= available} onClick={() => updateCartQuantity(item.key, item.quantity + 1)}>+</button></div></div>
+                    <button className="px-summary-remove" type="button" aria-label={`Remove ${item.productName}`} onClick={() => removeFromCart(item.key)}>×</button>
+                  </article>;
+                })}
               </div>
               <div className="px-summary-total"><span>Total boxes requested</span><strong>{totalBoxes}</strong></div>
               <div className="px-summary-no-payment"><span>◇</span><p><strong>No payment required</strong><small>This is a pre-order request. No amount is collected online.</small></p></div>

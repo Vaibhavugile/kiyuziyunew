@@ -15,6 +15,13 @@ const ORDERS_COLLECTION = "preorders";
 const STATUS_OPTIONS = ["placed", "confirmed", "processing", "ready", "completed", "cancelled"];
 const PAGE_SIZE = 12;
 
+// Older orders may store the line quantity as `quantity`; newer orders use `boxQuantity`.
+const getLineBoxes = (item = {}) =>
+  Math.max(0, Number(item.boxQuantity ?? item.quantity) || 0);
+
+const getOrderBoxes = (order = {}) =>
+  Math.max(0, Number(order.totalBoxes) || (order.items || []).reduce((sum, item) => sum + getLineBoxes(item), 0));
+
 const safeDate = (value) => {
   if (!value) return null;
   if (typeof value?.toDate === "function") return value.toDate();
@@ -104,7 +111,7 @@ export default function AdminPreorderOrdersPage() {
   }, [imagePreview]);
 
   const stats = useMemo(() => {
-    const totalBoxes = orders.reduce((sum, order) => sum + (Number(order.totalBoxes) || 0), 0);
+    const totalBoxes = orders.reduce((sum, order) => sum + getOrderBoxes(order), 0);
     const pending = orders.filter((order) => ["placed", "pending"].includes(String(order.status || "placed").toLowerCase())).length;
     const active = orders.filter((order) => ["confirmed", "processing", "ready"].includes(String(order.status || "").toLowerCase())).length;
     const completed = orders.filter((order) => String(order.status || "").toLowerCase() === "completed").length;
@@ -154,7 +161,7 @@ export default function AdminPreorderOrdersPage() {
 
   const changeStatus = async (order, nextStatus) => {
     if (!order?.id || !STATUS_OPTIONS.includes(nextStatus)) return;
-    const previousStatus = order.status || "placed";
+    const previousStatus = String(order.status || "placed").toLowerCase();
     if (previousStatus === nextStatus) return;
     setUpdatingId(order.id);
     setError("");
@@ -177,7 +184,7 @@ export default function AdminPreorderOrdersPage() {
     const headings = ["Order Number", "Order ID", "Date", "Status", "Customer", "Phone", "Email", "Address", "Products", "Total Boxes", "Payment Required"];
     const rows = filteredOrders.map((order) => {
       const customer = order.customer || {};
-      const products = (order.items || []).map((item) => `${item.productName || "Product"}${item.variantName ? ` (${item.variantName})` : ""} x ${Number(item.boxQuantity) || 0}`).join("; ");
+      const products = (order.items || []).map((item) => `${item.productName || "Product"}${item.variantName ? ` (${item.variantName})` : ""} x ${getLineBoxes(item)}`).join("; ");
       return [order.orderNumber, order.id, formatDate(order.createdAt), order.status || "placed", customer.name, customer.phone, customer.email, formatAddress(customer), products, order.totalBoxes, order.paymentRequired ? "Yes" : "No"];
     });
     const csv = [headings, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
@@ -249,10 +256,10 @@ export default function AdminPreorderOrdersPage() {
                     const status = String(order.status || "placed").toLowerCase();
                     return (
                       <tr key={order.id}>
-                        <td><button type="button" className="apo-order-number" onClick={() => setSelectedOrder(order)}>{order.orderNumber || `#${order.id.slice(0, 8)}`}</button><small className="apo-order-id">{order.id.slice(0, 10)}</small></td>
+                        <td><button type="button" className="apo-order-number" onClick={() => setSelectedOrder(order)}>{order.orderNumber || `#${String(order.id || "").slice(0, 8)}`}</button><small className="apo-order-id">{String(order.id || "").slice(0, 10)}</small></td>
                         <td><strong className="apo-customer-name">{customer.name || "Unnamed customer"}</strong><small className="apo-customer-phone">{customer.phone || "No phone"}</small></td>
                         <td><strong>{items.length} product{items.length === 1 ? "" : "s"}</strong><small className="apo-item-preview">{items.slice(0, 2).map((item) => item.productName).filter(Boolean).join(", ")}{items.length > 2 ? ` +${items.length - 2} more` : ""}</small></td>
-                        <td><strong className="apo-box-count">{Number(order.totalBoxes) || items.reduce((sum, item) => sum + (Number(item.boxQuantity) || 0), 0)}</strong></td>
+                        <td><strong className="apo-box-count">{getOrderBoxes(order)}</strong></td>
                         <td><span className="apo-date">{formatDate(order.createdAt, false)}</span><small className="apo-time">{formatDate(order.createdAt).split(", ").slice(-1)[0]}</small></td>
                         <td><span className={`apo-status apo-status-${status}`}>{statusLabel(status)}</span></td>
                         <td><button type="button" className="apo-view-button" onClick={() => setSelectedOrder(order)}>View ↗</button></td>
@@ -269,7 +276,7 @@ export default function AdminPreorderOrdersPage() {
 
       {selectedOrder && <div className="apo-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedOrder(null); }}>
         <aside className="apo-detail-drawer" role="dialog" aria-modal="true" aria-label="Pre-order details">
-          <div className="apo-drawer-header"><div><span className="apo-eyebrow">ORDER DETAILS</span><h2>{selectedOrder.orderNumber || `#${selectedOrder.id.slice(0, 8)}`}</h2><small>Placed {formatDate(selectedOrder.createdAt)}</small></div><button type="button" className="apo-close" onClick={() => setSelectedOrder(null)} aria-label="Close details">×</button></div>
+          <div className="apo-drawer-header"><div><span className="apo-eyebrow">ORDER DETAILS</span><h2>{selectedOrder.orderNumber || `#${String(selectedOrder.id || "").slice(0, 8)}`}</h2><small>Placed {formatDate(selectedOrder.createdAt)}</small></div><button type="button" className="apo-close" onClick={() => setSelectedOrder(null)} aria-label="Close details">×</button></div>
           <div className="apo-drawer-content">
             <section className="apo-detail-section"><div className="apo-detail-section-title"><h3>Order status</h3><span className={`apo-status apo-status-${String(selectedOrder.status || "placed").toLowerCase()}`}>{statusLabel(selectedOrder.status || "placed")}</span></div>
               <label className="apo-status-field"><span>Update status</span><select value={selectedOrder.status || "placed"} disabled={updatingId === selectedOrder.id} onChange={(event) => changeStatus(selectedOrder, event.target.value)}>{STATUS_OPTIONS.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></label>
@@ -277,8 +284,8 @@ export default function AdminPreorderOrdersPage() {
             </section>
             <section className="apo-detail-section"><h3>Customer information</h3><div className="apo-customer-detail"><strong>{selectedOrder.customer?.name || "Unnamed customer"}</strong><a href={selectedOrder.customer?.phone ? `tel:${selectedOrder.customer.phone}` : undefined}>{selectedOrder.customer?.phone || "Phone not provided"}</a>{selectedOrder.customer?.email && <a href={`mailto:${selectedOrder.customer.email}`}>{selectedOrder.customer.email}</a>}<p>{formatAddress(selectedOrder.customer)}</p></div></section>
             <section className="apo-detail-section"><div className="apo-detail-section-title"><h3>Ordered products</h3><span>{(selectedOrder.items || []).length} line items</span></div>
-              <div className="apo-detail-items">{(selectedOrder.items || []).map((item, index) => <article className="apo-detail-item" key={`${item.productId || item.productName}-${item.variantName || "base"}-${index}`}><div className="apo-detail-product-image">{item.image ? <button type="button" className="apo-image-open" onClick={() => { setImagePreview({ src: item.image, alt: item.productName || "Pre-order product" }); setImageZoom(1); }} aria-label={`Zoom ${item.productName || "product image"}`}><img src={item.image} alt={item.productName || ""} /><span className="apo-image-zoom-hint">⌕</span></button> : <span>▦</span>}</div><div className="apo-detail-product-info"><strong>{item.productName || "Pre-order product"}</strong><small>{item.categoryName || "Uncategorised"}{item.variantName ? ` · ${item.variantName}` : ""}</small><span>{item.quantityType === "variants" ? "Variant order" : "Box order"}</span></div><div className="apo-detail-quantity"><strong>{Number(item.boxQuantity) || 0}</strong><small>boxes</small></div></article>)}</div>
-              <div className="apo-detail-total"><span>Total boxes</span><strong>{Number(selectedOrder.totalBoxes) || (selectedOrder.items || []).reduce((sum, item) => sum + (Number(item.boxQuantity) || 0), 0)}</strong></div>
+              <div className="apo-detail-items">{(selectedOrder.items || []).map((item, index) => <article className="apo-detail-item" key={`${item.productId || item.productName}-${item.variantName || "base"}-${index}`}><div className="apo-detail-product-image">{item.image ? <button type="button" className="apo-image-open" onClick={() => { setImagePreview({ src: item.image, alt: item.productName || "Pre-order product" }); setImageZoom(1); }} aria-label={`Zoom ${item.productName || "product image"}`}><img src={item.image} alt={item.productName || ""} /><span className="apo-image-zoom-hint">⌕</span></button> : <span>▦</span>}</div><div className="apo-detail-product-info"><strong>{item.productName || "Pre-order product"}</strong><small>{item.categoryName || "Uncategorised"}{item.variantName ? ` · ${item.variantName}` : ""}</small><span>{item.quantityType === "variants" ? "Variant order" : "Box order"}</span></div><div className="apo-detail-quantity"><strong>{getLineBoxes(item)}</strong><small>boxes</small></div></article>)}</div>
+              <div className="apo-detail-total"><span>Total boxes</span><strong>{getOrderBoxes(selectedOrder)}</strong></div>
             </section>
             <section className="apo-detail-section apo-payment-note"><span>◇</span><div><strong>No payment collected</strong><small>This pre-order record does not require payment at checkout.</small></div></section>
             <section className="apo-detail-meta"><div><span>Order document ID</span><code>{selectedOrder.id}</code></div><div><span>Last updated</span><strong>{formatDate(selectedOrder.updatedAt)}</strong></div></section>

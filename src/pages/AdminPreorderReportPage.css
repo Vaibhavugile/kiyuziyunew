@@ -59,7 +59,7 @@
 .apr-status-strip > div { display: flex; align-items: center; gap: 7px; color: #7f7462; font-size: 9px; }
 .apr-status-strip b { color: #342e25; font-size: 10px; }
 .apr-dot { width: 7px; height: 7px; border-radius: 50%; background: #c6a15e; }
-.apr-dot-confirmed { background: #5d8ec4; } .apr-dot-processing { background: #9075c1; } .apr-dot-completed { background: #3d9b69; } .apr-dot-cancelled { background: #c56b5f; }
+.apr-dot-confirmed { background: #5d8ec4; } .apr-dot-processing { background: #9075c1; } .apr-dot-ready { background: #299b76; } .apr-dot-completed { background: #3d9b69; } .apr-dot-cancelled { background: #c56b5f; }
 .apr-variant-panel { padding: 18px; }
 .apr-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 13px; }
 .apr-section-heading h3, .apr-orders-heading h3 { margin: 0; font: 600 21px 'Playfair Display', serif; }
@@ -119,4 +119,16 @@
   .apr-orders-heading { align-items: flex-start; flex-direction: column; padding: 17px 14px 13px; }
   .apr-order-filters { grid-template-columns: 1fr; padding: 0 14px 13px; }
   .apr-table { min-width: 900px; }
+}
+
+
+.apr-page button:focus-visible,
+.apr-page select:focus-visible,
+.apr-page input:focus-visible {
+  outline: 3px solid rgba(8, 121, 80, .18);
+  outline-offset: 2px;
+}
+@media (max-width: 600px) {
+  .apr-section-heading { align-items: flex-start; flex-direction: column; }
+  .apr-product-banner .apr-export { margin-left: 0; }
 }

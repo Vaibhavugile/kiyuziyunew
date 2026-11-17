@@ -170,6 +170,14 @@
 }
 
 /* PREMIUM CARD */
+/* Download only images belonging to products that currently have stock */
+.px-collection-intro-actions { display:flex; align-items:center; justify-content:flex-end; gap:14px; flex-wrap:wrap; }
+.px-download-stock-images { display:inline-flex; align-items:center; justify-content:center; gap:9px; min-height:44px; padding:0 17px; border:1px solid #dedaff; border-radius:11px; background:#f5f3ff; color:#5847d7; font:700 12px 'DM Sans',sans-serif; cursor:pointer; white-space:nowrap; transition:background .18s ease,border-color .18s ease,transform .18s ease; }
+.px-download-stock-images:hover:not(:disabled) { background:#ece9ff; border-color:#bcb4ff; transform:translateY(-1px); }
+.px-download-stock-images:disabled { opacity:.5; cursor:not-allowed; }
+.px-download-stock-images span { font-size:18px; line-height:1; }
+.px-download-stock-message { margin:0 0 16px; padding:11px 14px; border:1px solid #dedaff; border-radius:10px; background:#faf9ff; color:#5847d7; font-size:12px; line-height:1.5; }
+@media (max-width:680px) { .px-collection-intro-actions { justify-content:flex-start; width:100%; } .px-download-stock-images { flex:1 1 100%; } }
 
 .px-product-card {
   position: relative;
@@ -1438,4 +1446,112 @@
 .px-mini-cart-panel button:focus-visible {
   outline: 3px solid rgba(8,132,91,.25);
   outline-offset: 2px;
+}
+/* Collection product-name search and individual in-stock image downloads */
+.px-collection-intro-tools {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+.px-collection-intro-copy { min-width: 0; }
+.px-collection-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.px-download-images-button {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 17px;
+  border: 1px solid #d7e8e1;
+  border-radius: 11px;
+  background: #eff8f4;
+  color: #176b4e;
+  font: 700 12px "DM Sans", sans-serif;
+  cursor: pointer;
+  transition: background .2s ease, transform .2s ease, opacity .2s ease;
+  white-space: nowrap;
+}
+.px-download-images-button:hover:not(:disabled) {
+  background: #e2f2eb;
+  transform: translateY(-1px);
+}
+.px-download-images-button:disabled { opacity: .5; cursor: not-allowed; }
+.px-download-images-button span { font-size: 18px; line-height: 1; }
+.px-collection-search-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 8px 0 22px;
+}
+.px-collection-search {
+  width: min(440px, 100%);
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  padding: 0 13px;
+  border: 1px solid #e6e8ed;
+  border-radius: 11px;
+  background: #fff;
+  color: #818795;
+}
+.px-collection-search:focus-within {
+  border-color: #9a90f5;
+  box-shadow: 0 0 0 3px rgba(102,86,232,.09);
+}
+.px-collection-search>span { font-size: 22px; line-height: 1; }
+.px-collection-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #242633;
+  font: 13px "DM Sans", sans-serif;
+}
+.px-collection-search input::placeholder { color: #a0a5b0; }
+.px-collection-search button {
+  width: 25px;
+  height: 25px;
+  border: 0;
+  border-radius: 50%;
+  background: #f0f1f4;
+  color: #626979;
+  font-size: 18px;
+  cursor: pointer;
+}
+.px-collection-search-count {
+  color: #858b98;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.px-download-images-message {
+  margin: -8px 0 17px;
+  padding: 10px 13px;
+  border: 1px solid #d7e8e1;
+  border-radius: 9px;
+  background: #f2faf6;
+  color: #236b50;
+  font-size: 11px;
+}
+@media (max-width: 760px) {
+  .px-collection-intro-tools { align-items: flex-start; flex-direction: column; }
+  .px-collection-tools { width: 100%; justify-content: space-between; }
+  .px-collection-search-row { align-items: stretch; flex-direction: column; }
+  .px-collection-search { width: 100%; }
+  .px-collection-search-count { text-align: right; }
+}
+@media (max-width: 420px) {
+  .px-collection-tools { align-items: stretch; flex-direction: column; }
+  .px-collection-tools .px-collection-total { align-self: flex-start; }
+  .px-download-images-button { width: 100%; }
 }
