@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import './ProductCard.css';
 import { getCartItemId, useCart } from './CartContext';
 import ProgressiveImage from './ProgressiveImage';
@@ -139,6 +140,7 @@ const ProductCard = ({
   const [showTiers, setShowTiers] = useState(false);
   const [pricePulse, setPricePulse] = useState(false);
   const [cardReady, setCardReady] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
 
   const mainImage = image || additionalImages?.[0] || null;
 
@@ -151,6 +153,26 @@ const ProductCard = ({
 
     return () => window.cancelAnimationFrame(frame);
   }, []);
+
+  // Close the full-size image viewer with Escape.
+  useEffect(() => {
+    if (!showImageModal) return;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setShowImageModal(false);
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showImageModal]);
 
   /* ---------------- VARIATIONS ---------------- */
 
@@ -509,6 +531,7 @@ const ProductCard = ({
   ========================================================= */
 
   return (
+    <>
     <div
       className={[
         'product-card',
@@ -542,13 +565,33 @@ const ProductCard = ({
         }}
       >
         {mainImage ? (
-          <ProgressiveImage
-            thumbnailSrc={thumbnail}
-            mediumSrc={medium}
-            src={mainImage}
-            alt={productName}
-            priority={imagePriority}
-          />
+          <button
+            type="button"
+            className="pc-image-preview-trigger"
+            onClick={() => setShowImageModal(true)}
+            aria-label={`View full-size image of ${productName}`}
+            title="Click to view full image"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              padding: 0,
+              border: 0,
+              background: 'transparent',
+              cursor: 'zoom-in',
+              display: 'block',
+              overflow: 'hidden',
+            }}
+          >
+            <ProgressiveImage
+              thumbnailSrc={thumbnail}
+              mediumSrc={medium}
+              src={mainImage}
+              alt={productName}
+              priority={imagePriority}
+            />
+          </button>
         ) : (
           <div className="product-image-placeholder">
             No image available
@@ -929,6 +972,89 @@ const ProductCard = ({
         )}
       </div>
     </div>
+
+    {showImageModal && mainImage && createPortal((
+      <div
+        className="pc-image-lightbox"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Full-size image: ${productName}`}
+        onClick={() => setShowImageModal(false)}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px',
+          background: 'rgba(8, 10, 15, 0.94)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setShowImageModal(false)}
+          aria-label="Close full-size image"
+          title="Close"
+          style={{
+            position: 'fixed',
+            top: '18px',
+            right: '20px',
+            zIndex: 2,
+            width: '44px',
+            height: '44px',
+            border: '1px solid rgba(255,255,255,.35)',
+            borderRadius: '50%',
+            color: '#fff',
+            background: 'rgba(255,255,255,.12)',
+            fontSize: '28px',
+            lineHeight: 1,
+            cursor: 'pointer',
+          }}
+        >
+          ×
+        </button>
+
+        <img
+          src={mainImage}
+          alt={productName}
+          onClick={(event) => event.stopPropagation()}
+          draggable="false"
+          style={{
+            display: 'block',
+            width: 'auto',
+            height: 'auto',
+            maxWidth: '98vw',
+            maxHeight: '96vh',
+            width: 'auto',
+            height: 'auto',
+            objectFit: 'contain',
+            borderRadius: '8px',
+            boxShadow: '0 20px 80px rgba(0,0,0,.45)',
+            cursor: 'zoom-out',
+          }}
+        />
+
+        <div
+          style={{
+            position: 'fixed',
+            left: '50%',
+            bottom: '16px',
+            transform: 'translateX(-50%)',
+            maxWidth: '90vw',
+            color: 'rgba(255,255,255,.85)',
+            fontSize: '13px',
+            textAlign: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          {productName} · Click outside or press Esc to close
+        </div>
+      </div>
+    ), document.body)}
+  </>
   );
 };
 

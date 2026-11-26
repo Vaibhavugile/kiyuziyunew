@@ -287,25 +287,138 @@ export default function AdminPreorderPage() {
     } finally { setCreatingCategory(false); }
   };
 
-  const deletePreorderCategory = async (category) => {
-    const productsSnapshot = await getDocs(collection(db, PREORDER_COLLECTION));
-    const linkedProducts = productsSnapshot.docs.filter((item) => item.data().categoryId === category.id);
-    if (linkedProducts.length) {
-      setError(`Cannot delete "${category.title || category.name}" because ${linkedProducts.length} product(s) are assigned to it. Move or delete those products first.`);
-      return;
+  
+const deletePreorderCategory = async (category) => {
+  const categoryName = category.title || category.name || "Untitled collection";
+
+  setError("");
+  setSuccess("");
+
+  try {
+    // 1. Find all products belonging to this collection
+    const productsSnapshot = await getDocs(
+      collection(db, PREORDER_COLLECTION)
+    );
+
+    const linkedProducts = productsSnapshot.docs.filter(
+      (item) => item.data().categoryId === category.id
+    );
+
+    const productCount = linkedProducts.length;
+
+    // 2. Confirm permanent deletion
+    const confirmed = window.confirm(
+      `DELETE COLLECTION: "${categoryName}"?\n\n` +
+      `This collection contains ${productCount} product(s).\n\n` +
+      `The following will be permanently deleted:\n` +
+      `• Collection\n` +
+      `• All ${productCount} products\n` +
+      `• All product images and thumbnails\n` +
+      `• Collection cover image\n\n` +
+      `This action cannot be undone. Continue?`
+    );
+
+    if (!confirmed) return;
+
+    setCreatingCategory(true);
+
+    // 3. Collect all product image URLs
+    const imageUrls = [];
+
+    linkedProducts.forEach((item) => {
+      const product = item.data();
+
+      imageUrls.push(
+        product.image,
+        product.mainImage,
+        product.thumbnail,
+        product.medium,
+        ...(product.additionalImages || []),
+        ...(product.additionalThumbnails || []),
+        ...(product.additionalMediumImages || [])
+      );
+    });
+
+    // Remove empty and duplicate URLs
+    const uniqueImageUrls = [
+      ...new Set(imageUrls.filter(Boolean))
+    ];
+
+    // 4. Delete all product documents in Firestore
+    // Firestore allows a maximum of 500 operations per batch.
+    // We use 450 to stay safely below the limit.
+    for (
+      let offset = 0;
+      offset < linkedProducts.length;
+      offset += 450
+    ) {
+      const batch = writeBatch(db);
+
+      linkedProducts
+        .slice(offset, offset + 450)
+        .forEach((item) => {
+          batch.delete(
+            doc(db, PREORDER_COLLECTION, item.id)
+          );
+        });
+
+      await batch.commit();
     }
-    if (!window.confirm(`Delete pre-order collection "${category.title || category.name}"? This cannot be undone.`)) return;
-    try {
-      await deleteDoc(doc(db, PREORDER_CATEGORY_COLLECTION, category.id));
-      await removeStorageUrl(category.image || category.imageUrl);
-      if (categoryId === category.id) setCategoryId("");
-      await loadCategories();
-      setSuccess("Pre-order collection deleted.");
-    } catch (err) {
-      console.error("Could not delete pre-order collection:", err);
-      setError(err.message || "Could not delete this collection.");
+
+    // 5. Delete all product images from Firebase Storage
+    await Promise.all(
+      uniqueImageUrls.map((url) => removeStorageUrl(url))
+    );
+
+    // 6. Delete collection cover image
+    await removeStorageUrl(
+      category.image || category.imageUrl
+    );
+
+    // 7. Delete collection document
+    await deleteDoc(
+      doc(db, PREORDER_CATEGORY_COLLECTION, category.id)
+    );
+
+    // 8. Reset selected collection if it was deleted
+    if (categoryId === category.id) {
+      setCategoryId("");
     }
-  };
+
+    // 9. Remove deleted products from current UI
+    setSavedProducts((current) =>
+      current.filter(
+        (product) => product.categoryId !== category.id
+      )
+    );
+
+    // 10. Refresh collections and product pagination
+    await loadCategories();
+    await loadSavedProducts(true);
+
+    setSuccess(
+      `Collection "${categoryName}" and all ${productCount} associated products deleted successfully.`
+    );
+
+  } catch (err) {
+    console.error(
+      "Could not delete collection and its products:",
+      err
+    );
+
+    setError(
+      err.message ||
+      "Could not completely delete this collection. Please check Firebase and try again."
+    );
+
+    await loadCategories();
+    await loadSavedProducts(true);
+
+  } finally {
+    setCreatingCategory(false);
+  }
+};
+
 
   const loadSavedProducts = async (reset = true) => {
     if (reset) setLoadingSaved(true);

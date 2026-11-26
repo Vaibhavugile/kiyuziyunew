@@ -4,12 +4,13 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   getDocs,
-  orderBy,
   query,
   serverTimestamp,
   setDoc,
   Timestamp,
+  where,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../components/AuthContext';
@@ -100,7 +101,7 @@ const csvCell = (value) => {
   if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
   return `"${text.replace(/"/g, '""')}"`;
 };
-const downloadCsv = (rows) => {
+const downloadCsv = (rows, from, to) => {
   const headers = [
     'Name', 'Phone', 'Email', 'Role', 'Signup', 'Last login',
     'Cart items', 'Cart value', 'Items removed in range', 'Checkout state', 'Last activity',
@@ -109,7 +110,7 @@ const downloadCsv = (rows) => {
   const body = rows.map((r) => [
     customerName(r.user), customerPhone(r.user), r.user.email || '', r.user.role || '',
     dateTime(r.user.createdAt), dateTime(r.user.lastLogin), r.cart?.itemCount || 0,
-    r.cart?.cartValue || 0, removedQuantityInRange(r.events, dateInput(new Date()), dateInput(new Date())),
+    r.cart?.cartValue || 0, removedQuantityInRange(r.events, from, to),
     r.checkout.candidate ? 'Checkout incomplete candidate' : r.checkout.started ? 'Checkout started' : 'No checkout event',
     dateTime(r.lastActivityAt), r.followup?.status || 'Not called',
     dateTime(r.followup?.nextFollowUpAt), r.followup?.assignedTo || '',
@@ -126,6 +127,12 @@ const downloadCsv = (rows) => {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+};
+
+const chunkArray = (items, size = 30) => {
+  const chunks = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
 };
 
 export default function CustomerActivityReport() {
@@ -148,42 +155,100 @@ export default function CustomerActivityReport() {
   });
 
   const load = useCallback(async () => {
-    if (!currentUser) return;
+    if (!currentUser || !from || !to || from > to) return;
+
     setLoading(true);
-    setError('');
+    setError("");
+
     try {
-      // Keep this page protected by your existing admin/staff route and Firestore rules.
-      const [userSnap, cartSnap, eventSnap, followupSnap] = await Promise.all([
-        getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'customerCarts')),
-        getDocs(collection(db, 'customerActivity')),
-        getDocs(query(collection(db, 'customerFollowups'), orderBy('updatedAt', 'desc')))
-          .catch(() => getDocs(collection(db, 'customerFollowups'))),
+      const rangeStart = Timestamp.fromDate(startOfDay(from));
+      const rangeEnd = Timestamp.fromDate(endOfDay(to));
+
+      // Fetch only users and activity recorded during the selected date range.
+      const [signupSnap, loginSnap, createdEventSnap, clientEventSnap] = await Promise.all([
+        getDocs(query(collection(db, "users"),
+          where("createdAt", ">=", rangeStart), where("createdAt", "<", rangeEnd))),
+        getDocs(query(collection(db, "users"),
+          where("lastLogin", ">=", rangeStart), where("lastLogin", "<", rangeEnd))),
+        getDocs(query(collection(db, "customerActivity"),
+          where("createdAt", ">=", rangeStart), where("createdAt", "<", rangeEnd))),
+        getDocs(query(collection(db, "customerActivity"),
+          where("clientTimestamp", ">=", rangeStart), where("clientTimestamp", "<", rangeEnd)))
+          .catch(() => ({ docs: [] })),
       ]);
 
-      const loadedUsers = userSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const userMap = new Map();
+      [...signupSnap.docs, ...loginSnap.docs].forEach((d) =>
+        userMap.set(d.id, { id: d.id, ...d.data() })
+      );
+
+      const eventDocs = new Map();
+      [...createdEventSnap.docs, ...clientEventSnap.docs].forEach((d) => eventDocs.set(d.id, d));
+      const rangeEvents = [...eventDocs.values()].map((d) => ({ id: d.id, ...d.data() }));
+
+      const uidSet = new Set();
+      userMap.forEach((user) => uidSet.add(String(user.uid || user.id)));
+      rangeEvents.forEach((event) => { if (event.uid) uidSet.add(String(event.uid)); });
+      const uids = [...uidSet].filter(Boolean);
+
+      // Resolve users who were active today but did not sign up/log in today.
+      const missingUserIds = uids.filter((uid) => !userMap.has(uid));
+      const userDocResults = await Promise.all(
+        missingUserIds.map((uid) => getDoc(doc(db, "users", uid)).catch(() => null))
+      );
+      userDocResults.forEach((snap) => {
+        if (snap?.exists()) userMap.set(snap.id, { id: snap.id, ...snap.data() });
+      });
+
+      // Query only carts and historical follow-ups belonging to relevant UIDs.
+      const uidChunks = chunkArray(uids, 30);
+      const [cartResults, historicalFollowupResults] = await Promise.all([
+        Promise.all(uidChunks.map((ids) =>
+          getDocs(query(collection(db, "customerCarts"), where("uid", "in", ids)))
+            .catch(() => ({ docs: [] }))
+        )),
+        Promise.all(uidChunks.map((ids) =>
+          getDocs(query(collection(db, "customerFollowups"), where("uid", "in", ids)))
+            .catch(() => ({ docs: [] }))
+        )),
+      ]);
+
       const cartMap = {};
-      cartSnap.docs.forEach((d) => {
+      cartResults.flatMap((snap) => snap.docs).forEach((d) => {
         const cartData = { id: d.id, ...d.data() };
-        // Index by both document ID and stored UID to handle legacy cart snapshots.
         cartMap[d.id] = cartData;
         if (cartData.uid) cartMap[String(cartData.uid)] = cartData;
       });
 
-      const eventMap = {};
-      eventSnap.docs.forEach((d) => {
-        const event = { id: d.id, ...d.data() };
-        if (!event.uid) return;
-        if (!eventMap[event.uid]) eventMap[event.uid] = [];
-        eventMap[event.uid].push(event);
+      // Support legacy cart documents whose document ID is the UID.
+      const legacyCartResults = await Promise.all(
+        uids.filter((uid) => !cartMap[uid]).map((uid) =>
+          getDoc(doc(db, "customerCarts", uid)).catch(() => null)
+        )
+      );
+      legacyCartResults.forEach((snap) => {
+        if (snap?.exists()) {
+          const cartData = { id: snap.id, ...snap.data() };
+          cartMap[snap.id] = cartData;
+          if (cartData.uid) cartMap[String(cartData.uid)] = cartData;
+        }
       });
-      Object.values(eventMap).forEach((list) => list.sort((a, b) =>
-        (eventTime(b)?.getTime() || 0) - (eventTime(a)?.getTime() || 0)));
 
       const followMap = {};
-      followupSnap.docs.forEach((d) => {
+      const currentFollowupResults = await Promise.all(
+        uids.map((uid) => getDoc(doc(db, "customerFollowupCurrent", uid)).catch(() => null))
+      );
+      currentFollowupResults.forEach((snap) => {
+        if (snap?.exists()) {
+          const f = { id: snap.id, ...snap.data() };
+          followMap[String(f.uid || snap.id)] = f;
+        }
+      });
+
+      // Fallback for customers who only have legacy follow-up history.
+      historicalFollowupResults.flatMap((snap) => snap.docs).forEach((d) => {
         const f = { id: d.id, ...d.data() };
-        if (!f.uid) return;
+        if (!f.uid || followMap[f.uid]) return;
         if (!followMap[f.uid] ||
           (asDate(f.updatedAt)?.getTime() || 0) >
           (asDate(followMap[f.uid].updatedAt)?.getTime() || 0)) {
@@ -191,17 +256,27 @@ export default function CustomerActivityReport() {
         }
       });
 
-      setUsers(loadedUsers);
+      const eventMap = {};
+      rangeEvents.forEach((event) => {
+        if (!event.uid) return;
+        const uid = String(event.uid);
+        if (!eventMap[uid]) eventMap[uid] = [];
+        eventMap[uid].push(event);
+      });
+      Object.values(eventMap).forEach((list) => list.sort((a, b) =>
+        (eventTime(b)?.getTime() || 0) - (eventTime(a)?.getTime() || 0)));
+
+      setUsers([...userMap.values()]);
       setCarts(cartMap);
       setEventsByUid(eventMap);
       setFollowups(followMap);
     } catch (e) {
-      console.error('Customer activity report load failed:', e);
-      setError('Could not load customer activity. Check your admin access, Firestore rules, collection names, and browser console.');
+      console.error("Customer activity report load failed:", e);
+      setError("Could not load customer activity. Check Firestore rules, date fields, indexes, and browser console.");
     } finally {
       setLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser, from, to]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -275,14 +350,13 @@ export default function CustomerActivityReport() {
     });
   }, [allRows, from, to, search, activityFilter]);
 
-  const todayStart = startOfDay(today);
-  const tomorrow = dateInput(new Date(Date.now() + 86400000));
-  const todayEnd = startOfDay(tomorrow);
+  const rangeStartDate = startOfDay(from);
+  const rangeEndDate = endOfDay(to);
   const newToday = users.filter((u) => {
-    const d = asDate(u.createdAt); return d && d >= todayStart && d < todayEnd;
+    const d = asDate(u.createdAt); return d && d >= rangeStartDate && d < rangeEndDate;
   }).length;
   const loggedToday = users.filter((u) => {
-    const d = asDate(u.lastLogin); return d && d >= todayStart && d < todayEnd;
+    const d = asDate(u.lastLogin); return d && d >= rangeStartDate && d < rangeEndDate;
   }).length;
   // Summary cards and the cart filter use the same user-linked rows.
   // Orphaned/stale customerCarts documents are not counted as customers.
@@ -297,14 +371,14 @@ export default function CustomerActivityReport() {
   const trackedCartValue = customersWithCart.reduce((sum, r) =>
     sum + Number(r.cart?.cartValue || 0), 0);
   const checkoutStartedToday = Object.values(eventsByUid).flat().filter((e) =>
-    e.type === 'checkout_started' && inRange(eventTime(e), today, today)).length;
+    e.type === 'checkout_started' && inRange(eventTime(e), from, to)).length;
   const incompleteCheckoutCount = allRows.filter((r) => r.checkout.candidate).length;
   const removedQuantityToday = Object.values(eventsByUid).flat().reduce((sum, event) => {
-    if (event.type !== 'cart_items_removed' || !inRange(eventTime(event), today, today)) return sum;
+    if (event.type !== 'cart_items_removed' || !inRange(eventTime(event), from, to)) return sum;
     return sum + Math.max(0, Number(event.details?.removedQuantity || 0));
   }, 0);
   const removalActionsToday = Object.values(eventsByUid).flat().filter((event) =>
-    event.type === 'cart_items_removed' && inRange(eventTime(event), today, today)).length;
+    event.type === 'cart_items_removed' && inRange(eventTime(event), from, to)).length;
 
   const openCustomer = (row) => {
     setSelected(row);
@@ -345,8 +419,9 @@ export default function CustomerActivityReport() {
         createdAt: serverTimestamp(),
       });
       await setDoc(doc(db, 'customerFollowupCurrent', uid), record, { merge: true });
-      await load();
-      setSelected(null);
+      const savedRecord = { ...record, updatedAt: new Date() };
+      setFollowups((current) => ({ ...current, [uid]: savedRecord }));
+      setSelected((current) => current ? { ...current, followup: savedRecord } : current);
     } catch (e) {
       console.error('Saving customer follow-up failed:', e);
       setError('Could not save follow-up. Check Firestore rules for customerFollowups and customerFollowupCurrent.');
@@ -369,7 +444,7 @@ export default function CustomerActivityReport() {
           <button type="button" className="car-btn car-btn-light" onClick={load} disabled={loading}>
             {loading ? 'Refreshing…' : '↻ Refresh'}
           </button>
-          <button type="button" className="car-btn car-btn-primary" onClick={() => downloadCsv(rows)} disabled={!rows.length}>
+          <button type="button" className="car-btn car-btn-primary" onClick={() => downloadCsv(rows, from, to)} disabled={!rows.length}>
             ↓ Export CSV
           </button>
         </div>
@@ -379,14 +454,14 @@ export default function CustomerActivityReport() {
       {from > to && <div className="car-error" role="alert">The “From” date must be on or before the “To” date.</div>}
 
       <section className="car-metrics">
-        <article className="car-metric"><span>New signups today</span><strong>{newToday}</strong><small>Users created today</small></article>
-        <article className="car-metric"><span>Logged in today</span><strong>{loggedToday}</strong><small>Based on users.lastLogin</small></article>
+        <article className="car-metric"><span>New signups in range</span><strong>{newToday}</strong><small>Users created from {from} to {to}</small></article>
+        <article className="car-metric"><span>Logged in in range</span><strong>{loggedToday}</strong><small>Based on users.lastLogin from {from} to {to}</small></article>
         <article className="car-metric"><span>Customers with carts</span><strong>{activeCarts}</strong><small>Latest synced carts</small></article>
         <article className="car-metric"><span>Customers who added to cart</span><strong>{customersWhoAddedInRange}</strong><small>Cart additions from {from} to {to}</small></article>
         <article className="car-metric"><span>Tracked cart value</span><strong>{money(trackedCartValue)}</strong><small>Cart snapshot, not sales</small></article>
-        <article className="car-metric"><span>Checkout started today</span><strong>{checkoutStartedToday}</strong><small>Tracked checkout_started events</small></article>
+        <article className="car-metric"><span>Checkout started in range</span><strong>{checkoutStartedToday}</strong><small>Tracked events from {from} to {to}</small></article>
         <article className="car-metric"><span>Incomplete checkout candidates</span><strong>{incompleteCheckoutCount}</strong><small>Checkout event with no later tracked order</small></article>
-        <article className="car-metric"><span>Items removed from cart today</span><strong>{removedQuantityToday}</strong><small>{removalActionsToday} removal actions recorded</small></article>
+        <article className="car-metric"><span>Items removed from cart in range</span><strong>{removedQuantityToday}</strong><small>{removalActionsToday} removal actions recorded</small></article>
       </section>
 
       <section className="car-panel">

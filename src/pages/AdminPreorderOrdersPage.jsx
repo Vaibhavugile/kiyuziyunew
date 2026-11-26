@@ -290,7 +290,13 @@ export default function AdminPreorderOrdersPage() {
             <section className="apo-detail-section apo-payment-note"><span>◇</span><div><strong>No payment collected</strong><small>This pre-order record does not require payment at checkout.</small></div></section>
             <section className="apo-detail-meta"><div><span>Order document ID</span><code>{selectedOrder.id}</code></div><div><span>Last updated</span><strong>{formatDate(selectedOrder.updatedAt)}</strong></div></section>
           </div>
-          <div className="apo-drawer-footer"><span className="apo-footer-note">Order records are retained for your records.</span><button type="button" className="apo-button apo-button-dark" onClick={() => window.print()}>Print details ↗</button></div>
+          <div className="apo-drawer-footer"><span className="apo-footer-note">Order records are retained for your records.</span><button
+  type="button"
+  className="apo-button apo-button-dark"
+  onClick={() => window.print()}
+>
+  Print details ↗
+</button></div>
         </aside>
       </div>}
 

@@ -1,24 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   auth,
   db,
   doc,
   setDoc,
-  getDoc,
-  RecaptchaVerifier,
   signInAnonymously,
-  // 👇 REQUIRED NEW FIRESTORE IMPORTS
   collection,
   query,
   where,
   getDocs,
-  deleteDoc,
-} from '../firebase';
-import '../styles/LoginPage.css';
-import LogoImage from '../assets/logoj.png';
+} from "../firebase";
+import "../styles/LoginPage.css";
 import { trackMetaEvent } from "../utils/pixels";
 import { trackCustomerActivity } from "../utils/customerActivity";
+
 const countryCodes = [
   { code: "+91", name: "India" },
   { code: "+93", name: "Afghanistan" },
@@ -258,457 +254,565 @@ const countryCodes = [
 ];
 
 
-const FIREBASE_FUNCTION_URL = "https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/sendWhatsappOtp";
+const trackActivitySafely = (activity, details) => {
+  try {
+    Promise.resolve(trackCustomerActivity(activity, details)).catch((error) => {
+      console.warn("Customer activity tracking failed:", error);
+    });
+  } catch (error) {
+    console.warn("Customer activity tracking failed:", error);
+  }
+};
+
+const FIREBASE_FUNCTION_URL =
+  "https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/sendWhatsappOtp";
 
 const LoginPage = () => {
-  const [countryCode, setCountryCode] = useState('+91');
-  const [mobile, setMobile] = useState('');
-  const [otp, setOtp] = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState(null);
+  const navigate = useNavigate();
+
+  const [countryCode, setCountryCode] = useState("+91");
+  const [mobile, setMobile] = useState("");
+  const [otp, setOtp] = useState("");
+  const [generatedOtp, setGeneratedOtp] = useState("");
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isOtpVerified, setIsOtpVerified] = useState(false);
-  const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
+
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // States for Profile Setup
-  const [userName, setUserName] = useState('');
-  const [userAddress, setUserAddress] = useState('');
-  const [userCountry, setUserCountry] = useState(countryCodes[0].name);
-
-  const navigate = useNavigate();
-// Prepare the optional notification prompt after successful login.
-// Any error here must never interrupt authentication.
-const navigateHomeAfterLogin = () => {
-  try {
-    localStorage.setItem('showNotificationPrompt', '1');
-  } catch (error) {
-    console.warn('Could not prepare notification prompt:', error);
-  }
-
-  navigate('/');
-};
-  // State to hold the user object after anonymous sign-in, before profile is created
+  const [userName, setUserName] = useState("");
+  const [userAddress, setUserAddress] = useState("");
+  const [userCountry, setUserCountry] = useState("India");
   const [tempUser, setTempUser] = useState(null);
 
-  useEffect(() => {
-    // Initialize the invisible reCAPTCHA verifier
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      'size': 'invisible',
-    });
-  }, []);
+  const [countrySearch, setCountrySearch] = useState("India (+91)");
+  const [profileCountrySearch, setProfileCountrySearch] = useState("India");
 
-  const generateRandomOtp = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+  // Prevent two submissions before React has rendered the disabled state.
+  const processingRef = React.useRef(false);
+
+  const navigateHomeAfterLogin = () => {
+    try {
+      localStorage.setItem("showNotificationPrompt", "1");
+    } catch (storageError) {
+      console.warn("Could not prepare notification prompt:", storageError);
+    }
+
+    navigate("/", { replace: true });
   };
 
-  const handleSendOtp = async (e) => {
-    e.preventDefault();
-    setError('');
-    setInfo('');
-    setIsProcessing(true);
+  const generateRandomOtp = () =>
+    Math.floor(100000 + Math.random() * 900000).toString();
 
-    if (!mobile) {
-      setError('Please enter your mobile number.');
-      setIsProcessing(false);
+  const normalizeMobileNumber = () => {
+    const dialCode = countryCode.replace(/\D/g, "");
+    const phone = mobile.replace(/\D/g, "");
+    return `+${dialCode}${phone}`;
+  };
+
+  const formatLabel = (country) => `${country.name} (${country.code})`;
+
+  const findCountryByInput = (input) => {
+    const value = input.trim().toLowerCase();
+
+    return countryCodes.find(
+      (country) =>
+        formatLabel(country).toLowerCase() === value ||
+        country.name.toLowerCase() === value ||
+        country.code.replace(/\s/g, "").toLowerCase() ===
+          value.replace(/\s/g, "").toLowerCase()
+    );
+  };
+
+  const handleSendOtp = async (event) => {
+    event.preventDefault();
+
+    if (processingRef.current) return;
+
+    setError("");
+    setInfo("");
+
+    const cleanedMobile = mobile.replace(/\D/g, "");
+
+    if (!cleanedMobile) {
+      setError("Please enter your mobile number.");
       return;
     }
 
-    const fullMobileNumber = `${countryCode}${mobile}`;
+    if (cleanedMobile.length < 6 || cleanedMobile.length > 15) {
+      setError("Please enter a valid mobile number.");
+      return;
+    }
+
+    processingRef.current = true;
+    setIsProcessing(true);
+
+    const fullMobileNumber = normalizeMobileNumber();
     const otpValue = generateRandomOtp();
 
     try {
-      setGeneratedOtp(otpValue);
       setInfo(`Sending OTP to ${fullMobileNumber}...`);
 
-      const myHeaders = new Headers();
-      myHeaders.append("Content-Type", "application/json");
-
-      const raw = JSON.stringify({
-        "integrated_number": "15558299861",
-        "content_type": "template",
-        "payload": {
-          "messaging_product": "whatsapp",
-          "type": "template",
-          "template": {
-            "name": "kiyuotp",
-            "language": { "code": "en", "policy": "deterministic" },
-            "namespace": "60cbb046_c34d_4f04_8c62_2cb720ccf00d",
-            "to_and_components": [{
-              "to": [fullMobileNumber.replace('+', '')],
-              "components": {
-                "body_1": { "type": "text", "value": otpValue },
-                "button_1": {
-                  "subtype": "url",
-                  "type": "text",
-                  "value": otpValue
-                }
-              }
-            }]
-          }
-        }
+      const response = await fetch(FIREBASE_FUNCTION_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          integrated_number: "15558299861",
+          content_type: "template",
+          payload: {
+            messaging_product: "whatsapp",
+            type: "template",
+            template: {
+              name: "kiyuotp",
+              language: {
+                code: "en",
+                policy: "deterministic",
+              },
+              namespace: "60cbb046_c34d_4f04_8c62_2cb720ccf00d",
+              to_and_components: [
+                {
+                  to: [fullMobileNumber.replace(/\D/g, "")],
+                  components: {
+                    body_1: {
+                      type: "text",
+                      value: otpValue,
+                    },
+                    button_1: {
+                      subtype: "url",
+                      type: "text",
+                      value: otpValue,
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        }),
       });
 
-      const requestOptions = {
-        method: 'POST',
-        headers: myHeaders,
-        body: raw,
-        redirect: 'follow'
-      };
-
-      const response = await fetch(FIREBASE_FUNCTION_URL, requestOptions);
       const result = await response.json();
 
-      if (response.ok && result.status === "success") {
-        setIsOtpSent(true);
-
-trackMetaEvent("Lead", {
-  method: "WhatsApp OTP"
-});
-
-setInfo('OTP sent successfully. Please check your WhatsApp.');
-      } else {
-        setError(result.message || 'Failed to send OTP. Please check server logs.');
-        console.error('API Error:', result);
+      if (!response.ok || result.status !== "success") {
+        console.error("WhatsApp OTP API error:", result);
+        throw new Error(
+          result.message || "Could not send OTP. Please try again."
+        );
       }
-    } catch (err) {
-      console.error('Error sending OTP:', err);
-      setError('Failed to send OTP. Network error or function not accessible.');
+
+      // This follows your existing client-generated OTP implementation.
+      // For production security, generate/store/verify OTP on the server.
+      setGeneratedOtp(otpValue);
+      setOtp("");
+      setIsOtpSent(true);
+      setInfo("OTP sent successfully. Please check your WhatsApp.");
+
+      try {
+        trackMetaEvent("Lead", { method: "WhatsApp OTP" });
+      } catch (trackingError) {
+        console.warn("Meta Lead event failed:", trackingError);
+      }
+    } catch (sendError) {
+      console.error("Error sending WhatsApp OTP:", sendError);
+      setError(sendError.message || "Failed to send OTP. Please try again.");
     } finally {
+      processingRef.current = false;
       setIsProcessing(false);
     }
   };
 
-  // 👇 CORRECTED: handleVerifyOtp function checks for profile existence via mobile number
-  // src/pages/LoginPage.jsx
+  const handleVerifyOtp = async (event) => {
+    event.preventDefault();
 
-  // ... (inside the LoginPage component)
+    if (processingRef.current) return;
 
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    setError('');
-    setInfo('');
-    setIsProcessing(true);
+    setError("");
+    setInfo("");
 
-    if (otp !== generatedOtp) {
-      setError('Invalid OTP. Please try again.');
-      setIsProcessing(false);
+    if (String(otp).trim() !== generatedOtp) {
+      setError("Invalid OTP. Please check the OTP and try again.");
       return;
     }
 
+    processingRef.current = true;
+    setIsProcessing(true);
+
     try {
-      setInfo('OTP verified! Checking user status and logging in...');
+      setInfo("OTP verified. Checking your account...");
 
-      const fullMobileNumber = `${countryCode}${mobile}`;
+      const fullMobileNumber = normalizeMobileNumber();
 
-      // 1. Check if a profile with this mobile number already exists in Firestore
-      const usersCollectionRef = collection(db, 'users');
-      const q = query(usersCollectionRef, where("mobile", "==", fullMobileNumber));
-      const querySnapshot = await getDocs(q);
+      // Find an existing profile by the full international mobile number.
+      const usersRef = collection(db, "users");
+      const userQuery = query(
+        usersRef,
+        where("mobile", "==", fullMobileNumber)
+      );
+      const userSnapshot = await getDocs(userQuery);
 
-      // 2. Sign the user into a *new* anonymous session
+      // Your current app uses anonymous Firebase authentication.
       const userCredential = await signInAnonymously(auth);
       const firebaseUser = userCredential.user;
+
       setTempUser(firebaseUser);
 
-      if (!querySnapshot.empty) {
-        // --- RETURNING USER (LOGIN) - MIGRATION LOGIC ---
-        const existingDoc = querySnapshot.docs[0];
-        const oldDocId = existingDoc.id;
-        const oldDocData = existingDoc.data();
+      if (!userSnapshot.empty) {
+        // RETURNING USER
+        const existingDoc = userSnapshot.docs[0];
+        const existingData = existingDoc.data();
 
-        // This is the fix: We create a NEW document where the Doc ID == new UID
-        const newDocRef = doc(db, 'users', firebaseUser.uid);
-        await setDoc(newDocRef, {
-          ...oldDocData, // Copy all existing user data (name, address, role, etc.)
-          uid: firebaseUser.uid, // Ensure the uid field is the new one
-          lastLogin: new Date(),
-        });
+        // Copy the existing profile to the currently authenticated UID.
+        // Do not delete the old document here; that can cause data loss if
+        // other collections still reference its old UID.
+        const newUserRef = doc(db, "users", firebaseUser.uid);
 
-        // Best-effort activity tracking; never block successful login.
-        await trackCustomerActivity('login', {
-          method: 'WhatsApp OTP',
-        });
+        await setDoc(
+          newUserRef,
+          {
+            ...existingData,
+            uid: firebaseUser.uid,
+            mobile: fullMobileNumber,
+            lastLogin: new Date(),
+          },
+          { merge: true }
+        );
 
-        // Delete the OLD document (only if the IDs are different)
-        if (oldDocId !== firebaseUser.uid) {
-          const oldDocRef = doc(db, 'users', oldDocId);
-          await deleteDoc(oldDocRef);
-          console.log(`Migrated profile from old Doc ID (${oldDocId}) to new UID Doc ID (${firebaseUser.uid}).`);
+        // Analytics/activity tracking must never prevent successful login.
+        try {
+          trackMetaEvent("Login", { method: "WhatsApp OTP" });
+        } catch (trackingError) {
+          console.warn("Meta Login event failed:", trackingError);
         }
 
-        setInfo('Welcome back! Logging in...');
+        trackActivitySafely("login", {
+          method: "WhatsApp OTP",
+        });
 
-trackMetaEvent("Login", {
-  method: "WhatsApp OTP"
-});
-
-navigateHomeAfterLogin();
-
+        setInfo("Welcome back! Redirecting to homepage...");
+        navigateHomeAfterLogin();
       } else {
-        // --- NEW USER (SIGN UP) ---
-        setInfo('Verified! Now, please complete your profile.');
+        // NEW USER: create the initial profile, then show profile setup.
+        const newUserRef = doc(db, "users", firebaseUser.uid);
 
-        // Create the initial minimal document using the new anonymous UID (Doc ID == UID)
-        const newUserRef = doc(db, 'users', firebaseUser.uid);
         await setDoc(newUserRef, {
           uid: firebaseUser.uid,
           mobile: fullMobileNumber,
-          role: 'retailer',
+          role: "retailer",
           createdAt: new Date(),
         });
 
-        setIsOtpVerified(true); // Move to profile setup screen
+        setIsOtpVerified(true);
+        setInfo("OTP verified. Please complete your profile.");
       }
-
-    } catch (err) {
-      console.error('Error during login/sign-up:', err);
-      setError('An error occurred during sign-in. Please try again.');
+    } catch (verifyError) {
+      console.error("OTP verification/login error:", verifyError);
+      setError(
+        verifyError.message ||
+          "We could not complete sign-in. Please try again."
+      );
     } finally {
+      processingRef.current = false;
       setIsProcessing(false);
     }
   };
 
-  // 👇 handleProfileSetup function (unchanged from the working version)
-  const handleProfileSetup = async (e) => {
-    e.preventDefault();
-    setError('');
-    setInfo('');
-    setIsProcessing(true);
+  const handleProfileSetup = async (event) => {
+    event.preventDefault();
 
-    if (!userName || !userAddress || !userCountry) {
-      setError('All profile fields are required.');
-      setIsProcessing(false);
+    if (processingRef.current) return;
+
+    setError("");
+    setInfo("");
+
+    if (!userName.trim() || !userAddress.trim() || !userCountry.trim()) {
+      setError("Please complete all profile fields.");
       return;
     }
 
     if (!tempUser) {
-      setError('Authentication session lost. Please restart the process.');
-      setIsProcessing(false);
+      setError("Your sign-in session has expired. Please restart login.");
       return;
     }
 
+    processingRef.current = true;
+    setIsProcessing(true);
+
     try {
-      setInfo('Saving profile...');
-      // Use the UID from the anonymous session
-      const userRef = doc(db, 'users', tempUser.uid);
+      setInfo("Saving your profile...");
 
-      // Update the existing document with full profile details
-      await setDoc(userRef, {
-        name: userName,
-        country: userCountry,
-        address: userAddress,
-      }, { merge: true });
+      const userRef = doc(db, "users", tempUser.uid);
 
-      // Best-effort activity tracking after the profile is saved.
-      await trackCustomerActivity('signup_completed', {
-        method: 'WhatsApp OTP',
+      await setDoc(
+        userRef,
+        {
+          name: userName.trim(),
+          country: userCountry,
+          address: userAddress.trim(),
+          mobile: normalizeMobileNumber(),
+          uid: tempUser.uid,
+          role: "retailer",
+        },
+        { merge: true }
+      );
+
+      try {
+        trackMetaEvent("CompleteRegistration", { status: "Success" });
+      } catch (trackingError) {
+        console.warn("Meta registration event failed:", trackingError);
+      }
+
+      trackActivitySafely("signup_completed", {
+        method: "WhatsApp OTP",
       });
 
-      setInfo('Sign up successful! Redirecting...');
-
-trackMetaEvent("CompleteRegistration", {
-  status: "Success"
-});
-
-setTimeout(() => navigateHomeAfterLogin(), 1000);
-
-    } catch (err) {
-      console.error('Error during profile setup:', err);
-      setError('An error occurred while saving your profile. Please try again.');
+      setInfo("Registration successful. Redirecting...");
+      navigateHomeAfterLogin();
+    } catch (profileError) {
+      console.error("Profile setup error:", profileError);
+      setError(
+        profileError.message ||
+          "Could not save your profile. Please try again."
+      );
     } finally {
+      processingRef.current = false;
       setIsProcessing(false);
     }
-  }
-  // --- Helpers for formatting and matching ---
-  const formatLabel = (cc) => `${cc.name} (${cc.code})`;
-
-  const findCountryByInput = (input) => {
-    const i = input.trim().toLowerCase();
-    return countryCodes.find((cc) =>
-      formatLabel(cc).toLowerCase() === i ||
-      cc.name.toLowerCase() === i ||
-      cc.code.replace(/\s/g, '') === i.replace(/\s/g, '')
-    );
   };
 
-  // --- Local search text states for the autocompletes ---
-  const [countrySearch, setCountrySearch] = useState(() => {
-    // initialize with current selected code
-    const current = countryCodes.find((c) => c.code === countryCode);
-    return current ? formatLabel(current) : "";
-  });
+  const handleChangeNumber = () => {
+    if (isProcessing) return;
 
-  const [profileCountrySearch, setProfileCountrySearch] = useState(() => {
-    const current = countryCodes.find((c) => c.name === userCountry);
-    return current ? current.name : "";
-  });
+    setIsOtpSent(false);
+    setIsOtpVerified(false);
+    setOtp("");
+    setGeneratedOtp("");
+    setError("");
+    setInfo("");
+  };
 
-  // keep search boxes in sync if external state changes
   useEffect(() => {
-    const current = countryCodes.find((c) => c.code === countryCode);
-    if (current) setCountrySearch(formatLabel(current));
+    const selected = countryCodes.find(
+      (country) => country.code === countryCode
+    );
+    if (selected) setCountrySearch(formatLabel(selected));
   }, [countryCode]);
 
   useEffect(() => {
-    const current = countryCodes.find((c) => c.name === userCountry);
-    if (current) setProfileCountrySearch(current.name);
+    const selected = countryCodes.find(
+      (country) => country.name === userCountry
+    );
+    if (selected) setProfileCountrySearch(selected.name);
   }, [userCountry]);
 
-  // 👇 renderForm function (unchanged from the working version)
   const renderForm = () => {
     if (!isOtpSent) {
-      // Form to get mobile number and send OTP
       return (
         <form onSubmit={handleSendOtp}>
           <h2>Login or Sign Up</h2>
+
           <div className="form-group">
-    <label htmlFor="country-code">Country</label>
-    <input
-        id="country-code"
-        list="country-code-list"
-        value={countrySearch}
-        onChange={(e) => {
-            const val = e.target.value;
-            setCountrySearch(val);
-            const match = findCountryByInput(val);
-            if (match) setCountryCode(match.code);
-        }}
-        placeholder="Type country name or code (e.g., India or +91)"
-        disabled={isProcessing}
-        className="input"
-    />
+            <label htmlFor="country-code">Country</label>
+            <input
+              id="country-code"
+              list="country-code-list"
+              value={countrySearch}
+              onChange={(event) => {
+                const value = event.target.value;
+                setCountrySearch(value);
 
-    <datalist id="country-code-list">
-        {countryCodes.map((cc) => (
-            <option key={cc.code} value={formatLabel(cc)} />
-        ))}
-    </datalist>
+                const match = findCountryByInput(value);
+                if (match) setCountryCode(match.code);
+              }}
+              placeholder="Type country name or code"
+              disabled={isProcessing}
+              className="input"
+              autoComplete="country-name"
+            />
 
-    <small className="hint">
-        Selected code: <strong>{countryCode}</strong>
-    </small>
+            <datalist id="country-code-list">
+              {countryCodes.map((country, index) => (
+                <option
+                  key={`${country.code}-${country.name}-${index}`}
+                  value={formatLabel(country)}
+                />
+              ))}
+            </datalist>
 
-</div>
+            <small className="hint">
+              Selected code: <strong>{countryCode}</strong>
+            </small>
+          </div>
+
           <div className="form-group">
             <label htmlFor="mobile">Mobile Number</label>
             <input
               type="tel"
               id="mobile"
               value={mobile}
-              onChange={(e) => setMobile(e.target.value)}
+              onChange={(event) => setMobile(event.target.value)}
               placeholder="Enter mobile number"
               required
               disabled={isProcessing}
+              autoComplete="tel"
+              inputMode="numeric"
             />
           </div>
-          <button type="submit" className="login-button" disabled={isProcessing}>
-            {isProcessing ? 'Sending OTP...' : 'Send OTP'}
-          </button>
-        </form>
-      );
-    } else if (isOtpSent && !isOtpVerified) {
-      // Form to verify OTP
-      return (
-        <form onSubmit={handleVerifyOtp}>
-          <h2>Verify OTP</h2>
-          <p>An OTP has been sent to {mobile}. Please enter it below.</p>
-          <div className="form-group">
-            <label htmlFor="otp">OTP</label>
-            <input
-              type="text"
-              id="otp"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="Enter 6-digit OTP"
-              required
-              disabled={isProcessing}
-            />
-          </div>
-          <button type="submit" className="login-button" disabled={isProcessing}>
-            {isProcessing ? 'Verifying...' : 'Verify & Proceed'}
-          </button>
-        </form>
-      );
-    } else {
-      // Profile Setup Form
-      return (
-        <form onSubmit={handleProfileSetup}>
-          <h2>Complete Your Profile</h2>
-          <p>One final step to get started!</p>
-          <div className="form-group">
-            <label htmlFor="name">Full Name</label>
-            <input
-              type="text"
-              id="name"
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-              placeholder="Your full name"
-              required
-              disabled={isProcessing}
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="address">Address</label>
-            <input
-              type="text"
-              id="address"
-              value={userAddress}
-              onChange={(e) => setUserAddress(e.target.value)}
-              placeholder="Your full address"
-              required
-              disabled={isProcessing}
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="profile-country">Country</label>
-            <input
-              id="profile-country"
-              list="profile-country-list"
-              value={profileCountrySearch}
-              onChange={(e) => {
-                const val = e.target.value;
-                setProfileCountrySearch(val);
-                const match = findCountryByInput(val);
-                if (match) setUserCountry(match.name);
-              }}
-              placeholder="Start typing your country"
-              disabled={isProcessing}
-              className="input"
-            />
 
-            <datalist id="profile-country-list">
-              {countryCodes.map((cc) => (
-                <option key={cc.code} value={cc.name} />
-              ))}
-            </datalist>
-
-          </div>
-          <button type="submit" className="login-button" disabled={isProcessing}>
-            {isProcessing ? 'Saving...' : 'Finish Sign Up & Login'}
+          <button
+            type="submit"
+            className="login-button"
+            disabled={isProcessing}
+          >
+            {isProcessing ? "Sending OTP..." : "Send OTP"}
           </button>
         </form>
       );
     }
+
+    if (isOtpSent && !isOtpVerified) {
+      return (
+        <form onSubmit={handleVerifyOtp}>
+          <h2>Verify OTP</h2>
+          <p>
+            An OTP has been sent to <strong>{normalizeMobileNumber()}</strong>.
+          </p>
+
+          <div className="form-group">
+            <label htmlFor="otp">6-digit OTP</label>
+            <input
+              type="text"
+              id="otp"
+              value={otp}
+              onChange={(event) =>
+                setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
+              }
+              placeholder="Enter 6-digit OTP"
+              required
+              disabled={isProcessing}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="login-button"
+            disabled={isProcessing || otp.length !== 6}
+          >
+            {isProcessing ? "Verifying..." : "Verify & Login"}
+          </button>
+
+          <button
+            type="button"
+            className="login-button"
+            onClick={handleChangeNumber}
+            disabled={isProcessing}
+          >
+            Change Mobile Number
+          </button>
+        </form>
+      );
+    }
+
+    return (
+      <form onSubmit={handleProfileSetup}>
+        <h2>Complete Your Profile</h2>
+        <p>One final step to get started!</p>
+
+        <div className="form-group">
+          <label htmlFor="name">Full Name</label>
+          <input
+            type="text"
+            id="name"
+            value={userName}
+            onChange={(event) => setUserName(event.target.value)}
+            placeholder="Your full name"
+            required
+            disabled={isProcessing}
+            autoComplete="name"
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="address">Address</label>
+          <input
+            type="text"
+            id="address"
+            value={userAddress}
+            onChange={(event) => setUserAddress(event.target.value)}
+            placeholder="Your full address"
+            required
+            disabled={isProcessing}
+            autoComplete="street-address"
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="profile-country">Country</label>
+          <input
+            id="profile-country"
+            list="profile-country-list"
+            value={profileCountrySearch}
+            onChange={(event) => {
+              const value = event.target.value;
+              setProfileCountrySearch(value);
+
+              const match = findCountryByInput(value);
+              if (match) setUserCountry(match.name);
+            }}
+            placeholder="Start typing your country"
+            disabled={isProcessing}
+            className="input"
+            autoComplete="country-name"
+          />
+
+          <datalist id="profile-country-list">
+            {countryCodes.map((country, index) => (
+              <option
+                key={`${country.name}-${index}`}
+                value={country.name}
+              />
+            ))}
+          </datalist>
+        </div>
+
+        <button
+          type="submit"
+          className="login-button"
+          disabled={isProcessing}
+        >
+          {isProcessing ? "Saving..." : "Finish Sign Up & Login"}
+        </button>
+      </form>
+    );
   };
 
   return (
     <div className="login-page-container">
       <div className="login-image-section">
-        {/* 👇 REPLACE THIS DIV CONTENT */}
-        
-        {/* 👆 WITH THIS */}
-
+        {/* Keep your existing login artwork/background styling here. */}
       </div>
+
       <div className="login-form-section">
         <div className="login-container">
           <h1>Welcome</h1>
-          {error && <p className="error-message">{error}</p>}
-          {info && <p className="info-message">{info}</p>}
+
+          {error && (
+            <p className="error-message" role="alert">
+              {error}
+            </p>
+          )}
+
+          {info && (
+            <p className="info-message" role="status">
+              {info}
+            </p>
+          )}
 
           {renderForm()}
-
-          <div id="recaptcha-container"></div>
         </div>
       </div>
     </div>
